@@ -5,6 +5,7 @@ import requests
 import urllib.parse
 import webview
 import json
+import webbrowser
 from html.parser import HTMLParser
 
 try:
@@ -19,7 +20,7 @@ def load_db():
         try:
             with open(DATA_FILE, 'r') as f: return json.load(f)
         except: pass
-    return {"memory": "", "sessions": [], "settings": {"lang": "en", "url": "http://localhost:11434", "token": "", "model": "qwen2.5-coder:14b"}}
+    return {"memory": "", "sessions": [], "settings": {"lang": "it", "url": "http://localhost:11434", "token": "", "model": "qwen2.5-coder:14b"}}
 
 def save_db(data):
     with open(DATA_FILE, 'w') as f: json.dump(data, f, indent=2)
@@ -30,7 +31,7 @@ class AgentAPI:
         self.stop_flag = False
         self.db = load_db()
         if "settings" not in self.db:
-            self.db["settings"] = {"lang": "en", "url": "http://localhost:11434", "token": "", "model": "qwen2.5-coder:14b"}
+            self.db["settings"] = {"lang": "it", "url": "http://localhost:11434", "token": "", "model": "qwen2.5-coder:14b"}
         if "model" not in self.db["settings"]:
             self.db["settings"]["model"] = "qwen2.5-coder:14b"
         self.current_cwd = os.getcwd()
@@ -42,13 +43,20 @@ class AgentAPI:
         self.stop_flag = True
         return "Generation stopped by user."
 
+    def open_external_url(self, url):
+        """Apre un URL nel browser predefinito del sistema operativo."""
+        try:
+            webbrowser.open(url)
+            return True
+        except: return False
+
     # --- SETTINGS E OLLAMA CONFIG ---
     def get_settings(self): return self.db.get("settings", {})
     
     def save_settings(self, lang, url, token, model):
         self.db["settings"] = {"lang": lang, "url": url, "token": token, "model": model}
         save_db(self.db)
-        return "Settings saved successfully."
+        return "Settings saved."
 
     def _get_ollama_config(self):
         s = self.db.get("settings", {})
@@ -58,7 +66,7 @@ class AgentAPI:
         if token: headers["Authorization"] = f"Bearer {token}"
         return base_url, headers
 
-    # --- GESTIONE MODELLI OLLAMA ---
+    # --- GESTIONE MODELLI OLLAMA (API) ---
     def get_models(self):
         base_url, headers = self._get_ollama_config()
         try:
@@ -66,9 +74,8 @@ class AgentAPI:
             if res.status_code == 200:
                 models = [m["name"] for m in res.json().get("models", [])]
                 return {"success": True, "models": models}
-            return {"success": False, "error": f"Ollama HTTP {res.status_code}"}
-        except Exception as e:
-            return {"success": False, "error": "Cannot connect to Ollama."}
+            return {"success": False, "error": f"HTTP {res.status_code}"}
+        except Exception: return {"success": False, "error": "Cannot connect to Ollama."}
 
     def delete_model(self, model_name):
         base_url, headers = self._get_ollama_config()
@@ -88,8 +95,7 @@ class AgentAPI:
                     status = data.get("status", "Downloading...")
                     self._window.evaluate_js(f"window.updatePullProgress({json.dumps(status)})")
             return {"success": True}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
+        except Exception as e: return {"success": False, "error": str(e)}
 
     # --- SESSIONI E MEMORIA ---
     def get_sessions(self): return self.db.get("sessions", [])

@@ -76,29 +76,23 @@
     #action-badge { display: none; background: var(--warn); color: black; font-size: 11px; padding: 4px 10px; border-radius: 12px; font-weight: bold; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0% {opacity: 0.7;} 50% {opacity: 1;} 100% {opacity: 0.7;} }
 
-    /* Modale Impostazioni & Gestione Modelli */
+    /* Modale Impostazioni */
     #settingsModal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 100; justify-content: center; align-items: center;}
-    .modal-content { background: var(--bg-panel); width: 440px; padding: 25px; border-radius: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 15px;}
+    .modal-content { background: var(--bg-panel); width: 460px; padding: 25px; border-radius: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 15px;}
     .modal-content h2 { font-size: 18px; margin-bottom: 5px; color: var(--text); }
     .modal-content label { font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;}
     .modal-content input, .modal-content select { background: var(--bg-dark); color: var(--text); border: 1px solid var(--border-color); padding: 10px; border-radius: 6px; outline: none;}
     .modal-content input:focus, .modal-content select:focus { border-color: var(--accent); }
     
     .flex-row { display: flex; gap: 10px; align-items: center; }
-    
     .icon-btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--border-color); border-radius: 6px; padding: 0 12px; cursor: pointer; height: 38px; display: flex; align-items: center; transition:0.2s;}
     .icon-btn-danger:hover { background: #2e1619; border-color: var(--danger); }
-    
-    /* Nuovo Bottone Info (i) */
     .icon-btn-info { background: transparent; color: var(--info); border: 1px solid var(--border-color); border-radius: 6px; padding: 0 12px; cursor: pointer; height: 38px; display: flex; align-items: center; transition: 0.2s;}
     .icon-btn-info:hover { background: #0d1e36; border-color: var(--info); }
-    
-    /* Box Info Requisiti */
     #modelInfoBox { display:none; background: #010409; border: 1px solid var(--border-color); padding: 12px; border-radius: 6px; font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-top: -5px;}
     
-    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;}
-    .modal-actions button { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;}
-    .btn-cancel { background: transparent; color: var(--text); border: 1px solid var(--border-color) !important;}
+    .modal-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;}
+    .btn-cancel { background: transparent; color: var(--text); border: 1px solid var(--border-color) !important; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold;}
     .btn-cancel:hover { background: #21262d; }
   </style>
 </head>
@@ -106,27 +100,27 @@
   
   <div id="sidebar">
     <div>
-      <div class="side-header"><button class="new-chat-btn" onclick="startNewSession()">+ New Chat</button></div>
+      <div class="side-header"><button class="new-chat-btn" onclick="startNewSession()" data-i18n="newChat">+ New Chat</button></div>
       <div id="session-list"></div>
     </div>
-    <div class="settings-btn" onclick="openSettings()"><span class="material-symbols-outlined">settings</span> Settings</div>
+    <div class="settings-btn" onclick="openSettings()"><span class="material-symbols-outlined">settings</span> <span data-i18n="settings">Settings</span></div>
   </div>
 
   <div id="main-wrap">
     <header>
       <div style="display: flex; gap: 12px; align-items: center; font-weight: bold; font-size: 16px;">
-        Codex Agent Workspace <span class="badge" id="model-badge">...</span> <span id="action-badge">⚙️ Working...</span>
+        Codex Agent Workspace <span class="badge" id="model-badge">...</span> <span id="action-badge" data-i18n="working">⚙️ Working...</span>
       </div>
       <div>
         <span id="cwd-display" style="font-size: 12px; color: var(--text-muted); margin-right: 15px; font-family: monospace;"></span>
-        <button class="file-btn" style="width:auto; padding: 0 10px; border-radius:6px; border:1px solid var(--border-color);" onclick="toggleTerm()">Terminal</button>
+        <button class="file-btn" style="width:auto; padding: 0 10px; border-radius:6px; border:1px solid var(--border-color);" onclick="toggleTerm()" data-i18n="terminal">Terminal</button>
       </div>
     </header>
     
     <main>
       <div id="chat-area"></div>
       <div id="terminal-panel">
-        <div class="terminal-header"><span>ReAct Execution</span><span style="cursor:pointer" onclick="document.getElementById('terminal-log').innerHTML=''">Clear</span></div>
+        <div class="terminal-header"><span data-i18n="reactExec">ReAct Execution</span><span style="cursor:pointer" onclick="document.getElementById('terminal-log').innerHTML=''" data-i18n="clear">Clear</span></div>
         <div id="terminal-log">// Terminal connected.</div>
       </div>
     </main>
@@ -135,34 +129,44 @@
       <div class="input-row">
         <button class="file-btn" onclick="attachFile()"><span class="material-symbols-outlined">attach_file</span></button>
         <textarea id="promptInput" placeholder="Ask Codex to explore repos, read web docs, or fix bugs..."></textarea>
-        <button id="mainBtn" class="action-btn send" onclick="handleBtnClick()">Send</button>
+        <button id="mainBtn" class="action-btn send" onclick="handleBtnClick()" data-i18n="send">Send</button>
       </div>
     </footer>
 
     <!-- SETTINGS & MODEL MANAGER MODAL -->
     <div id="settingsModal">
       <div class="modal-content">
-        <h2>Settings & Models</h2>
+        <h2 data-i18n="settingsTitle">Settings & Models</h2>
         
-        <label>Active Model</label>
+        <label data-i18n="activeModel">Active Model</label>
         <div class="flex-row">
-          <select id="setModel" style="flex:1;" onchange="if(document.getElementById('modelInfoBox').style.display==='block') updateModelInfoBox();"></select>
-          <!-- Pulsante INFO aggiunto qui -->
-          <button class="icon-btn-info" onclick="toggleModelInfo()" title="Model Requirements"><span class="material-symbols-outlined" style="font-size:18px;">info</span></button>
+          <select id="setModel" style="flex:1;"></select>
           <button class="icon-btn-danger" onclick="deleteActiveModel()" title="Delete Model"><span class="material-symbols-outlined" style="font-size:18px;">delete</span></button>
         </div>
         
-        <!-- Box Requisiti Dinamico -->
-        <div id="modelInfoBox"></div>
-
-        <label style="margin-top:5px;">Install New Model</label>
+        <label style="margin-top:5px;" data-i18n="installNew">Install New Model</label>
         <div class="flex-row">
-          <input type="text" id="newModelName" placeholder="e.g. llama3.1:8b" style="flex:1;">
-          <button class="action-btn send" style="height:38px; min-width:80px; font-size: 12px;" onclick="downloadModel()">Download</button>
+          <select id="newModelSelect" style="flex:1;" onchange="handleNewModelSelect()">
+            <option value="qwen2.5-coder:1.5b">qwen2.5-coder:1.5b (1.5B - Very Light)</option>
+            <option value="qwen2.5-coder:3b">qwen2.5-coder:3b (3B - Light)</option>
+            <option value="llama3.2:3b">llama3.2:3b (3B - Fast)</option>
+            <option value="qwen2.5-coder:7b">qwen2.5-coder:7b (7B - Medium)</option>
+            <option value="llama3.1:8b">llama3.1:8b (8B - Versatile)</option>
+            <option value="qwen2.5-coder:14b">qwen2.5-coder:14b (14B - Advanced)</option>
+            <option value="deepseek-r1:14b">deepseek-r1:14b (14B - Reasoning)</option>
+            <option value="devstral:24b">devstral:24b (24B - Heavy SWE)</option>
+            <option value="llama3.1:70b">llama3.1:70b (70B - Enterprise)</option>
+            <option value="custom">-- Custom Name... --</option>
+          </select>
+          <input type="text" id="customModelName" placeholder="model:tag" style="display:none; flex:1;">
+          
+          <button class="icon-btn-info" onclick="toggleModelInfo()" title="Requirements"><span class="material-symbols-outlined" style="font-size:18px;">info</span></button>
+          <button class="action-btn send" style="height:38px; min-width:80px; font-size: 12px;" onclick="downloadModel()" data-i18n="downloadBtn">Download</button>
         </div>
+        <div id="modelInfoBox"></div>
         <div id="pullStatus" style="font-size: 11px; color: var(--warn); font-weight:bold;"></div>
 
-        <label style="margin-top: 10px;">Response Language</label>
+        <label style="margin-top: 10px;" data-i18n="langLabel">Response & UI Language</label>
         <select id="setLang">
           <option value="en">English</option>
           <option value="it">Italiano</option>
@@ -170,21 +174,82 @@
           <option value="fr">Français</option>
         </select>
         
-        <label style="margin-top: 10px;">Ollama URL / API Auth</label>
+        <label style="margin-top: 10px;" data-i18n="urlAuth">Ollama URL / API Auth</label>
         <div class="flex-row">
           <input type="text" id="setUrl" placeholder="http://localhost:11434" style="flex:2;">
           <input type="password" id="setToken" placeholder="API Key" style="flex:1;">
         </div>
         
         <div class="modal-actions">
-          <button class="btn-cancel" onclick="closeSettings()">Cancel</button>
-          <button class="action-btn send" style="height:35px; min-width:80px;" onclick="saveSettings()">Save Changes</button>
+          <button class="action-btn" style="background:#000; height:35px; font-size:12px; border: 1px solid var(--border-color); color:white;" onclick="window.pywebview.api.open_external_url('https://ollama.com/')">
+            <span class="material-symbols-outlined" style="font-size:16px; margin-right:5px;">link</span> <span data-i18n="ollamaAcc">Ollama Account</span>
+          </button>
+          <div style="display:flex; gap:10px;">
+            <button class="btn-cancel" onclick="closeSettings()" data-i18n="cancel">Cancel</button>
+            <button class="action-btn send" style="height:35px; min-width:80px;" onclick="saveSettings()" data-i18n="save">Save</button>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
   <script>
+    // --- TRADUZIONI UI ---
+    const i18n = {
+      en: {
+        newChat: "+ New Chat", settings: "Settings", terminal: "Terminal", clear: "Clear",
+        placeholder: "Ask Codex to explore repos, read web docs, or fix bugs...",
+        send: "Send", followUp: "Follow Up", stop: "Stop", reactExec: "ReAct Execution",
+        working: "⚙️ Working...", copied: "Copied!", copyMd: "Copy Markdown", regen: "Regenerate",
+        settingsTitle: "Settings & Models", activeModel: "Active Model", installNew: "Install New Model",
+        downloadBtn: "Download", langLabel: "Response & UI Language", urlAuth: "Ollama URL / API Auth",
+        ollamaAcc: "Ollama Account", cancel: "Cancel", save: "Save"
+      },
+      it: {
+        newChat: "+ Nuova Chat", settings: "Impostazioni", terminal: "Terminale", clear: "Pulisci",
+        placeholder: "Chiedi a Codex di esplorare repo, leggere web, o sistemare codice...",
+        send: "Invia", followUp: "Follow Up", stop: "Ferma", reactExec: "Esecuzione ReAct",
+        working: "⚙️ Elaborazione...", copied: "Copiato!", copyMd: "Copia Markdown", regen: "Rigenera",
+        settingsTitle: "Impostazioni e Modelli", activeModel: "Modello Attivo", installNew: "Installa Nuovo Modello",
+        downloadBtn: "Scarica", langLabel: "Lingua Risposte e Interfaccia", urlAuth: "URL Ollama / API Auth",
+        ollamaAcc: "Account Ollama", cancel: "Annulla", save: "Salva"
+      },
+      es: {
+        newChat: "+ Nuevo Chat", settings: "Ajustes", terminal: "Terminal", clear: "Limpiar",
+        placeholder: "Pide a Codex que explore repos, lea webs o arregle código...",
+        send: "Enviar", followUp: "Follow Up", stop: "Detener", reactExec: "Ejecución ReAct",
+        working: "⚙️️ Trabajando...", copied: "¡Copiado!", copyMd: "Copiar Markdown", regen: "Regenerar",
+        settingsTitle: "Ajustes y Modelos", activeModel: "Modelo Activo", installNew: "Instalar Nuevo Modelo",
+        downloadBtn: "Descargar", langLabel: "Idioma de Respuesta e Interfaz", urlAuth: "URL Ollama / API Auth",
+        ollamaAcc: "Cuenta Ollama", cancel: "Cancelar", save: "Guardar"
+      },
+      fr: {
+        newChat: "+ Nouveau Chat", settings: "Paramètres", terminal: "Terminal", clear: "Effacer",
+        placeholder: "Demandez à Codex d'explorer des dépôts, lire le web, ou corriger du code...",
+        send: "Envoyer", followUp: "Follow Up", stop: "Arrêter", reactExec: "Exécution ReAct",
+        working: "⚙️ En cours...", copied: "Copié !", copyMd: "Copier Markdown", regen: "Régénérer",
+        settingsTitle: "Paramètres et Modèles", activeModel: "Modèle Actif", installNew: "Installer Nouveau Modèle",
+        downloadBtn: "Télécharger", langLabel: "Langue de Réponse et Interface", urlAuth: "URL Ollama / API Auth",
+        ollamaAcc: "Compte Ollama", cancel: "Annuler", save: "Enregistrer"
+      }
+    };
+    
+    let currentLang = 'en';
+
+    function applyTranslations(lang) {
+      currentLang = lang;
+      document.querySelectorAll("[data-i18n]").forEach(el => {
+        const key = el.getAttribute("data-i18n");
+        if (i18n[lang] && i18n[lang][key]) {
+          if(el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') el.placeholder = i18n[lang][key];
+          else if (el.childNodes.length > 0 && el.childNodes[el.childNodes.length-1].nodeType === 3) {
+            el.childNodes[el.childNodes.length-1].nodeValue = " " + i18n[lang][key];
+          } else el.innerText = i18n[lang][key];
+        }
+      });
+      updateBtnState(); // Aggiorna il testo del pulsante Send/Stop
+    }
+
     marked.setOptions({
       highlight: function(code, lang) {
         if (lang && hljs.getLanguage(lang)) return hljs.highlight(code, { language: lang }).value;
@@ -196,40 +261,52 @@
     let history = [], sessionId = Date.now().toString(), isGenerating = false, autoRetryCount = 0, rawStorage = {}; 
 
     window.addEventListener('pywebviewready', async () => { 
+      const s = await window.pywebview.api.get_settings();
+      applyTranslations(s.lang || 'en');
       loadSessions(); updateCWD(); updateHeaderBadge();
     });
 
-    // --- LOGICA REQUISITI MODELLI (INFO BOX) ---
+    // --- LOGICA REQUISITI MODELLI ---
     const explicitSpecs = {
-      "qwen2.5-coder:14b": { min: "10GB VRAM / 16GB RAM", rec: "16GB VRAM (e.g., RTX 4080)", desc: "Excellent coding model with native tool calling." },
-      "qwen2.5-coder:7b": { min: "6GB VRAM / 8GB RAM", rec: "8GB VRAM (e.g., RTX 3060/4060)", desc: "Fast and lightweight coding model." },
+      "qwen2.5-coder:1.5b": { min: "2GB VRAM", rec: "4GB VRAM", desc: "Extremely lightweight. Perfect for low-end PCs." },
+      "qwen2.5-coder:3b": { min: "4GB VRAM", rec: "6GB VRAM", desc: "Lightweight, good for basic scripting." },
+      "llama3.2:3b": { min: "4GB VRAM", rec: "6GB VRAM", desc: "Fast reasoning on small hardware." },
+      "qwen2.5-coder:7b": { min: "6GB VRAM / 8GB RAM", rec: "8GB VRAM (e.g., RTX 3060/4060)", desc: "Fast and solid coding model." },
       "llama3.1:8b": { min: "6GB VRAM / 8GB RAM", rec: "8GB VRAM", desc: "Fast and versatile for general tasks and chats." },
+      "qwen2.5-coder:14b": { min: "10GB VRAM / 16GB RAM", rec: "16GB VRAM (e.g., RTX 4080)", desc: "Excellent coding model with native tool calling." },
       "deepseek-r1:14b": { min: "10GB VRAM / 16GB RAM", rec: "16GB VRAM", desc: "Advanced logic and step-by-step reasoning." },
-      "devstral:24b": { min: "16GB VRAM (with RAM offload)", rec: "24GB VRAM (e.g., RTX 4090)", desc: "Heavy model optimized for autonomous SWE tasks." }
+      "devstral:24b": { min: "16GB VRAM (RAM offload)", rec: "24GB VRAM (e.g., RTX 4090)", desc: "Heavy model optimized for autonomous SWE tasks." },
+      "llama3.1:70b": { min: "32GB VRAM (Heavy RAM offload)", rec: "64GB+ VRAM / Multi-GPU", desc: "Massive enterprise-grade model." }
     };
 
     function getModelSpecs(model) {
       if(explicitSpecs[model]) return explicitSpecs[model];
-      // Inferenza dinamica in base al nome
       const m = model.toLowerCase();
-      if(m.includes("14b") || m.includes("12b") || m.includes("13b") || m.includes("15b")) return { min: "10GB VRAM / 16GB RAM", rec: "16GB VRAM", desc: "Mid-sized model. Good balance of speed and logic." };
-      if(m.includes("24b") || m.includes("26b") || m.includes("27b") || m.includes("32b") || m.includes("34b")) return { min: "16GB VRAM (RAM offload)", rec: "24GB VRAM", desc: "Heavy model. May run slower if it doesn't fit entirely in GPU VRAM." };
-      if(m.includes("70b") || m.includes("72b")) return { min: "32GB VRAM (Heavy RAM offload)", rec: "64GB+ VRAM / Multi-GPU", desc: "Massive enterprise-grade model." };
-      return { min: "4-6GB VRAM / 8GB RAM", rec: "8GB VRAM", desc: "Standard lightweight model." };
+      if(m.includes("14b") || m.includes("12b") || m.includes("13b")) return { min: "10GB VRAM", rec: "16GB VRAM", desc: "Mid-sized model. Good balance of speed and logic." };
+      if(m.includes("24b") || m.includes("32b") || m.includes("34b")) return { min: "16GB VRAM (RAM offload)", rec: "24GB VRAM", desc: "Heavy model." };
+      if(m.includes("70b") || m.includes("72b")) return { min: "32GB VRAM", rec: "64GB+", desc: "Massive enterprise model." };
+      return { min: "4-6GB VRAM", rec: "8GB VRAM", desc: "Standard lightweight model." };
+    }
+
+    function handleNewModelSelect() {
+      const val = document.getElementById('newModelSelect').value;
+      const customInput = document.getElementById('customModelName');
+      if(val === 'custom') { customInput.style.display = 'block'; }
+      else { customInput.style.display = 'none'; customInput.value = val; }
+      
+      if (document.getElementById('modelInfoBox').style.display === 'block') updateModelInfoBox();
     }
 
     function toggleModelInfo() {
       const box = document.getElementById('modelInfoBox');
       if (box.style.display === 'none' || box.style.display === '') {
-        updateModelInfoBox();
-        box.style.display = 'block';
-      } else {
-        box.style.display = 'none';
-      }
+        updateModelInfoBox(); box.style.display = 'block';
+      } else { box.style.display = 'none'; }
     }
 
     function updateModelInfoBox() {
-      const model = document.getElementById('setModel').value;
+      const selectVal = document.getElementById('newModelSelect').value;
+      const model = selectVal === 'custom' ? document.getElementById('customModelName').value : selectVal;
       if(!model) return;
       const specs = getModelSpecs(model);
       document.getElementById('modelInfoBox').innerHTML = `
@@ -240,7 +317,6 @@
       `;
     }
 
-    // --- IMPOSTAZIONI E MODELLI ---
     async function updateHeaderBadge() {
       const s = await window.pywebview.api.get_settings();
       document.getElementById('model-badge').innerText = s.model || 'qwen2.5-coder:14b';
@@ -253,16 +329,11 @@
       if(res.success && res.models.length > 0) {
         select.innerHTML = '';
         res.models.forEach(m => {
-          const opt = document.createElement('option');
-          opt.value = m; opt.innerText = m;
+          const opt = document.createElement('option'); opt.value = m; opt.innerText = m;
           select.appendChild(opt);
         });
         if(selectedModel && res.models.includes(selectedModel)) select.value = selectedModel;
-      } else {
-        select.innerHTML = '<option value="">Ollama not responding</option>';
-      }
-      // Se l'info box è aperto, aggiornalo col nuovo modello default
-      if(document.getElementById('modelInfoBox').style.display === 'block') updateModelInfoBox();
+      } else { select.innerHTML = '<option value="">Ollama not responding</option>'; }
     }
 
     async function openSettings() {
@@ -272,6 +343,7 @@
       document.getElementById('setToken').value = s.token || '';
       document.getElementById('pullStatus').innerText = '';
       document.getElementById('modelInfoBox').style.display = 'none';
+      handleNewModelSelect();
       await refreshModelList(s.model);
       document.getElementById('settingsModal').style.display = 'flex';
     }
@@ -279,60 +351,44 @@
     function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
     
     async function saveSettings() {
+      const lang = document.getElementById('setLang').value;
       const model = document.getElementById('setModel').value;
-      await window.pywebview.api.save_settings(
-        document.getElementById('setLang').value,
-        document.getElementById('setUrl').value,
-        document.getElementById('setToken').value,
-        model
-      );
+      await window.pywebview.api.save_settings(lang, document.getElementById('setUrl').value, document.getElementById('setToken').value, model);
+      applyTranslations(lang);
       updateHeaderBadge();
       closeSettings();
     }
 
     async function deleteActiveModel() {
-      const select = document.getElementById('setModel');
-      const model = select.value;
+      const model = document.getElementById('setModel').value;
       if(!model || model.trim() === "") return;
-      if(confirm(`Are you sure you want to delete '${model}' from your PC?`)) {
+      if(confirm(`Are you sure you want to delete '${model}'?`)) {
         document.getElementById('pullStatus').innerText = `Deleting ${model}...`;
         const res = await window.pywebview.api.delete_model(model);
-        if(res.success) {
-          document.getElementById('pullStatus').innerText = `Deleted successfully.`;
-          document.getElementById('modelInfoBox').style.display = 'none';
-          refreshModelList();
-        } else {
-          document.getElementById('pullStatus').innerText = `Error: ${res.error}`;
-        }
+        if(res.success) { document.getElementById('pullStatus').innerText = `Deleted successfully.`; refreshModelList(); } 
+        else { document.getElementById('pullStatus').innerText = `Error: ${res.error}`; }
       }
     }
 
-    window.updatePullProgress = function(status) {
-      document.getElementById('pullStatus').innerText = status;
-    }
+    window.updatePullProgress = function(status) { document.getElementById('pullStatus').innerText = status; }
 
     async function downloadModel() {
-      const model = document.getElementById('newModelName').value.trim();
+      const selectVal = document.getElementById('newModelSelect').value;
+      const model = selectVal === 'custom' ? document.getElementById('customModelName').value.trim() : selectVal;
       if(!model) return;
       document.getElementById('pullStatus').innerText = `Connecting to pull ${model}...`;
-      
       const res = await window.pywebview.api.pull_model(model);
       if(res.success) {
         document.getElementById('pullStatus').innerText = `Download complete!`;
-        document.getElementById('newModelName').value = '';
         refreshModelList(model);
-      } else {
-        document.getElementById('pullStatus').innerText = `Error: ${res.error}`;
-      }
+      } else { document.getElementById('pullStatus').innerText = `Error: ${res.error}`; }
     }
 
     function toggleTerm() {
       const p = document.getElementById('terminal-panel');
       p.style.display = p.style.display === 'none' ? 'flex' : 'none';
     }
-    async function updateCWD() {
-      document.getElementById('cwd-display').innerText = await window.pywebview.api.get_cwd();
-    }
+    async function updateCWD() { document.getElementById('cwd-display').innerText = await window.pywebview.api.get_cwd(); }
 
     inp.addEventListener('input', updateBtnState);
     inp.addEventListener('keydown', e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleBtnClick(); } });
@@ -340,20 +396,18 @@
     function updateBtnState() {
       const val = inp.value.trim();
       if (isGenerating) {
-        if (val.length > 0) { btn.innerHTML = "Follow Up"; btn.className = "action-btn follow"; }
-        else { btn.innerHTML = "Stop"; btn.className = "action-btn stop"; }
-      } else { btn.innerHTML = "Send"; btn.className = "action-btn send"; }
+        if (val.length > 0) { btn.innerHTML = i18n[currentLang].followUp; btn.className = "action-btn follow"; }
+        else { btn.innerHTML = i18n[currentLang].stop; btn.className = "action-btn stop"; }
+      } else { btn.innerHTML = i18n[currentLang].send; btn.className = "action-btn send"; }
     }
 
     async function handleBtnClick() {
       if (isGenerating) {
         if (inp.value.trim().length > 0) {
-          await window.pywebview.api.stop_generation();
-          isGenerating = false;
+          await window.pywebview.api.stop_generation(); isGenerating = false;
           setTimeout(() => triggerMessage(inp.value.trim()), 400);
         } else {
-          await window.pywebview.api.stop_generation();
-          isGenerating = false; updateBtnState();
+          await window.pywebview.api.stop_generation(); isGenerating = false; updateBtnState();
         }
       } else { triggerMessage(inp.value.trim()); }
     }
@@ -361,22 +415,19 @@
     function copyMsgText(id, btnElement) {
       navigator.clipboard.writeText(rawStorage[id]);
       const old = btnElement.innerHTML;
-      btnElement.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px;">check</span> Copied!`;
+      btnElement.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px;">check</span> ${i18n[currentLang].copied}`;
       setTimeout(() => btnElement.innerHTML = old, 2000);
     }
 
     async function retryMsg(id) {
       if(isGenerating) return;
       let botIndex = -1;
-      for (let i = history.length - 1; i >= 0; i--) {
-        if (history[i].role === 'assistant') { botIndex = i; break; }
-      }
+      for (let i = history.length - 1; i >= 0; i--) { if (history[i].role === 'assistant') { botIndex = i; break; } }
       if (botIndex !== -1) {
         history = history.slice(0, botIndex);
         const wrapper = document.getElementById(id).closest('.msg-wrapper');
         if(wrapper) wrapper.remove();
-        autoRetryCount = 0;
-        await startStreamAgent();
+        autoRetryCount = 0; await startStreamAgent();
       }
     }
 
@@ -386,8 +437,8 @@
       if(role === 'bot') {
         htmlContent += `
         <div class="msg-actions">
-          <button class="action-icon-btn" onclick="copyMsgText('${id}', this)"><span class="material-symbols-outlined" style="font-size:14px;">content_copy</span> Copy Markdown</button>
-          <button class="action-icon-btn" onclick="retryMsg('${id}')"><span class="material-symbols-outlined" style="font-size:14px;">refresh</span> Regenerate</button>
+          <button class="action-icon-btn" onclick="copyMsgText('${id}', this)"><span class="material-symbols-outlined" style="font-size:14px;">content_copy</span> <span data-i18n="copyMd">${i18n[currentLang].copyMd}</span></button>
+          <button class="action-icon-btn" onclick="retryMsg('${id}')"><span class="material-symbols-outlined" style="font-size:14px;">refresh</span> <span data-i18n="regen">${i18n[currentLang].regen}</span></button>
         </div>`;
       }
       w.innerHTML = htmlContent;
@@ -396,24 +447,20 @@
 
     async function attachFile() {
       const fd = await window.pywebview.api.select_file();
-      if(fd && fd.success) inp.value += `\n[Attached file: ${fd.name}]\n${fd.content}\n`;
+      if(fd && fd.success) inp.value += `\n[File: ${fd.name}]\n${fd.content}\n`;
       updateBtnState();
     }
 
     async function triggerMessage(text) {
       if(!text) return;
-      const id = 'user-' + Date.now();
-      addDOMMsg('user', id);
+      const id = 'user-' + Date.now(); addDOMMsg('user', id);
       document.getElementById(id).innerHTML = marked.parse(text);
-      inp.value = ''; updateBtnState();
-      history.push({role: 'user', content: text});
-      autoRetryCount = 0; 
-      await startStreamAgent();
+      inp.value = ''; updateBtnState(); history.push({role: 'user', content: text});
+      autoRetryCount = 0; await startStreamAgent();
     }
 
     function appendStream(id, chunk) {
-      if(!rawStorage[id]) rawStorage[id] = "";
-      rawStorage[id] += chunk;
+      if(!rawStorage[id]) rawStorage[id] = ""; rawStorage[id] += chunk;
       document.getElementById(id).innerHTML = marked.parse(rawStorage[id]);
       chatArea.scrollTop = chatArea.scrollHeight;
     }
@@ -431,11 +478,8 @@
       isGenerating = false; updateBtnState();
       if(history.length === 2) {
          const title = history[0].content.substring(0, 25) + "...";
-         await window.pywebview.api.save_session(sessionId, title, history);
-         loadSessions();
-      } else {
-         await window.pywebview.api.save_session(sessionId, document.querySelector('.session-item.active .session-title').innerText, history);
-      }
+         await window.pywebview.api.save_session(sessionId, title, history); loadSessions();
+      } else { await window.pywebview.api.save_session(sessionId, document.querySelector('.session-item.active .session-title').innerText, history); }
       await processTools(rawText);
     }
 
@@ -443,19 +487,18 @@
       let feedbackReport = ""; let hasError = false; let toolsUsed = 0;
       const logTerm = (text, type="norm") => {
         let color = "#3fb950"; if(type==="err") color="var(--danger)"; if(type==="sys") color="#58a6ff";
-        term.innerHTML += `<br><span style="color:${color}">${text}</span>`;
-        term.scrollTop = term.scrollHeight;
+        term.innerHTML += `<br><span style="color:${color}">${text}</span>`; term.scrollTop = term.scrollHeight;
       };
 
       const blocks = [...content.matchAll(/```(\w+)(?::([^\n]+))?\n([\s\S]*?)```/g)];
-      if(blocks.length > 0) { actionBadge.style.display = "inline-block"; term.innerHTML += `<br>--- Executing Tools (${blocks.length}) ---`; }
+      if(blocks.length > 0) { actionBadge.style.display = "inline-block"; term.innerHTML += `<br>--- Tools (${blocks.length}) ---`; }
 
       for (let m of blocks) {
         const cmd = m[1]; const arg = m[2] ? m[2].trim() : ""; const body = m[3].trim();
         if (cmd === "exec_cmd") {
           actionBadge.innerText = "⚡ Terminal..."; logTerm(`> powershell: ${body.split('\n')[0]}...`, "sys");
           const out = await window.pywebview.api.execute_terminal(body);
-          if(out.includes("[ERROR]")) { hasError = true; logTerm(out, "err"); } else logTerm(out);
+          if(out.includes("[ERROR]") || out.includes("[ERRORE]")) { hasError = true; logTerm(out, "err"); } else logTerm(out);
           feedbackReport += `\n[COMMAND OUTPUT]:\n${out}`; toolsUsed++; await updateCWD();
         }
         else if (cmd === "list_dir") {
@@ -488,8 +531,7 @@
         if (hasError && autoRetryCount < 3) {
             autoRetryCount++;
             history.push({role: 'user', content: `[SYSTEM] Error detected:\n${feedbackReport}\nFix the problem and try an alternative approach.`});
-            logTerm(">> Auto-resolving error...", "warn");
-            await startStreamAgent();
+            logTerm(">> Auto-resolving error...", "warn"); await startStreamAgent();
         } else if (!hasError && autoRetryCount < 1) { 
             autoRetryCount++;
             history.push({role: 'user', content: `[SYSTEM] Output received:\n${feedbackReport}\nProceed with the next steps or confirm completion.`});
@@ -502,8 +544,7 @@
       const list = document.getElementById('session-list'); list.innerHTML = '';
       const sessions = await window.pywebview.api.get_sessions();
       sessions.forEach(s => {
-        const div = document.createElement('div');
-        div.className = `session-item ${s.id === sessionId ? 'active' : ''}`;
+        const div = document.createElement('div'); div.className = `session-item ${s.id === sessionId ? 'active' : ''}`;
         div.innerHTML = `
           <span class="session-title" title="${s.title}">${s.title}</span> 
           <div class="session-actions">
@@ -516,12 +557,8 @@
     }
 
     async function renameSession(id, e) {
-      e.stopPropagation();
-      const newName = prompt("Enter a new name for this chat:");
-      if(newName && newName.trim() !== "") {
-        await window.pywebview.api.rename_session(id, newName.trim());
-        loadSessions();
-      }
+      e.stopPropagation(); const newName = prompt("Enter a new name for this chat:");
+      if(newName && newName.trim() !== "") { await window.pywebview.api.rename_session(id, newName.trim()); loadSessions(); }
     }
 
     function startNewSession() {
@@ -532,10 +569,8 @@
     function loadChat(id, hist) {
       sessionId = id; history = hist; chatArea.innerHTML = ''; rawStorage = {};
       history.forEach((m, idx) => {
-        const dId = 'hist-' + idx;
-        rawStorage[dId] = m.content;
-        addDOMMsg(m.role, dId);
-        document.getElementById(dId).innerHTML = marked.parse(m.content);
+        const dId = 'hist-' + idx; rawStorage[dId] = m.content;
+        addDOMMsg(m.role, dId); document.getElementById(dId).innerHTML = marked.parse(m.content);
       });
       loadSessions();
     }

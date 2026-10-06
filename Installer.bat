@@ -42,8 +42,8 @@ echo You selected: %MODEL%
 echo Downloading %MODEL%... This might take a few minutes.
 ollama pull %MODEL%
 
-:: Salva il file di configurazione iniziale per l'app
-echo {"settings": {"lang": "en", "url": "http://localhost:11434", "token": "", "model": "%MODEL%"}, "memory": "", "sessions": []} > codex_data.json
+:: Configurazione iniziale
+echo {"settings": {"lang": "it", "url": "http://localhost:11434", "token": "", "model": "%MODEL%"}, "memory": "", "sessions": []} > codex_data.json
 
 echo.
 echo [4/4] Creating launcher and Desktop shortcut...

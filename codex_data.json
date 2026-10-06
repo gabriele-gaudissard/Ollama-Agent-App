@@ -1,4 +1,10 @@
 {
   "memory": "",
-  "sessions": []
+  "sessions": [],
+  "settings": {
+    "lang": "it",
+    "url": "http://localhost:11434",
+    "token": "",
+    "model": "qwen2.5-coder:14b"
+  }
 }
