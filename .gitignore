@@ -1,0 +1,23 @@
+# Local Database and User Settings (CONTAINS TOKENS AND PRIVATE CHATS)
+codex_data.json
+
+# Dynamically generated files from the Installer
+Start_Codex.bat
+*.vbs
+*.lnk
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+venv/
+env/
+.env
+
+# OS System and IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
