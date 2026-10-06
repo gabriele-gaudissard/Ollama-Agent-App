@@ -13,21 +13,34 @@
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, Segoe UI, sans-serif; user-select: text !important; }
     body { background-color: var(--bg-dark); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
     
-    #sidebar { width: 280px; background: #010409; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between;}
+    #sidebar { width: 300px; background: #010409; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between;}
     .side-header { padding: 16px; border-bottom: 1px solid var(--border-color); }
     .new-chat-btn { background: var(--accent); color: white; border: none; border-radius: 6px; padding: 10px; cursor: pointer; font-weight: bold; width: 100%; transition: background 0.2s;}
     .new-chat-btn:hover { background: var(--accent-hover); }
     
-    #session-list { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 4px; }
-    .session-item { padding: 10px; border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: var(--text-muted); }
-    .session-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px; }
+    /* GESTIONE PROGETTI E LISTA CHAT */
+    #sidebar-scroll { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 4px; }
+    .search-bar { width: 100%; background: var(--bg-dark); color: var(--text); border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 6px; font-size: 13px; margin-bottom: 12px; outline: none; }
+    .search-bar:focus { border-color: var(--accent); }
+    
+    .section-title { font-weight: bold; color: var(--text-muted); font-size: 11px; margin-bottom: 5px; margin-top: 10px; text-transform: uppercase;}
+    details summary { cursor: pointer; font-size: 13px; color: var(--info); font-weight: bold; padding: 6px 0; outline: none; }
+    
+    .session-item { padding: 10px; border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: var(--text-muted); position: relative;}
     .session-item:hover { background: #161b22; color: var(--text); }
     .session-item.active { background: #1f242c; color: white; border-left: 3px solid var(--accent); }
-    .session-actions { display: none; gap: 4px; }
-    .session-item:hover .session-actions { display: flex; }
-    .action-icon { color: var(--text-muted); cursor: pointer; transition: 0.2s; }
-    .action-icon.edit:hover { color: var(--info); }
-    .action-icon.del:hover { color: var(--danger); }
+    
+    /* Titolo Scorrevole e Menu 3 Puntini */
+    .session-title-wrapper { width: 180px; overflow: hidden; white-space: nowrap; position: relative; }
+    .session-title { display: inline-block; }
+    
+    .action-dots { color: var(--text-muted); cursor: pointer; font-size: 18px !important; padding: 2px; }
+    .action-dots:hover { color: var(--text); }
+    
+    .menu-dropdown { position: absolute; right: 25px; top: 10px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 6px; display: none; flex-direction: column; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5); overflow: hidden; min-width: 150px;}
+    .menu-dropdown.show { display: flex; }
+    .menu-dropdown div { padding: 10px 14px; font-size: 13px; cursor: pointer; color: var(--text); display:flex; align-items:center; gap:8px;}
+    .menu-dropdown div:hover { background: #21262d; }
     
     .settings-btn { padding: 14px; display: flex; align-items: center; gap: 10px; background: #161b22; color: var(--text); border-top: 1px solid var(--border-color); cursor: pointer; font-size: 14px; font-weight: 600;}
     .settings-btn:hover { background: #1f242c; }
@@ -76,9 +89,9 @@
     #action-badge { display: none; background: var(--warn); color: black; font-size: 11px; padding: 4px 10px; border-radius: 12px; font-weight: bold; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0% {opacity: 0.7;} 50% {opacity: 1;} 100% {opacity: 0.7;} }
 
-    /* Modale Impostazioni */
-    #settingsModal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 100; justify-content: center; align-items: center;}
-    .modal-content { background: var(--bg-panel); width: 460px; padding: 25px; border-radius: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 15px;}
+    /* Modali (Impostazioni & Progetti) */
+    .modal-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 200; justify-content: center; align-items: center;}
+    .modal-content { background: var(--bg-panel); width: 440px; padding: 25px; border-radius: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 15px;}
     .modal-content h2 { font-size: 18px; margin-bottom: 5px; color: var(--text); }
     .modal-content label { font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;}
     .modal-content input, .modal-content select { background: var(--bg-dark); color: var(--text); border: 1px solid var(--border-color); padding: 10px; border-radius: 6px; outline: none;}
@@ -99,10 +112,23 @@
 <body>
   
   <div id="sidebar">
-    <div>
-      <div class="side-header"><button class="new-chat-btn" onclick="startNewSession()" data-i18n="newChat">+ New Chat</button></div>
-      <div id="session-list"></div>
+    <div class="side-header">
+      <button class="new-chat-btn" onclick="startNewSession()" data-i18n="newChat">+ New Chat</button>
     </div>
+    
+    <div id="sidebar-scroll">
+      <input type="text" id="chatSearchInput" class="search-bar" oninput="filterChats()" placeholder="Search chats by text or title..." data-i18n="searchPlaceholder">
+      
+      <details id="projects-dropdown" open>
+        <summary data-i18n="projects">📂 Projects</summary>
+        <div id="project-list" style="display:flex; flex-direction:column; gap:4px; margin-bottom:5px; padding-left:10px;"></div>
+        <button onclick="createNewProject()" style="width:100%; background:transparent; border:1px dashed var(--border-color); color:var(--text-muted); padding:6px; border-radius:6px; cursor:pointer; font-size:12px; margin-bottom:10px;" data-i18n="newProject">+ New Project</button>
+      </details>
+      
+      <div class="section-title" data-i18n="recentChats">Recent Chats</div>
+      <div id="session-list" style="display:flex; flex-direction:column; gap:4px;"></div>
+    </div>
+    
     <div class="settings-btn" onclick="openSettings()"><span class="material-symbols-outlined">settings</span> <span data-i18n="settings">Settings</span></div>
   </div>
 
@@ -133,8 +159,20 @@
       </div>
     </footer>
 
+    <!-- MODALE PROGETTI -->
+    <div id="projectModal" class="modal-overlay">
+      <div class="modal-content" style="width: 350px;">
+        <h2 data-i18n="selectProject">Select Project</h2>
+        <select id="projSelect" style="width:100%;"></select>
+        <div class="modal-actions" style="justify-content: flex-end;">
+          <button class="btn-cancel" onclick="document.getElementById('projectModal').style.display='none'" data-i18n="cancel">Cancel</button>
+          <button class="action-btn send" style="height:35px; min-width:80px;" onclick="confirmAddProject()" data-i18n="confirm">Confirm</button>
+        </div>
+      </div>
+    </div>
+
     <!-- SETTINGS & MODEL MANAGER MODAL -->
-    <div id="settingsModal">
+    <div id="settingsModal" class="modal-overlay">
       <div class="modal-content">
         <h2 data-i18n="settingsTitle">Settings & Models</h2>
         
@@ -203,7 +241,10 @@
         working: "⚙️ Working...", copied: "Copied!", copyMd: "Copy Markdown", regen: "Regenerate",
         settingsTitle: "Settings & Models", activeModel: "Active Model", installNew: "Install New Model",
         downloadBtn: "Download", langLabel: "Response & UI Language", urlAuth: "Ollama URL / API Auth",
-        ollamaAcc: "Ollama Account", cancel: "Cancel", save: "Save"
+        ollamaAcc: "Ollama Account", cancel: "Cancel", save: "Save", searchPlaceholder: "Search chats by text or title...",
+        projects: "📂 Projects", newProject: "+ New Project", recentChats: "Recent Chats", rename: "Rename",
+        addToProj: "Add to Project", delete: "Delete", confirmDel: "Are you sure you want to delete this chat?",
+        selectProject: "Select Project", confirm: "Confirm", projNamePrompt: "Enter new project name:"
       },
       it: {
         newChat: "+ Nuova Chat", settings: "Impostazioni", terminal: "Terminale", clear: "Pulisci",
@@ -212,16 +253,22 @@
         working: "⚙️ Elaborazione...", copied: "Copiato!", copyMd: "Copia Markdown", regen: "Rigenera",
         settingsTitle: "Impostazioni e Modelli", activeModel: "Modello Attivo", installNew: "Installa Nuovo Modello",
         downloadBtn: "Scarica", langLabel: "Lingua Risposte e Interfaccia", urlAuth: "URL Ollama / API Auth",
-        ollamaAcc: "Account Ollama", cancel: "Annulla", save: "Salva"
+        ollamaAcc: "Account Ollama", cancel: "Annulla", save: "Salva", searchPlaceholder: "Cerca chat per titolo o testo...",
+        projects: "📂 Progetti", newProject: "+ Nuovo Progetto", recentChats: "Chat Recenti", rename: "Rinomina",
+        addToProj: "Aggiungi a Progetto", delete: "Elimina", confirmDel: "Sei sicuro di voler eliminare questa chat?",
+        selectProject: "Seleziona Progetto", confirm: "Conferma", projNamePrompt: "Inserisci nome del nuovo progetto:"
       },
       es: {
         newChat: "+ Nuevo Chat", settings: "Ajustes", terminal: "Terminal", clear: "Limpiar",
         placeholder: "Pide a Codex que explore repos, lea webs o arregle código...",
         send: "Enviar", followUp: "Follow Up", stop: "Detener", reactExec: "Ejecución ReAct",
-        working: "⚙️️ Trabajando...", copied: "¡Copiado!", copyMd: "Copiar Markdown", regen: "Regenerar",
+        working: "⚙ Trabajando...", copied: "¡Copiado!", copyMd: "Copiar Markdown", regen: "Regenerar",
         settingsTitle: "Ajustes y Modelos", activeModel: "Modelo Activo", installNew: "Instalar Nuevo Modelo",
         downloadBtn: "Descargar", langLabel: "Idioma de Respuesta e Interfaz", urlAuth: "URL Ollama / API Auth",
-        ollamaAcc: "Cuenta Ollama", cancel: "Cancelar", save: "Guardar"
+        ollamaAcc: "Cuenta Ollama", cancel: "Cancelar", save: "Guardar", searchPlaceholder: "Buscar chats...",
+        projects: "📂 Proyectos", newProject: "+ Nuevo Proyecto", recentChats: "Chats Recientes", rename: "Renombrar",
+        addToProj: "Añadir a Proyecto", delete: "Eliminar", confirmDel: "¿Seguro que quieres eliminar este chat?",
+        selectProject: "Seleccionar Proyecto", confirm: "Confirmar", projNamePrompt: "Nombre del nuevo proyecto:"
       },
       fr: {
         newChat: "+ Nouveau Chat", settings: "Paramètres", terminal: "Terminal", clear: "Effacer",
@@ -230,7 +277,10 @@
         working: "⚙️ En cours...", copied: "Copié !", copyMd: "Copier Markdown", regen: "Régénérer",
         settingsTitle: "Paramètres et Modèles", activeModel: "Modèle Actif", installNew: "Installer Nouveau Modèle",
         downloadBtn: "Télécharger", langLabel: "Langue de Réponse et Interface", urlAuth: "URL Ollama / API Auth",
-        ollamaAcc: "Compte Ollama", cancel: "Annuler", save: "Enregistrer"
+        ollamaAcc: "Compte Ollama", cancel: "Annuler", save: "Enregistrer", searchPlaceholder: "Rechercher des chats...",
+        projects: "📂 Projets", newProject: "+ Nouveau Projet", recentChats: "Chats Récents", rename: "Renommer",
+        addToProj: "Ajouter au Projet", delete: "Supprimer", confirmDel: "Êtes-vous sûr de vouloir supprimer ce chat ?",
+        selectProject: "Sélectionner le Projet", confirm: "Confirmer", projNamePrompt: "Nom du nouveau projet:"
       }
     };
     
@@ -247,7 +297,8 @@
           } else el.innerText = i18n[lang][key];
         }
       });
-      updateBtnState(); // Aggiorna il testo del pulsante Send/Stop
+      updateBtnState();
+      loadSessions(); // Ricarica le traduzioni nei menu delle chat
     }
 
     marked.setOptions({
@@ -265,6 +316,43 @@
       applyTranslations(s.lang || 'en');
       loadSessions(); updateCWD(); updateHeaderBadge();
     });
+
+    // --- RICERCA CHAT E MENU 3 PUNTINI ---
+    function filterChats() {
+      const q = document.getElementById('chatSearchInput').value.toLowerCase();
+      const items = document.querySelectorAll('.session-item');
+      if(q.length > 0) document.getElementById('projects-dropdown').open = true;
+      
+      items.forEach(item => {
+        const title = item.getAttribute('data-title').toLowerCase();
+        const content = item.getAttribute('data-content').toLowerCase();
+        item.style.display = (title.includes(q) || content.includes(q)) ? 'flex' : 'none';
+      });
+    }
+
+    function toggleMenu(sid, e) {
+      e.stopPropagation();
+      document.querySelectorAll('.menu-dropdown').forEach(m => m.classList.remove('show'));
+      document.getElementById(`menu-${sid}`).classList.add('show');
+    }
+
+    document.addEventListener('click', (e) => {
+      if(!e.target.closest('.action-dots')) {
+        document.querySelectorAll('.menu-dropdown').forEach(m => m.classList.remove('show'));
+      }
+    });
+
+    // --- EFFETTO SCORRIMENTO NOMI LUNGHI (MARQUEE CSS IN JS) ---
+    function startScroll(el) {
+      const span = el.querySelector('.session-title');
+      if(span && span.scrollWidth > el.clientWidth) {
+        span.outerHTML = `<marquee scrollamount="4" class="session-title">${span.innerText}</marquee>`;
+      }
+    }
+    function stopScroll(el) {
+      const marq = el.querySelector('marquee');
+      if(marq) el.innerHTML = `<span class="session-title">${marq.innerText}</span>`;
+    }
 
     // --- LOGICA REQUISITI MODELLI ---
     const explicitSpecs = {
@@ -293,7 +381,6 @@
       const customInput = document.getElementById('customModelName');
       if(val === 'custom') { customInput.style.display = 'block'; }
       else { customInput.style.display = 'none'; customInput.value = val; }
-      
       if (document.getElementById('modelInfoBox').style.display === 'block') updateModelInfoBox();
     }
 
@@ -362,7 +449,7 @@
     async function deleteActiveModel() {
       const model = document.getElementById('setModel').value;
       if(!model || model.trim() === "") return;
-      if(confirm(`Are you sure you want to delete '${model}'?`)) {
+      if(confirm(`Delete '${model}'?`)) {
         document.getElementById('pullStatus').innerText = `Deleting ${model}...`;
         const res = await window.pywebview.api.delete_model(model);
         if(res.success) { document.getElementById('pullStatus').innerText = `Deleted successfully.`; refreshModelList(); } 
@@ -469,7 +556,8 @@
       isGenerating = true; updateBtnState();
       const msgId = 'bot-' + Date.now();
       rawStorage[msgId] = ""; addDOMMsg('bot', msgId);
-      await window.pywebview.api.chat_stream(history, msgId);
+      // Passo anche sessionId per la gestione del contesto di Progetto
+      await window.pywebview.api.chat_stream(history, msgId, sessionId);
     }
 
     async function finalizeStream(id) {
@@ -479,7 +567,12 @@
       if(history.length === 2) {
          const title = history[0].content.substring(0, 25) + "...";
          await window.pywebview.api.save_session(sessionId, title, history); loadSessions();
-      } else { await window.pywebview.api.save_session(sessionId, document.querySelector('.session-item.active .session-title').innerText, history); }
+      } else { 
+         // Usa querySelector con eccezione se la sessione non e' ancora renderizzata bene
+         const titleEl = document.querySelector('.session-item.active .session-title');
+         const t = titleEl ? titleEl.innerText : history[0].content.substring(0, 25)+"...";
+         await window.pywebview.api.save_session(sessionId, t, history); 
+      }
       await processTools(rawText);
     }
 
@@ -524,6 +617,11 @@
         else if (cmd === "save_memory") {
           const info = arg || body; logTerm(`> Saving to memory: ${info}`, "warn"); await window.pywebview.api.save_memory(info);
         }
+        else if (cmd === "read_project_context") {
+          logTerm(`> Reading Project Context...`, "sys"); 
+          const out = await window.pywebview.api.read_project_context(sessionId); 
+          feedbackReport += `\n[PROJECT CONTEXT]:\n${out}`; toolsUsed++;
+        }
       }
       actionBadge.style.display = "none";
 
@@ -540,24 +638,77 @@
       }
     }
 
+    // --- CARICAMENTO PROGETTI E CHAT ---
     async function loadSessions() {
       const list = document.getElementById('session-list'); list.innerHTML = '';
+      const projList = document.getElementById('project-list'); projList.innerHTML = '';
+      
       const sessions = await window.pywebview.api.get_sessions();
+      const projects = await window.pywebview.api.get_projects();
+      
+      projects.forEach(p => {
+        const pDiv = document.createElement('details'); pDiv.style.marginBottom = "5px";
+        pDiv.innerHTML = `<summary>📂 ${p.name}</summary><div id="proj-${p.id}" style="padding-left:12px; margin-top:4px; display:flex; flex-direction:column; gap:4px;"></div>`;
+        projList.appendChild(pDiv);
+      });
+
       sessions.forEach(s => {
-        const div = document.createElement('div'); div.className = `session-item ${s.id === sessionId ? 'active' : ''}`;
+        const fullText = s.history.map(m => m.content).join(" ").replace(/"/g, "&quot;");
+        const div = document.createElement('div'); 
+        div.className = `session-item ${s.id === sessionId ? 'active' : ''}`;
+        div.setAttribute('data-title', s.title);
+        div.setAttribute('data-content', fullText);
+        
         div.innerHTML = `
-          <span class="session-title" title="${s.title}">${s.title}</span> 
-          <div class="session-actions">
-            <span class="material-symbols-outlined action-icon edit" style="font-size:16px;" onclick="renameSession('${s.id}', event)">edit</span>
-            <span class="material-symbols-outlined action-icon del" style="font-size:16px;" onclick="delSession('${s.id}', event)">close</span>
+          <div class="session-title-wrapper" onmouseenter="startScroll(this)" onmouseleave="stopScroll(this)" title="${s.title}">
+            <span class="session-title">${s.title}</span> 
+          </div>
+          <div class="session-actions-menu" style="position:relative;">
+            <span class="material-symbols-outlined action-dots" onclick="toggleMenu('${s.id}', event)">more_vert</span>
+            <div class="menu-dropdown" id="menu-${s.id}">
+              <div onclick="renameSession('${s.id}', event)"><span class="material-symbols-outlined" style="font-size:14px;">edit</span> ${i18n[currentLang].rename}</div>
+              <div onclick="openProjectModal('${s.id}', event)"><span class="material-symbols-outlined" style="font-size:14px;">folder</span> ${i18n[currentLang].addToProj}</div>
+              <div onclick="delSession('${s.id}', event)" style="color:var(--danger); border-top:1px solid var(--border-color);"><span class="material-symbols-outlined" style="font-size:14px;">delete</span> ${i18n[currentLang].delete}</div>
+            </div>
           </div>`;
         div.onclick = () => loadChat(s.id, s.history);
-        list.appendChild(div);
+        
+        if(s.project_id && document.getElementById(`proj-${s.project_id}`)) {
+          document.getElementById(`proj-${s.project_id}`).appendChild(div);
+        } else {
+          list.appendChild(div);
+        }
       });
+      // Ripristina la ricerca
+      filterChats();
+    }
+
+    // --- PROGETTI MODAL LOGICA ---
+    let sessionToAdd = null;
+    async function openProjectModal(sid, e) {
+      e.stopPropagation(); document.querySelectorAll('.menu-dropdown').forEach(m => m.classList.remove('show'));
+      sessionToAdd = sid;
+      const select = document.getElementById('projSelect'); select.innerHTML = '<option value="">-- Nessun progetto --</option>';
+      const projects = await window.pywebview.api.get_projects();
+      projects.forEach(p => { select.innerHTML += `<option value="${p.id}">${p.name}</option>`; });
+      document.getElementById('projectModal').style.display = 'flex';
+    }
+    
+    async function confirmAddProject() {
+      const pid = document.getElementById('projSelect').value;
+      await window.pywebview.api.assign_session_to_project(sessionToAdd, pid);
+      document.getElementById('projectModal').style.display = 'none';
+      loadSessions();
+    }
+
+    async function createNewProject() {
+      const name = prompt(i18n[currentLang].projNamePrompt);
+      if(name && name.trim()) { await window.pywebview.api.create_project(name.trim()); loadSessions(); }
     }
 
     async function renameSession(id, e) {
-      e.stopPropagation(); const newName = prompt("Enter a new name for this chat:");
+      e.stopPropagation(); document.querySelectorAll('.menu-dropdown').forEach(m => m.classList.remove('show'));
+      const newName = prompt(i18n[currentLang].rename + ":");
       if(newName && newName.trim() !== "") { await window.pywebview.api.rename_session(id, newName.trim()); loadSessions(); }
     }
 
@@ -576,8 +727,11 @@
     }
 
     async function delSession(id, e) {
-      e.stopPropagation(); await window.pywebview.api.delete_session(id);
-      if(id === sessionId) startNewSession(); else loadSessions();
+      e.stopPropagation(); document.querySelectorAll('.menu-dropdown').forEach(m => m.classList.remove('show'));
+      if(confirm(i18n[currentLang].confirmDel)) {
+        await window.pywebview.api.delete_session(id);
+        if(id === sessionId) startNewSession(); else loadSessions();
+      }
     }
   </script>
 </body>

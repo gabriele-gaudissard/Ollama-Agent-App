@@ -5,6 +5,7 @@ import requests
 import urllib.parse
 import webview
 import json
+import uuid
 import webbrowser
 from html.parser import HTMLParser
 
@@ -20,7 +21,7 @@ def load_db():
         try:
             with open(DATA_FILE, 'r') as f: return json.load(f)
         except: pass
-    return {"memory": "", "sessions": [], "settings": {"lang": "it", "url": "http://localhost:11434", "token": "", "model": "qwen2.5-coder:14b"}}
+    return {"memory": "", "sessions": [], "projects": [], "settings": {"lang": "it", "url": "http://localhost:11434", "token": "", "model": "qwen2.5-coder:14b"}}
 
 def save_db(data):
     with open(DATA_FILE, 'w') as f: json.dump(data, f, indent=2)
@@ -32,6 +33,8 @@ class AgentAPI:
         self.db = load_db()
         if "settings" not in self.db:
             self.db["settings"] = {"lang": "it", "url": "http://localhost:11434", "token": "", "model": "qwen2.5-coder:14b"}
+        if "projects" not in self.db:
+            self.db["projects"] = []
         if "model" not in self.db["settings"]:
             self.db["settings"]["model"] = "qwen2.5-coder:14b"
         self.current_cwd = os.getcwd()
@@ -44,7 +47,6 @@ class AgentAPI:
         return "Generation stopped by user."
 
     def open_external_url(self, url):
-        """Apre un URL nel browser predefinito del sistema operativo."""
         try:
             webbrowser.open(url)
             return True
@@ -65,6 +67,43 @@ class AgentAPI:
         headers = {}
         if token: headers["Authorization"] = f"Bearer {token}"
         return base_url, headers
+
+    # --- GESTIONE PROGETTI ---
+    def get_projects(self):
+        return self.db.get("projects", [])
+
+    def create_project(self, name):
+        proj_id = "proj_" + uuid.uuid4().hex[:8]
+        self.db.setdefault("projects", []).append({"id": proj_id, "name": name})
+        save_db(self.db)
+        return proj_id
+
+    def assign_session_to_project(self, session_id, proj_id):
+        for s in self.db.get("sessions", []):
+            if s["id"] == session_id:
+                s["project_id"] = proj_id
+                save_db(self.db)
+                return True
+        return False
+
+    def read_project_context(self, session_id):
+        """Legge tutte le chat connesse al progetto della sessione corrente per dare contesto all'IA."""
+        proj_id = None
+        for s in self.db.get("sessions", []):
+            if s["id"] == session_id:
+                proj_id = s.get("project_id")
+                break
+        
+        if not proj_id: return "[NO PROJECT] Questa chat non e' collegata a nessun progetto."
+
+        context = []
+        for s in self.db.get("sessions", []):
+            if s.get("project_id") == proj_id and s["id"] != session_id:
+                chat_text = "\n".join([f"{m['role']}: {m['content']}" for m in s["history"]])
+                context.append(f"--- CHAT: {s['title']} ---\n{chat_text}")
+        
+        if not context: return "[EMPTY PROJECT] Non ci sono altre chat collegate a questo progetto."
+        return "\n\n".join(context)[:15000] # Limita a 15k caratteri
 
     # --- GESTIONE MODELLI OLLAMA (API) ---
     def get_models(self):
@@ -108,7 +147,8 @@ class AgentAPI:
                 s["title"] = title
                 save_db(self.db)
                 return
-        sessions.insert(0, {"id": session_id, "title": title, "history": history})
+        # Conserviamo il progetto se la modifichiamo
+        sessions.insert(0, {"id": session_id, "title": title, "history": history, "project_id": ""})
         self.db["sessions"] = sessions
         save_db(self.db)
 
@@ -204,7 +244,7 @@ class AgentAPI:
         except Exception as e: return f"[URL READ ERROR]: {str(e)}"
 
     # --- LLM ENGINE ---
-    def chat_stream(self, messages_json, msg_id):
+    def chat_stream(self, messages_json, msg_id, session_id):
         self.stop_flag = False
         memory_context = self.db.get("memory", "")
         
@@ -228,7 +268,9 @@ class AgentAPI:
                 "```list_dir:path\n```\n"
                 "```web_search:query\n```\n"
                 "```read_url:https://link...\n```\n"
-                "```save_memory:information to remember\n```"
+                "```save_memory:information to remember\n```\n"
+                "```read_project_context\n```\n"
+                "(read_project_context reads the entire history of all other chats connected to the current project. Use this if the user asks for context from the project.)"
             )
         }
         
