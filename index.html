@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Codex Professional Agent</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+  <style>
+    :root { --bg-dark: #0d1117; --bg-panel: #161b22; --border-color: #30363d; --accent: #238636; --accent-hover: #2ea043; --text: #c9d1d9; --text-muted: #8b949e; --code-bg: #010409; --danger: #f85149; --warn: #d29922; --info: #58a6ff;}
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, Segoe UI, sans-serif; user-select: text !important; }
+    body { background-color: var(--bg-dark); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+    
+    #sidebar { width: 280px; background: #010409; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between;}
+    .side-header { padding: 16px; border-bottom: 1px solid var(--border-color); }
+    .new-chat-btn { background: var(--accent); color: white; border: none; border-radius: 6px; padding: 10px; cursor: pointer; font-weight: bold; width: 100%; transition: background 0.2s;}
+    .new-chat-btn:hover { background: var(--accent-hover); }
+    
+    #session-list { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 4px; }
+    .session-item { padding: 10px; border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: var(--text-muted); }
+    .session-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px; }
+    .session-item:hover { background: #161b22; color: var(--text); }
+    .session-item.active { background: #1f242c; color: white; border-left: 3px solid var(--accent); }
+    .session-actions { display: none; gap: 4px; }
+    .session-item:hover .session-actions { display: flex; }
+    .action-icon { color: var(--text-muted); cursor: pointer; transition: 0.2s; }
+    .action-icon.edit:hover { color: var(--info); }
+    .action-icon.del:hover { color: var(--danger); }
+    
+    .settings-btn { padding: 14px; display: flex; align-items: center; gap: 10px; background: #161b22; color: var(--text); border-top: 1px solid var(--border-color); cursor: pointer; font-size: 14px; font-weight: 600;}
+    .settings-btn:hover { background: #1f242c; }
+
+    #main-wrap { flex: 1; display: flex; flex-direction: column; position: relative;}
+    header { background-color: var(--bg-panel); padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); }
+    .badge { background: #1f242c; color: var(--accent); border: 1px solid var(--accent); padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+    
+    main { flex: 1; display: flex; overflow: hidden; }
+    #chat-area { flex: 1; padding: 20px 10%; overflow-y: auto; scroll-behavior: smooth; display: flex; flex-direction: column; gap: 20px; }
+    
+    .msg-wrapper { display: flex; flex-direction: column; max-width: 85%; }
+    .msg-wrapper.user { align-self: flex-end; background-color: #1f242c; border: 1px solid var(--border-color); padding: 14px 18px; border-radius: 12px; border-bottom-right-radius: 2px; }
+    .msg-wrapper.user .msg-header { justify-content: flex-end; color: var(--info); }
+    .msg-wrapper.bot { align-self: flex-start; padding: 10px 0; width: 100%; position: relative;}
+    .msg-wrapper.bot .msg-header { justify-content: flex-start; color: var(--accent); }
+
+    .msg-header { font-size: 11px; margin-bottom: 8px; font-weight: bold; display: flex;}
+    .msg-content { line-height: 1.6; font-size: 15px; }
+    .msg-content p { margin-bottom: 10px; }
+    
+    .msg-actions { display: flex; gap: 10px; margin-top: 10px; }
+    .action-icon-btn { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); font-size: 11px; padding: 4px 8px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: 0.2s; user-select: none !important;}
+    .action-icon-btn:hover { background: #21262d; color: var(--text); }
+    
+    pre { background: var(--code-bg); padding: 12px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border-color); margin-bottom: 10px; }
+    code { font-family: 'Consolas', monospace; font-size: 13.5px; }
+    a { color: var(--info); text-decoration: none; }
+
+    #terminal-panel { width: 450px; border-left: 1px solid var(--border-color); background-color: var(--code-bg); display: flex; flex-direction: column; }
+    .terminal-header { padding: 10px 14px; font-size: 12px; font-weight: bold; background: #161b22; color: var(--text-muted); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between;}
+    #terminal-log { flex: 1; padding: 14px; font-family: monospace; font-size: 12px; color: #3fb950; overflow-y: auto; white-space: pre-wrap; }
+    .log-warn { color: var(--warn); } .log-err { color: var(--danger); } .log-sys { color: var(--info); }
+
+    footer { padding: 20px 10%; background-color: var(--bg-dark); display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border-color);}
+    .input-row { display: flex; gap: 12px; align-items: center; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 8px; }
+    textarea { flex: 1; height: 50px; background: transparent; border: none; color: var(--text); padding: 8px; resize: none; font-size: 15px; outline: none; }
+    
+    .action-btn { border: none; border-radius: 8px; padding: 0 20px; height: 44px; cursor: pointer; font-weight: bold; color: white; display: flex; align-items: center; justify-content: center; transition: 0.2s; min-width: 120px;}
+    .action-btn.send { background-color: var(--accent); } .action-btn.send:hover { background-color: var(--accent-hover); }
+    .action-btn.stop { background-color: var(--danger); }
+    .action-btn.follow { background-color: var(--warn); color: black; }
+    .file-btn { background: transparent; border: none; color: var(--text-muted); width: 40px; height: 40px; cursor: pointer; border-radius: 50%; display: flex; align-items: center; justify-content: center;}
+    .file-btn:hover { background: #21262d; color: var(--text); }
+    
+    #action-badge { display: none; background: var(--warn); color: black; font-size: 11px; padding: 4px 10px; border-radius: 12px; font-weight: bold; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0% {opacity: 0.7;} 50% {opacity: 1;} 100% {opacity: 0.7;} }
+
+    /* Modale Impostazioni & Gestione Modelli */
+    #settingsModal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 100; justify-content: center; align-items: center;}
+    .modal-content { background: var(--bg-panel); width: 440px; padding: 25px; border-radius: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 15px;}
+    .modal-content h2 { font-size: 18px; margin-bottom: 5px; color: var(--text); }
+    .modal-content label { font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;}
+    .modal-content input, .modal-content select { background: var(--bg-dark); color: var(--text); border: 1px solid var(--border-color); padding: 10px; border-radius: 6px; outline: none;}
+    .modal-content input:focus, .modal-content select:focus { border-color: var(--accent); }
+    
+    .flex-row { display: flex; gap: 10px; align-items: center; }
+    
+    .icon-btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--border-color); border-radius: 6px; padding: 0 12px; cursor: pointer; height: 38px; display: flex; align-items: center; transition:0.2s;}
+    .icon-btn-danger:hover { background: #2e1619; border-color: var(--danger); }
+    
+    /* Nuovo Bottone Info (i) */
+    .icon-btn-info { background: transparent; color: var(--info); border: 1px solid var(--border-color); border-radius: 6px; padding: 0 12px; cursor: pointer; height: 38px; display: flex; align-items: center; transition: 0.2s;}
+    .icon-btn-info:hover { background: #0d1e36; border-color: var(--info); }
+    
+    /* Box Info Requisiti */
+    #modelInfoBox { display:none; background: #010409; border: 1px solid var(--border-color); padding: 12px; border-radius: 6px; font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-top: -5px;}
+    
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;}
+    .modal-actions button { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;}
+    .btn-cancel { background: transparent; color: var(--text); border: 1px solid var(--border-color) !important;}
+    .btn-cancel:hover { background: #21262d; }
+  </style>
+</head>
+<body>
+  
+  <div id="sidebar">
+    <div>
+      <div class="side-header"><button class="new-chat-btn" onclick="startNewSession()">+ New Chat</button></div>
+      <div id="session-list"></div>
+    </div>
+    <div class="settings-btn" onclick="openSettings()"><span class="material-symbols-outlined">settings</span> Settings</div>
+  </div>
+
+  <div id="main-wrap">
+    <header>
+      <div style="display: flex; gap: 12px; align-items: center; font-weight: bold; font-size: 16px;">
+        Codex Agent Workspace <span class="badge" id="model-badge">...</span> <span id="action-badge">⚙️ Working...</span>
+      </div>
+      <div>
+        <span id="cwd-display" style="font-size: 12px; color: var(--text-muted); margin-right: 15px; font-family: monospace;"></span>
+        <button class="file-btn" style="width:auto; padding: 0 10px; border-radius:6px; border:1px solid var(--border-color);" onclick="toggleTerm()">Terminal</button>
+      </div>
+    </header>
+    
+    <main>
+      <div id="chat-area"></div>
+      <div id="terminal-panel">
+        <div class="terminal-header"><span>ReAct Execution</span><span style="cursor:pointer" onclick="document.getElementById('terminal-log').innerHTML=''">Clear</span></div>
+        <div id="terminal-log">// Terminal connected.</div>
+      </div>
+    </main>
+    
+    <footer>
+      <div class="input-row">
+        <button class="file-btn" onclick="attachFile()"><span class="material-symbols-outlined">attach_file</span></button>
+        <textarea id="promptInput" placeholder="Ask Codex to explore repos, read web docs, or fix bugs..."></textarea>
+        <button id="mainBtn" class="action-btn send" onclick="handleBtnClick()">Send</button>
+      </div>
+    </footer>
+
+    <!-- SETTINGS & MODEL MANAGER MODAL -->
+    <div id="settingsModal">
+      <div class="modal-content">
+        <h2>Settings & Models</h2>
+        
+        <label>Active Model</label>
+        <div class="flex-row">
+          <select id="setModel" style="flex:1;" onchange="if(document.getElementById('modelInfoBox').style.display==='block') updateModelInfoBox();"></select>
+          <!-- Pulsante INFO aggiunto qui -->
+          <button class="icon-btn-info" onclick="toggleModelInfo()" title="Model Requirements"><span class="material-symbols-outlined" style="font-size:18px;">info</span></button>
+          <button class="icon-btn-danger" onclick="deleteActiveModel()" title="Delete Model"><span class="material-symbols-outlined" style="font-size:18px;">delete</span></button>
+        </div>
+        
+        <!-- Box Requisiti Dinamico -->
+        <div id="modelInfoBox"></div>
+
+        <label style="margin-top:5px;">Install New Model</label>
+        <div class="flex-row">
+          <input type="text" id="newModelName" placeholder="e.g. llama3.1:8b" style="flex:1;">
+          <button class="action-btn send" style="height:38px; min-width:80px; font-size: 12px;" onclick="downloadModel()">Download</button>
+        </div>
+        <div id="pullStatus" style="font-size: 11px; color: var(--warn); font-weight:bold;"></div>
+
+        <label style="margin-top: 10px;">Response Language</label>
+        <select id="setLang">
+          <option value="en">English</option>
+          <option value="it">Italiano</option>
+          <option value="es">Español</option>
+          <option value="fr">Français</option>
+        </select>
+        
+        <label style="margin-top: 10px;">Ollama URL / API Auth</label>
+        <div class="flex-row">
+          <input type="text" id="setUrl" placeholder="http://localhost:11434" style="flex:2;">
+          <input type="password" id="setToken" placeholder="API Key" style="flex:1;">
+        </div>
+        
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="closeSettings()">Cancel</button>
+          <button class="action-btn send" style="height:35px; min-width:80px;" onclick="saveSettings()">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    marked.setOptions({
+      highlight: function(code, lang) {
+        if (lang && hljs.getLanguage(lang)) return hljs.highlight(code, { language: lang }).value;
+        return hljs.highlightAuto(code).value;
+      }
+    });
+
+    const chatArea = document.getElementById('chat-area'), term = document.getElementById('terminal-log'), inp = document.getElementById('promptInput'), btn = document.getElementById('mainBtn'), actionBadge = document.getElementById('action-badge');
+    let history = [], sessionId = Date.now().toString(), isGenerating = false, autoRetryCount = 0, rawStorage = {}; 
+
+    window.addEventListener('pywebviewready', async () => { 
+      loadSessions(); updateCWD(); updateHeaderBadge();
+    });
+
+    // --- LOGICA REQUISITI MODELLI (INFO BOX) ---
+    const explicitSpecs = {
+      "qwen2.5-coder:14b": { min: "10GB VRAM / 16GB RAM", rec: "16GB VRAM (e.g., RTX 4080)", desc: "Excellent coding model with native tool calling." },
+      "qwen2.5-coder:7b": { min: "6GB VRAM / 8GB RAM", rec: "8GB VRAM (e.g., RTX 3060/4060)", desc: "Fast and lightweight coding model." },
+      "llama3.1:8b": { min: "6GB VRAM / 8GB RAM", rec: "8GB VRAM", desc: "Fast and versatile for general tasks and chats." },
+      "deepseek-r1:14b": { min: "10GB VRAM / 16GB RAM", rec: "16GB VRAM", desc: "Advanced logic and step-by-step reasoning." },
+      "devstral:24b": { min: "16GB VRAM (with RAM offload)", rec: "24GB VRAM (e.g., RTX 4090)", desc: "Heavy model optimized for autonomous SWE tasks." }
+    };
+
+    function getModelSpecs(model) {
+      if(explicitSpecs[model]) return explicitSpecs[model];
+      // Inferenza dinamica in base al nome
+      const m = model.toLowerCase();
+      if(m.includes("14b") || m.includes("12b") || m.includes("13b") || m.includes("15b")) return { min: "10GB VRAM / 16GB RAM", rec: "16GB VRAM", desc: "Mid-sized model. Good balance of speed and logic." };
+      if(m.includes("24b") || m.includes("26b") || m.includes("27b") || m.includes("32b") || m.includes("34b")) return { min: "16GB VRAM (RAM offload)", rec: "24GB VRAM", desc: "Heavy model. May run slower if it doesn't fit entirely in GPU VRAM." };
+      if(m.includes("70b") || m.includes("72b")) return { min: "32GB VRAM (Heavy RAM offload)", rec: "64GB+ VRAM / Multi-GPU", desc: "Massive enterprise-grade model." };
+      return { min: "4-6GB VRAM / 8GB RAM", rec: "8GB VRAM", desc: "Standard lightweight model." };
+    }
+
+    function toggleModelInfo() {
+      const box = document.getElementById('modelInfoBox');
+      if (box.style.display === 'none' || box.style.display === '') {
+        updateModelInfoBox();
+        box.style.display = 'block';
+      } else {
+        box.style.display = 'none';
+      }
+    }
+
+    function updateModelInfoBox() {
+      const model = document.getElementById('setModel').value;
+      if(!model) return;
+      const specs = getModelSpecs(model);
+      document.getElementById('modelInfoBox').innerHTML = `
+        <strong style="color:var(--text);">${model}</strong><br>
+        <span style="color:var(--danger)">Minimum:</span> ${specs.min}<br>
+        <span style="color:var(--accent)">Recommended:</span> ${specs.rec}<br>
+        <div style="margin-top: 5px;"><em>${specs.desc}</em></div>
+      `;
+    }
+
+    // --- IMPOSTAZIONI E MODELLI ---
+    async function updateHeaderBadge() {
+      const s = await window.pywebview.api.get_settings();
+      document.getElementById('model-badge').innerText = s.model || 'qwen2.5-coder:14b';
+    }
+
+    async function refreshModelList(selectedModel = null) {
+      const select = document.getElementById('setModel');
+      select.innerHTML = '<option>Loading models...</option>';
+      const res = await window.pywebview.api.get_models();
+      if(res.success && res.models.length > 0) {
+        select.innerHTML = '';
+        res.models.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m; opt.innerText = m;
+          select.appendChild(opt);
+        });
+        if(selectedModel && res.models.includes(selectedModel)) select.value = selectedModel;
+      } else {
+        select.innerHTML = '<option value="">Ollama not responding</option>';
+      }
+      // Se l'info box è aperto, aggiornalo col nuovo modello default
+      if(document.getElementById('modelInfoBox').style.display === 'block') updateModelInfoBox();
+    }
+
+    async function openSettings() {
+      const s = await window.pywebview.api.get_settings();
+      document.getElementById('setLang').value = s.lang || 'en';
+      document.getElementById('setUrl').value = s.url || 'http://localhost:11434';
+      document.getElementById('setToken').value = s.token || '';
+      document.getElementById('pullStatus').innerText = '';
+      document.getElementById('modelInfoBox').style.display = 'none';
+      await refreshModelList(s.model);
+      document.getElementById('settingsModal').style.display = 'flex';
+    }
+
+    function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
+    
+    async function saveSettings() {
+      const model = document.getElementById('setModel').value;
+      await window.pywebview.api.save_settings(
+        document.getElementById('setLang').value,
+        document.getElementById('setUrl').value,
+        document.getElementById('setToken').value,
+        model
+      );
+      updateHeaderBadge();
+      closeSettings();
+    }
+
+    async function deleteActiveModel() {
+      const select = document.getElementById('setModel');
+      const model = select.value;
+      if(!model || model.trim() === "") return;
+      if(confirm(`Are you sure you want to delete '${model}' from your PC?`)) {
+        document.getElementById('pullStatus').innerText = `Deleting ${model}...`;
+        const res = await window.pywebview.api.delete_model(model);
+        if(res.success) {
+          document.getElementById('pullStatus').innerText = `Deleted successfully.`;
+          document.getElementById('modelInfoBox').style.display = 'none';
+          refreshModelList();
+        } else {
+          document.getElementById('pullStatus').innerText = `Error: ${res.error}`;
+        }
+      }
+    }
+
+    window.updatePullProgress = function(status) {
+      document.getElementById('pullStatus').innerText = status;
+    }
+
+    async function downloadModel() {
+      const model = document.getElementById('newModelName').value.trim();
+      if(!model) return;
+      document.getElementById('pullStatus').innerText = `Connecting to pull ${model}...`;
+      
+      const res = await window.pywebview.api.pull_model(model);
+      if(res.success) {
+        document.getElementById('pullStatus').innerText = `Download complete!`;
+        document.getElementById('newModelName').value = '';
+        refreshModelList(model);
+      } else {
+        document.getElementById('pullStatus').innerText = `Error: ${res.error}`;
+      }
+    }
+
+    function toggleTerm() {
+      const p = document.getElementById('terminal-panel');
+      p.style.display = p.style.display === 'none' ? 'flex' : 'none';
+    }
+    async function updateCWD() {
+      document.getElementById('cwd-display').innerText = await window.pywebview.api.get_cwd();
+    }
+
+    inp.addEventListener('input', updateBtnState);
+    inp.addEventListener('keydown', e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleBtnClick(); } });
+
+    function updateBtnState() {
+      const val = inp.value.trim();
+      if (isGenerating) {
+        if (val.length > 0) { btn.innerHTML = "Follow Up"; btn.className = "action-btn follow"; }
+        else { btn.innerHTML = "Stop"; btn.className = "action-btn stop"; }
+      } else { btn.innerHTML = "Send"; btn.className = "action-btn send"; }
+    }
+
+    async function handleBtnClick() {
+      if (isGenerating) {
+        if (inp.value.trim().length > 0) {
+          await window.pywebview.api.stop_generation();
+          isGenerating = false;
+          setTimeout(() => triggerMessage(inp.value.trim()), 400);
+        } else {
+          await window.pywebview.api.stop_generation();
+          isGenerating = false; updateBtnState();
+        }
+      } else { triggerMessage(inp.value.trim()); }
+    }
+
+    function copyMsgText(id, btnElement) {
+      navigator.clipboard.writeText(rawStorage[id]);
+      const old = btnElement.innerHTML;
+      btnElement.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px;">check</span> Copied!`;
+      setTimeout(() => btnElement.innerHTML = old, 2000);
+    }
+
+    async function retryMsg(id) {
+      if(isGenerating) return;
+      let botIndex = -1;
+      for (let i = history.length - 1; i >= 0; i--) {
+        if (history[i].role === 'assistant') { botIndex = i; break; }
+      }
+      if (botIndex !== -1) {
+        history = history.slice(0, botIndex);
+        const wrapper = document.getElementById(id).closest('.msg-wrapper');
+        if(wrapper) wrapper.remove();
+        autoRetryCount = 0;
+        await startStreamAgent();
+      }
+    }
+
+    function addDOMMsg(role, id) {
+      const w = document.createElement('div'); w.className = `msg-wrapper ${role}`;
+      let htmlContent = `<div class="msg-header">${role === 'user' ? 'YOU' : 'CODEX AGENT'}</div><div class="msg-content" id="${id}"></div>`;
+      if(role === 'bot') {
+        htmlContent += `
+        <div class="msg-actions">
+          <button class="action-icon-btn" onclick="copyMsgText('${id}', this)"><span class="material-symbols-outlined" style="font-size:14px;">content_copy</span> Copy Markdown</button>
+          <button class="action-icon-btn" onclick="retryMsg('${id}')"><span class="material-symbols-outlined" style="font-size:14px;">refresh</span> Regenerate</button>
+        </div>`;
+      }
+      w.innerHTML = htmlContent;
+      chatArea.appendChild(w); chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    async function attachFile() {
+      const fd = await window.pywebview.api.select_file();
+      if(fd && fd.success) inp.value += `\n[Attached file: ${fd.name}]\n${fd.content}\n`;
+      updateBtnState();
+    }
+
+    async function triggerMessage(text) {
+      if(!text) return;
+      const id = 'user-' + Date.now();
+      addDOMMsg('user', id);
+      document.getElementById(id).innerHTML = marked.parse(text);
+      inp.value = ''; updateBtnState();
+      history.push({role: 'user', content: text});
+      autoRetryCount = 0; 
+      await startStreamAgent();
+    }
+
+    function appendStream(id, chunk) {
+      if(!rawStorage[id]) rawStorage[id] = "";
+      rawStorage[id] += chunk;
+      document.getElementById(id).innerHTML = marked.parse(rawStorage[id]);
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    async function startStreamAgent() {
+      isGenerating = true; updateBtnState();
+      const msgId = 'bot-' + Date.now();
+      rawStorage[msgId] = ""; addDOMMsg('bot', msgId);
+      await window.pywebview.api.chat_stream(history, msgId);
+    }
+
+    async function finalizeStream(id) {
+      const rawText = rawStorage[id];
+      history.push({role: 'assistant', content: rawText});
+      isGenerating = false; updateBtnState();
+      if(history.length === 2) {
+         const title = history[0].content.substring(0, 25) + "...";
+         await window.pywebview.api.save_session(sessionId, title, history);
+         loadSessions();
+      } else {
+         await window.pywebview.api.save_session(sessionId, document.querySelector('.session-item.active .session-title').innerText, history);
+      }
+      await processTools(rawText);
+    }
+
+    async function processTools(content) {
+      let feedbackReport = ""; let hasError = false; let toolsUsed = 0;
+      const logTerm = (text, type="norm") => {
+        let color = "#3fb950"; if(type==="err") color="var(--danger)"; if(type==="sys") color="#58a6ff";
+        term.innerHTML += `<br><span style="color:${color}">${text}</span>`;
+        term.scrollTop = term.scrollHeight;
+      };
+
+      const blocks = [...content.matchAll(/```(\w+)(?::([^\n]+))?\n([\s\S]*?)```/g)];
+      if(blocks.length > 0) { actionBadge.style.display = "inline-block"; term.innerHTML += `<br>--- Executing Tools (${blocks.length}) ---`; }
+
+      for (let m of blocks) {
+        const cmd = m[1]; const arg = m[2] ? m[2].trim() : ""; const body = m[3].trim();
+        if (cmd === "exec_cmd") {
+          actionBadge.innerText = "⚡ Terminal..."; logTerm(`> powershell: ${body.split('\n')[0]}...`, "sys");
+          const out = await window.pywebview.api.execute_terminal(body);
+          if(out.includes("[ERROR]")) { hasError = true; logTerm(out, "err"); } else logTerm(out);
+          feedbackReport += `\n[COMMAND OUTPUT]:\n${out}`; toolsUsed++; await updateCWD();
+        }
+        else if (cmd === "list_dir") {
+          const path = arg || body; logTerm(`> Scanning: ${path}`, "sys");
+          const out = await window.pywebview.api.list_dir(path); feedbackReport += `\n${out}`; toolsUsed++;
+        }
+        else if (cmd === "read_file") {
+          const path = arg || body; logTerm(`> Reading: ${path}`, "sys");
+          const out = await window.pywebview.api.read_file_disk(path); feedbackReport += `\n${out}`; toolsUsed++;
+        }
+        else if (cmd === "create_file") {
+          logTerm(`> Creating: ${arg}`, "sys");
+          const out = await window.pywebview.api.create_or_update_file(arg, body); logTerm(out); toolsUsed++;
+        }
+        else if (cmd === "web_search") {
+          const q = arg || body; logTerm(`> Web Search: ${q}`, "sys");
+          const out = await window.pywebview.api.web_search(q); feedbackReport += `\n${out}`; toolsUsed++;
+        }
+        else if (cmd === "read_url") {
+          const u = arg || body; logTerm(`> Downloading: ${u}`, "sys");
+          const out = await window.pywebview.api.read_url(u); feedbackReport += `\n[PAGE CONTENT ${u}]:\n${out}`; toolsUsed++;
+        }
+        else if (cmd === "save_memory") {
+          const info = arg || body; logTerm(`> Saving to memory: ${info}`, "warn"); await window.pywebview.api.save_memory(info);
+        }
+      }
+      actionBadge.style.display = "none";
+
+      if (toolsUsed > 0 && feedbackReport !== "") {
+        if (hasError && autoRetryCount < 3) {
+            autoRetryCount++;
+            history.push({role: 'user', content: `[SYSTEM] Error detected:\n${feedbackReport}\nFix the problem and try an alternative approach.`});
+            logTerm(">> Auto-resolving error...", "warn");
+            await startStreamAgent();
+        } else if (!hasError && autoRetryCount < 1) { 
+            autoRetryCount++;
+            history.push({role: 'user', content: `[SYSTEM] Output received:\n${feedbackReport}\nProceed with the next steps or confirm completion.`});
+            await startStreamAgent();
+        }
+      }
+    }
+
+    async function loadSessions() {
+      const list = document.getElementById('session-list'); list.innerHTML = '';
+      const sessions = await window.pywebview.api.get_sessions();
+      sessions.forEach(s => {
+        const div = document.createElement('div');
+        div.className = `session-item ${s.id === sessionId ? 'active' : ''}`;
+        div.innerHTML = `
+          <span class="session-title" title="${s.title}">${s.title}</span> 
+          <div class="session-actions">
+            <span class="material-symbols-outlined action-icon edit" style="font-size:16px;" onclick="renameSession('${s.id}', event)">edit</span>
+            <span class="material-symbols-outlined action-icon del" style="font-size:16px;" onclick="delSession('${s.id}', event)">close</span>
+          </div>`;
+        div.onclick = () => loadChat(s.id, s.history);
+        list.appendChild(div);
+      });
+    }
+
+    async function renameSession(id, e) {
+      e.stopPropagation();
+      const newName = prompt("Enter a new name for this chat:");
+      if(newName && newName.trim() !== "") {
+        await window.pywebview.api.rename_session(id, newName.trim());
+        loadSessions();
+      }
+    }
+
+    function startNewSession() {
+      sessionId = Date.now().toString(); history = []; chatArea.innerHTML = ''; rawStorage = {};
+      term.innerHTML = '// New session started...'; loadSessions();
+    }
+
+    function loadChat(id, hist) {
+      sessionId = id; history = hist; chatArea.innerHTML = ''; rawStorage = {};
+      history.forEach((m, idx) => {
+        const dId = 'hist-' + idx;
+        rawStorage[dId] = m.content;
+        addDOMMsg(m.role, dId);
+        document.getElementById(dId).innerHTML = marked.parse(m.content);
+      });
+      loadSessions();
+    }
+
+    async function delSession(id, e) {
+      e.stopPropagation(); await window.pywebview.api.delete_session(id);
+      if(id === sessionId) startNewSession(); else loadSessions();
+    }
+  </script>
+</body>
+</html>
