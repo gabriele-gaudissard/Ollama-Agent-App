@@ -43,19 +43,19 @@ echo Downloading %MODEL%... This might take a few minutes.
 ollama pull %MODEL%
 
 :: Configurazione iniziale
-echo {"settings": {"lang": "it", "url": "http://localhost:11434", "token": "", "model": "%MODEL%"}, "memory": "", "sessions": []} > codex_data.json
+echo {"settings": {"lang": "en", "url": "http://localhost:11434", "token": "", "model": "%MODEL%"}, "memory": "", "sessions": []} > codex_data.json
 
 echo.
 echo [4/4] Creating launcher and Desktop shortcut...
-echo @echo off > Start_Codex.bat
-echo cd /d "%%~dp0" >> Start_Codex.bat
-echo start "" pythonw app.py >> Start_Codex.bat
+echo @echo off > Ollama.bat
+echo cd /d "%%~dp0" >> Ollama.bat
+echo start "" pythonw app.py >> Ollama.bat
 
 set VBS_SCRIPT="%TEMP%\CreateShortcut.vbs"
 echo Set oWS = WScript.CreateObject("WScript.Shell") > %VBS_SCRIPT%
-echo sLinkFile = "%USERPROFILE%\Desktop\Codex Agent.lnk" >> %VBS_SCRIPT%
+echo sLinkFile = "%USERPROFILE%\Desktop\Ollama.lnk" >> %VBS_SCRIPT%
 echo Set oLink = oWS.CreateShortcut(sLinkFile) >> %VBS_SCRIPT%
-echo oLink.TargetPath = "%~dp0Start_Codex.bat" >> %VBS_SCRIPT%
+echo oLink.TargetPath = "%~dp0Ollama.bat" >> %VBS_SCRIPT%
 echo oLink.WorkingDirectory = "%~dp0" >> %VBS_SCRIPT%
 echo oLink.Description = "Codex Professional Agent" >> %VBS_SCRIPT%
 echo oLink.IconLocation = "%windir%\system32\shell32.dll, 25" >> %VBS_SCRIPT%
@@ -67,6 +67,6 @@ del %VBS_SCRIPT%
 echo.
 echo ===================================================
 echo SETUP COMPLETED SUCCESSFULLY!
-echo You can now launch the app from your Desktop shortcut.
+echo You can now launch the app from your Desktop shortcut "Ollama".
 echo ===================================================
 pause
