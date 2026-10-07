@@ -74,17 +74,15 @@ Since this runs 100% locally, your hardware dictates the speed and intelligence 
 * **Live Action Badge:** See exactly what the agent is doing in the background (e.g., "⚡ Terminal...", "📖 Reading file...").
 * **Session Management:** Save, rename, and resume previous chats from the sidebar.
 
-## 🛡️ Security Warning
-
-**Use with caution.** This agent is designed to execute commands on your local system via PowerShell.
-
-* Do not leave the agent running completely unsupervised on critical production machines.
-* It has the capability to delete files and modify your system if instructed to do so.
-* The application runs locally; no data or code is sent to third-party cloud servers (unless you specifically connect it to a remote Ollama instance in the settings).
-
 ## 🤝 Contributing
 
 Feel free to fork this project, submit pull requests, or open an issue if you find bugs or have feature requests. Let's build the ultimate open-source local AI agent together!
+
+## ⚠️ Disclaimer and Liability
+This application grants an AI model direct execution permissions on your local operating system via PowerShell. It is capable of creating, modifying, and deleting files autonomously.
+
+By using this software, you acknowledge that AI models can hallucinate, make mistakes, or generate destructive commands. You use this tool entirely at your own risk. The author assumes no liability for any data loss, system corruption, security breaches, or unintended consequences resulting from the use of this agent. It is highly recommended to monitor the terminal output panel during execution.
+
 
 ## 📜 License
 
