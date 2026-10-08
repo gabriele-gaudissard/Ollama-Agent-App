@@ -4,6 +4,7 @@ veyq_data.json
 state.json
 credentials.dpapi
 runtime.json
+profile.json
 build.json
 *.lnk
 *.vbs

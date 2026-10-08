@@ -88,7 +88,7 @@ Developer checkouts with `.git` use Git updates and are never overwritten by the
 
 ## Privacy and recovery
 
-Data lives in `%LOCALAPPDATA%\Veyq`, or `VEYQ_DATA_DIR`. Legacy `codex_data.json` is imported once, retaining chats/projects/preferences and migrating the provider token into the vault. The legacy token field is scrubbed after vault storage succeeds.
+Data defaults to `%LOCALAPPDATA%\Veyq`, or `VEYQ_DATA_DIR`. Installation records the physical profile path in local `profile.json` so Windows filesystem redirection does not create separate profiles for different launchers. This machine-specific file is preserved during updates and is never distributed. Legacy `codex_data.json` is imported once, retaining chats/projects/preferences and migrating the provider token into the vault. The legacy token field is scrubbed after vault storage succeeds.
 
 Chats, settings, memory and backups are local plaintext files protected by the Windows account. Tokens are separately encrypted with current-user DPAPI. The metadata-only audit log records tool names/outcomes/digests, not chat contents. There are no analytics, external fonts or runtime CDN scripts; Markdown/highlight/sanitizer libraries ship locally with licenses. A remote provider receives the context and, when enabled/requested, screenshots needed for the task.
 

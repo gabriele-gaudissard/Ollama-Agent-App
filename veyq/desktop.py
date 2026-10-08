@@ -486,7 +486,13 @@ class DesktopAPI:
 
 
 def main():
-    store = Store(legacy=ROOT / "codex_data.json")
+    profile = ROOT / "profile.json"
+    data_dir = None
+    if not os.environ.get("VEYQ_DATA_DIR") and profile.exists():
+        data_dir = Path(json.loads(profile.read_text(encoding="utf-8"))["data_dir"])
+        if not data_dir.is_absolute():
+            raise ValueError("The installed profile path must be absolute.")
+    store = Store(root=data_dir, legacy=ROOT / "codex_data.json")
     instance = (store.root / "instance.lock").open("a+b")
     try:
         if os.name == "nt":
@@ -509,6 +515,8 @@ def main():
     if "--install" in sys.argv:
         from .updater import enable_updates
         enable_updates(ROOT, store)
+        from .storage import atomic_json
+        atomic_json(ROOT / "profile.json", {"data_dir": str(store.root)})
         return
     import webview
     api = DesktopAPI(store)
