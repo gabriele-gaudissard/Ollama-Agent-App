@@ -140,6 +140,12 @@ class Store:
             session.setdefault("plan", [])
             session.setdefault("project_id", "")
         self.save()
+        # Windows MSIX filesystem redirection can map newly created profile
+        # files to a cache while resolving the existing logical directory to
+        # another location. Bind all subsequent paths to the actual state file.
+        self.path = self.path.resolve()
+        self.root = self.path.parent
+        self.vault = Vault(self.root)
 
     def save(self):
         with self.lock:
