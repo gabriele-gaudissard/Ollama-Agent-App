@@ -6,15 +6,16 @@ import json
 import os
 import re
 import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 
 DEFAULTS = {
-    "lang": "it", "provider": "local", "url": "http://localhost:11434",
+    "lang": "en", "provider": "local", "url": "http://localhost:11434",
     "model": "qwen3:14b", "permission": "auto", "network": False,
-    "workspace": "", "max_steps": 30, "command_timeout": 120,
-    "github_repo": "", "context_chars": 60000, "auto_update": True,
+    "workspace": "", "max_steps": 0, "command_timeout": 0,
+    "github_repo": "", "context_chars": 60000, "auto_update": True, "vision": False,
 }
 
 
@@ -101,9 +102,24 @@ class Store:
         self.path = self.root / "state.json"
         self.lock = threading.RLock()
         self.vault = Vault(self.root)
+        self.recovery_notice = ""
         if self.path.exists():
-            # Never overwrite a corrupt database silently.
-            self.data = json.loads(self.path.read_text(encoding="utf-8"))
+            try:
+                self.data = json.loads(self.path.read_text(encoding="utf-8"))
+                if not isinstance(self.data, dict) or not isinstance(self.data.get("settings"), dict) or not isinstance(self.data.get("sessions"), list):
+                    raise ValueError("Invalid local database structure")
+            except (ValueError, UnicodeError):
+                quarantine = self.root / ("state.corrupt-" + str(time.time_ns()) + ".json")
+                os.replace(self.path, quarantine)
+                previous = self.root / "state.previous.json"
+                try:
+                    self.data = json.loads(previous.read_text(encoding="utf-8"))
+                    if not isinstance(self.data, dict) or not isinstance(self.data.get("settings"), dict) or not isinstance(self.data.get("sessions"), list):
+                        raise ValueError("Invalid backup")
+                    self.recovery_notice = "Local data recovered from the previous valid snapshot. The damaged file was preserved."
+                except (OSError, ValueError, UnicodeError):
+                    self.data = {"settings": {}, "sessions": [], "projects": [], "memory": ""}
+                    self.recovery_notice = "A damaged database was preserved separately. No valid backup was available; a new local database was created."
         else:
             self.data = {"settings": {}, "sessions": [], "projects": [], "memory": ""}
             if legacy and Path(legacy).exists():
@@ -115,15 +131,24 @@ class Store:
                 # Scrub the legacy plaintext credential only after vault succeeds.
                 atomic_json(legacy, old)
         self.data["settings"] = {**DEFAULTS, **self.data.get("settings", {})}
+        self.data.setdefault("projects", [])
+        self.data.setdefault("memory", "")
         self.data["settings"].pop("token", None)
         # Old installation had unrestricted execution. Migration defaults to auto.
         for session in self.data.get("sessions", []):
             session.setdefault("workspace", "")
             session.setdefault("plan", [])
+            session.setdefault("project_id", "")
         self.save()
 
     def save(self):
         with self.lock:
+            if self.path.exists():
+                try:
+                    previous = json.loads(self.path.read_text(encoding="utf-8"))
+                    atomic_json(self.root / "state.previous.json", previous)
+                except (ValueError, UnicodeError):
+                    pass
             atomic_json(self.path, self.data)
 
     def snapshot(self):

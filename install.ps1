@@ -17,10 +17,11 @@ if ($LASTEXITCODE -ne 0) { exit 1 }
 $shortcutShell = New-Object -ComObject WScript.Shell
 $desktopPath = [Environment]::GetFolderPath('Desktop')
 $shortcut = $shortcutShell.CreateShortcut((Join-Path $desktopPath 'Veyq.lnk'))
-$shortcut.TargetPath = Join-Path $appRoot 'Veyq.bat'
+$shortcut.TargetPath = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+$shortcut.Arguments = '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + (Join-Path $appRoot 'Launcher.ps1') + '"'
 $shortcut.WorkingDirectory = $appRoot
 $shortcut.Description = 'Veyq desktop AI agent'
-$shortcut.IconLocation = "$env:WINDIR\system32\shell32.dll,25"
+$shortcut.IconLocation = (Join-Path $appRoot 'assets\brand\veyq-dark.ico') + ',0'
 $shortcut.Save()
 Write-Host 'Veyq installato. Il motore locale già presente continua a funzionare.'
 Write-Host 'Se non hai un motore locale, puoi configurare un endpoint API nelle impostazioni.'

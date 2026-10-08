@@ -1,69 +1,98 @@
 # Veyq
 
-Veyq (pronounced "vayk") is an independent Windows desktop AI agent. It connects to an existing local model server or a Chat Completions compatible API, and uses structured tools to work on a selected project.
+![Veyq logo](assets/brand/logo-dark.svg)
 
-## What it actually does
+Veyq (pronounced “vayk”) is an independent Windows desktop AI agent. It works with local models or a Chat Completions compatible API, and uses backend tools to act on files, projects, GitHub, the web and accessible Windows applications.
 
-The Python backend owns the complete model → tool → result loop. The interface displays messages and approves specific actions; code fences and generated HTML are never interpreted as commands.
+## See Veyq
 
-- Coding: inspect and search files, create/edit code, run shell commands and tests, inspect Git status/diffs/logs.
-- File management: create directories, move individual files, delete individual files with confirmation, and restore backups from the interface.
-- Online work: web search with source URLs, read public documentation, and GitHub REST reads/writes scoped to the repository you configure.
-- Tasks: visible plans, streaming output, action history, bounded loops, cancellation, and persistent chats.
-- Interface: project file explorer with paginated code previews, keyboard navigation, and explicit action approvals. Manual file inspection follows the same permission mode as agent tools.
-- Privacy: local chat storage, OS credential vault, metadata-only audit log, no analytics or CDN scripts, explicit online setting.
-- Distribution: every tested push to main publishes a GitHub Release; managed installations check for and apply updates automatically.
+Three screenshots of the running Windows application with an isolated demo profile. The illustrative conversation contains no personal chat or credentials and is not a benchmark.
 
-Agent quality depends on the model, hardware and task. Veyq does not guarantee successful completion of every task or parity with hosted frontier agents. It currently has no general GUI/computer-control tool, voice/video generation, scheduled autonomous missions, or generic MCP connector manager.
+**Workspace and conversation** — both user and agent messages are aligned left; the composer stays visible while history scrolls.
+
+![Workspace and conversation](docs/screenshots/workspace.png)
+
+**Project explorer** — browse folders, read real files and refer to them in chat.
+
+![Project explorer](docs/screenshots/explorer.png)
+
+**Settings and permissions** — installed models, language, optional limits, provider credentials and approval modes.
+
+![Settings and permissions](docs/screenshots/permissions.png)
+
+The [brand assets](assets/brand) include original [dark](assets/brand/logo-dark.svg) and [light](assets/brand/logo-light.svg) SVG/PNG logos and a Windows icon. The Desktop shortcut uses the dark icon.
+
+## What it does
+
+The backend owns the model → tool → result loop. Markdown code fences never execute commands. Actions use validated structured tool calls, and failures return the actual error/output to the model for correction.
+
+- **Code and projects:** read/search/write/edit files, run PowerShell commands and tests, inspect Git, clone public repositories and configure their dependencies. Commands report exit codes; shell directory changes persist across commands and restarts.
+- **Files and documents:** create folders, move/delete individual files with recoverable backups, preview files, extract PDF/DOCX text, attach files with bounded text excerpts, and link folders.
+- **Windows applications:** list visible windows, inspect accessible controls, click, type literal text and send shortcuts. Actions use a short-lived observation and must re-inspect afterwards. Vision-capable models can receive requested window screenshots; other models use the accessibility tree.
+- **Online and GitHub:** DuckDuckGo search with Bing fallback, public URL reading, and GitHub REST reads/writes for any requested repository. The configured repository is an optional default, not a restriction. GitHub itself enforces the token’s permissions.
+- **Conversation:** projects with accordion groups, full-text chat search, rename/delete/export, persistent editable memory, paginated access to other chats in the same project, Markdown tables/lists/highlighting, copy and regeneration.
+- **During a run:** live text and colored tool logs, task plans, targeted questions, queued follow-ups, and Stop when the composer is empty. Stopping preserves partial text and completed actions.
+- **Models:** installed-model dropdown, a ten-family catalog, custom-name download, progress/cancellation, deletion, source links and approximate RAM/VRAM/size/use-case details.
+- **Distribution:** tested main-branch pushes create signed GitHub Releases; managed installations download and apply updates automatically when idle.
+
+All 58 requirements supplied for this project are mapped to implementations or modern equivalents in [the requirement matrix](docs/REQUIREMENTS.md). Later requirements override the original generic icon and legacy branding/configuration names.
 
 ## Install and launch
 
-Windows 10/11, Python 3.11+ and a model with structured tool calling are required. A working local engine is already sufficient; no paid API is required for local use.
+Windows 10/11 and Python 3.11+ are required. A tool-capable local model is sufficient; a paid API is optional.
 
 1. Download `veyq-update.zip` from [the latest release](https://github.com/gabriele-gaudissard/Veyq-Agent-App/releases/latest).
-2. Extract it to a writable application folder, outside your project folders.
-3. Run `Installer.bat`. It creates a virtual environment, installs Python packages, registers the installation and creates the **Veyq** Desktop shortcut. It does not overwrite chat data or download models without your action.
-4. Launch **Veyq**, choose your project folder and configure your provider/model in Settings.
+2. Extract it to a writable application folder outside your working projects.
+3. Run `Installer.bat`. It creates a virtual environment, installs dependencies, registers updates and creates the Veyq Desktop shortcut.
+4. Launch Veyq. A new profile starts in **English**. Choose a 7B, 8B or 14B starter model, another catalog model, an installed model, or a remote API.
 
-For an existing source checkout, launch `Veyq.bat`; its fallback uses the existing Python installation. `Installer_only_shortcut.bat` creates only the new shortcut. The old local model service continues to work; its executable has not been renamed or removed.
+Model downloads require your explicit choice. If the default local engine is missing, the confirmed download starts the official installer, verifies its Windows publisher signature and starts the engine. An already running engine is reused. Installer failures preserve the application and are reported. Engine installation requires network access and a valid publisher signature; this path is not needed on an already configured PC.
 
-The local protocol uses `/api/chat` and `/api/tags`. A compatible API uses `/chat/completions` and `/models`; include `/v1` in the configured base URL if your provider requires it. Remote endpoints require HTTPS and the online setting. Provider tokens are optional for unauthenticated local endpoints.
+`Installer_only_shortcut.bat` repairs only the Desktop shortcut, using Windows COM instead of a temporary VBScript. The shortcut launches without a terminal window. `Veyq.bat` also launches the app; opening a batch file directly may briefly show its shell. Missing Python packages are repaired automatically on launch, with diagnostics in `startup.log`.
 
-## Permission modes
+The local protocol uses `/api/chat`, `/api/tags`, `/api/show`, `/api/pull` and `/api/delete`. Compatible APIs use `/chat/completions` and `/models`; include `/v1` where required. Remote endpoints require HTTPS and online access. Local unauthenticated endpoints need no token. Remote vision input is an explicit setting.
+
+The catalog contains curated popular families, not a measured popularity or performance ranking. Hardware figures assume typical quantized weights and are estimates: context, quantization and GPU offloading change requirements. CPU-only inference works but can be slow. Models without native tools work as chat models; select a tool-capable model for autonomous actions.
+
+## Language, follow-ups and optional limits
+
+English, Italian, Spanish and French apply immediately and persist across restarts. The model receives the selected response language. Model-generated prose, filenames, source code and raw operating-system/tool output are preserved rather than translated by the UI.
+
+Type while the agent works to send a **follow-up**. It is queued until the current tool batch has completed, keeping tool/result pairing valid. Leave the composer empty to **Stop**. Regeneration removes later chat messages but does not undo previously executed actions; inspect the result before repeating work.
+
+**Maximum steps: `0` means unlimited. Command timeout: `0` disables the command timeout.** New profiles default to both disabled. You can enable finite values in Settings. Stop, window-close cleanup, output-size validation and repeated-identical-action protection remain active. Network transports retain connection/read timeouts so unavailable services do not hang forever.
+
+## Approval modes
 
 | Mode | Behavior |
 | --- | --- |
-| Chiedi sempre | Each model tool call pauses for one explicit approval. |
-| Approva per me (default) | Reads and file changes inside the selected project proceed automatically. Commands, outside-project access, application-source changes, deletions, memory writes, network requests and GitHub publication require approval. |
-| Accesso completo | Tools proceed without approvals, subject to hard validation, protected credential paths and the online switch. Enabling it requires an explicit checkbox. |
+| Always ask | Each action tool requires one explicit approval; asking an essential question itself does not need a second approval. |
+| Approve for me | Project file reads/changes proceed automatically. Commands, desktop control, outside-project access, deletions, memory writes, other-chat context, online requests and GitHub writes require approval. |
+| Full access | Actions proceed without confirmations, subject to validation and the online switch. Enabling it requires an explicit checkbox. |
 
-These are application permission gates, **not an operating-system sandbox**. Approved shell commands run with the Windows user's privileges and may reach other files and the network. For this reason the terminal is disabled when online tools are disabled. Use a separate OS account or isolated VM when executing untrusted code. Full access cannot guarantee credential isolation from arbitrary shell commands.
+These are application permission gates, **not an OS sandbox**. Shell commands run as the current Windows user and can access other files and network services. Structured file tools protect recognized credential locations and the app data folder, but arbitrary approved shell commands cannot provide the same isolation. Full access does not elevate Windows privileges. GUI controls in password-manager/system-security apps and Veyq’s own permission UI are protected; inaccessible or elevated applications may require a different approach.
 
-Approval is bound to one tool, its exact arguments and a digest. File content changes while approval is pending invalidate the action. Denial is recorded; an approval expires after ten minutes. Settings/project changes are blocked during a run. Cancellation stops pending approvals and kills running command process trees; a stalled model HTTP stream may take up to its 90-second read timeout to return. Completed mutations are preserved.
+Approval is tied to one action and exact parameters. File changes while approval is pending invalidate it. Denials are returned to the model and recorded. Configuration/project mutations are blocked during work; follow-ups and question answers remain available. Stop interrupts the model connection and terminates command process trees. A window-close handler performs the same cleanup even with command timeouts disabled. Completed side effects remain applied.
 
-## GitHub
+## GitHub and updates
 
-Set `owner/repository` and a fine-grained token in Settings. Choose only the permissions needed for that repository. Tokens stay in the backend vault and are injected into authenticated requests, never added to model context. The GitHub tool supports issues, pull requests, contents, commits, branches and releases through GET/POST/PATCH/PUT/DELETE. Use approved Git commands for local branches, commits and pushes. Windows Git credential-manager authentication remains separate.
+The GitHub tool accepts `repository: "owner/name"` for each action. Settings can hold an optional default. A token is only necessary for private data and authenticated writes; use a fine-grained token with the permissions you need. It stays in the backend vault and is injected into requests. Git credential-manager authentication for command-line Git is separate.
 
-## Automatic updates
+Pushing changes to **main** runs Windows backend tests, UI tests and syntax checks before publishing a release. An unpushed local edit or another branch does not update users. Installed packages check at startup and hourly, stage the new version and restart when idle. This independent update check contacts GitHub even if the agent’s online tools are off; disable automatic updates too when avoiding outbound traffic. Explicit model downloads and engine setup also contact their publishers after confirmation.
 
-The release workflow runs Windows tests and syntax checks before publishing `veyq-update.zip` and its SHA-256 manifest. Pushing a file change to **main** triggers this pipeline; editing an unpushed local file or another branch does not publish an update.
+Every update manifest is **Ed25519 signed** against a pinned publisher key, checked before staging and again before applying. The updater verifies SHA-256 hashes, rejects unsigned/tampered manifests, archive traversal/links and older release sequences, preserves user data, backs up app files and rolls back a failed installation. Changed dependencies install into a separate runtime before switching. Offline/download/rate-limit failures leave the current app installed.
 
-Managed installations check GitHub on startup and hourly, verify the archive and every file, reject archive traversal/links, stage the update and restart when the agent is idle. The updater preserves the data folder, backs up replaced app files and rolls back file changes on installation failure. Changed requirements are installed in a separate virtual environment before switching runtimes. Failed downloads, offline machines and rate limits leave the current app installed. The automatic-update option independently contacts GitHub even when model tools are offline; disable both settings to avoid outbound traffic.
+The update publisher is `gabriele-gaudissard/Veyq-Agent-App`; this fixed trust source is independent of the repositories the agent works on. The signing private key is an Actions secret, with a publisher backup in the Windows vault, and is never distributed. The package signature is not a Windows Authenticode certificate.
 
-The publisher is the fixed repository `gabriele-gaudissard/Veyq-Agent-App`. SHA-256 verifies integrity against the manifest delivered from that repository over HTTPS; this is not an independent code-signing system. Anyone authorized to publish there can distribute application code. Protect the repository account and branch accordingly.
+Developer checkouts with `.git` use Git updates and are never overwritten by the package updater. Modified managed app files also pause updates to preserve changes. Users of the original application install this version once because the original has no updater.
 
-Developer checkouts containing `.git` are deliberately never overwritten by automatic updates. Update those with Git. Managed installations with locally edited application files also stop before overwriting them. The update status and previous builds are stored under the local data directory.
+## Privacy and recovery
 
-Users of the old application must install this version once: their existing version has no updater and cannot acquire one automatically.
+Data lives in `%LOCALAPPDATA%\Veyq`, or `VEYQ_DATA_DIR`. Legacy `codex_data.json` is imported once, retaining chats/projects/preferences and migrating the provider token into the vault. The legacy token field is scrubbed after vault storage succeeds.
 
-## Local data and recovery
+Chats, settings, memory and backups are local plaintext files protected by the Windows account. Tokens are separately encrypted with current-user DPAPI. The metadata-only audit log records tool names/outcomes/digests, not chat contents. There are no analytics, external fonts or runtime CDN scripts; Markdown/highlight/sanitizer libraries ship locally with licenses. A remote provider receives the context and, when enabled/requested, screenshots needed for the task.
 
-By default data lives in `%LOCALAPPDATA%\Veyq`; `VEYQ_DATA_DIR` can set another location. The legacy `codex_data.json` is imported once, preserving chats/projects/preferences and moving any provider token into the vault. The old token field is scrubbed after successful migration.
-
-`state.json` contains chats, workspace paths, settings and memory **in plaintext**. Windows credentials use DPAPI bound to the current user; other platforms require a functioning system keyring. `audit.jsonl` contains timestamps, tool names, outcomes and argument hashes, not commands or file contents. File backups can contain private code. Protect the Windows account and disk. The interface supports chat export/deletion, memory clearing, token removal and individual-file restore.
-
-Known credential paths such as `.env`, SSH keys, certificate keys and the agent data directory are blocked by structured file tools. Recognized tokens and configured credentials are redacted from model output and logs; this is a best-effort safeguard, not a universal secret detector. Web tools block private/reserved addresses and use DNS-pinned connections with redirect validation.
+Corrupt JSON is preserved under a separate filename. The app restores the previous valid snapshot, or creates a clean profile if no valid snapshot exists, and displays a recovery notice. Recognized token patterns/configured credentials are redacted from output and logs; this is not a universal secret detector. Structured web tools block private/reserved network addresses and validate DNS/redirects. Missing Beautiful Soup disables web extraction/search rather than crashing the whole app.
 
 ## Development and validation
 
@@ -71,13 +100,18 @@ Known credential paths such as `.env`, SSH keys, certificate keys and the agent 
 python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
 python -m compileall -q app.py veyq
+npm ci
+npm test
 node --check app.js
 python app.py --self-check
-python scripts/build_release.py release
 ```
 
-The test suite covers permission denial, command cancellation/timeouts, backup/recovery, exact-edit failures, credential migration/storage, public-network checks, tool protocol pairing, safe Markdown behavior, update integrity, traversal rejection and rollback. Live-model behavior should also be tested with your selected model.
+Tests cover approval denial, process cancellation/timeouts, persistent cwd, memory/project scoping, follow-up ordering, questions, partial HTTP cancellation, recovery, credential paths, Markdown sanitation, four-language switching, signed updates and rollback. A live `qwen3:14b` run cloned `octocat/Hello-World`, corrected its README filename assumption, wrote a validation script and ran it successfully with Python. GUI observation/action validation is unit-tested with controlled doubles; visual QA covers the real Veyq app. The missing-engine installer path is checked structurally and with mocks because the development PC already has the engine; no unnecessary reinstall or multi-GB model download was performed.
 
-## Naming and license
+The agent’s ability to finish a particular task still depends on the model, available tools, hardware, permissions and service responses. It does not guarantee frontier-model quality or successful control of every Windows application. There is no generic MCP/plugin manager, voice/video generator or unattended scheduler in this release.
 
-The selected name is Veyq. A preliminary web search on 8 October 2026 found no matching commercial software brand; this does not certify trademark or domain availability. The application is independent of upstream model providers. Mandatory third-party attribution remains in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and the author copyright remains in [LICENSE](LICENSE).
+Publisher builds use `scripts/build_release.py`, the Actions signing secret and the workflow run number. Keep the private key out of source, arguments and ordinary JSON. Startup diagnostics are in the profile’s `startup.log`.
+
+## Name and licenses
+
+The user-selected name is Veyq. A further check on 8 October 2026 found an unrelated software project using [veyq](https://veyq.app/) for self-hosted memories. **The name is not verified as available or exclusive.** This project is independent of that product and upstream model providers. Mandatory third-party licenses/attribution remain in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [LICENSE](LICENSE).

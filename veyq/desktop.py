@@ -21,6 +21,8 @@ class DesktopAPI:
         self._agent = Agent(self._store, ROOT)
         self._window = None
         self._maintenance = threading.Lock()
+        self._model_cancel = threading.Event()
+        self._model_response = None
         with self._store.lock:
             if not self._store.data["settings"]["workspace"]:
                 workspace = self._store.root.parent / "Veyq Workspace"
@@ -38,6 +40,7 @@ class DesktopAPI:
         s["has_github_token"] = bool(self._store.vault.get("github"))
         s["data_dir"] = str(self._store.root)
         s["version"] = "4.0.0"
+        s["recovery_notice"] = self._store.recovery_notice
         return s
 
     def save_settings(self, values):
@@ -46,19 +49,23 @@ class DesktopAPI:
             if not isinstance(values, dict):
                 raise ValueError("Impostazioni non valide.")
             s = self._store.snapshot()["settings"]
-            for key in ("lang", "provider", "url", "model", "permission", "network", "max_steps", "command_timeout", "github_repo", "auto_update"):
+            for key in ("lang", "provider", "url", "model", "permission", "network", "max_steps", "command_timeout", "github_repo", "auto_update", "vision"):
                 if key in values:
                     s[key] = values[key]
             if s["provider"] not in {"local", "compatible"} or s["permission"] not in {"always", "auto", "full"}:
                 raise ValueError("Modalita' non valida.")
+            if s["lang"] not in {"en", "it", "es", "fr"}:
+                raise ValueError("Supported languages: English, Italian, Spanish, French.")
             if s["permission"] == "full" and values.get("confirm_full") is not True:
                 raise ValueError("Conferma esplicita richiesta per accesso completo.")
             if not isinstance(s["network"], bool) or not isinstance(s.get("auto_update", False), bool):
                 raise ValueError("Valore rete/aggiornamenti non valido.")
-            if not isinstance(s["max_steps"], int) or not 1 <= s["max_steps"] <= 100:
-                raise ValueError("Limite passi: 1-100.")
-            if not isinstance(s["command_timeout"], int) or not 1 <= s["command_timeout"] <= 600:
-                raise ValueError("Timeout comandi: 1-600 secondi.")
+            if not isinstance(s["vision"], bool):
+                raise ValueError("Vision must be enabled explicitly for remote vision models.")
+            if type(s["max_steps"]) is not int or not 0 <= s["max_steps"] <= 100:
+                raise ValueError("Step limit: 0 for unlimited, or 1–100.")
+            if type(s["command_timeout"]) is not int or not 0 <= s["command_timeout"] <= 600:
+                raise ValueError("Command timeout: 0 to disable, or 1–600 seconds.")
             if not isinstance(s["model"], str) or not s["model"].strip() or len(s["model"]) > 200:
                 raise ValueError("Nome modello non valido.")
             validate_endpoint(s["url"], s["network"])
@@ -72,8 +79,55 @@ class DesktopAPI:
                 self._store.save()
             return {"ok": True}
 
-    def get_sessions(self):
-        return [{k: s.get(k) for k in ("id", "title", "workspace", "project_id")} for s in self._store.snapshot()["sessions"]]
+    def get_sessions(self, query=""):
+        query = str(query).lower()[:500]
+        return [{k: s.get(k) for k in ("id", "title", "workspace", "project_id")} for s in self._store.snapshot()["sessions"]
+                if not query or query in (s["title"] + " " + " ".join(str(m.get("content", "")) for m in s.get("history", []))).lower()]
+
+    def get_projects(self):
+        return self._store.snapshot()["projects"]
+
+    def set_language(self, lang):
+        if lang not in {"en", "it", "es", "fr"}:
+            raise ValueError("Unsupported language.")
+        with self._store.lock:
+            self._store.data["settings"]["lang"] = lang
+            self._store.save()
+        return {"ok": True}
+
+    def create_project(self, name, path=""):
+        with self._agent.lock:
+            self._idle()
+            if not isinstance(name, str) or not name.strip() or len(name) > 100:
+                raise ValueError("Project name must contain 1–100 characters.")
+            project_id = uuid.uuid4().hex
+            target = Path(path).resolve() if path else Path(self._store.data["settings"]["workspace"]) / (re.sub(r"[^A-Za-z0-9_-]", "-", name).strip("-")[:50] or "project")
+            from .tools import sensitive
+            if sensitive(target) or target.is_relative_to(self._store.root.resolve()) or target == Path(target.anchor):
+                raise ValueError("Choose a project folder outside protected data.")
+            if not path and target.exists():
+                target = target.with_name(target.name + "-" + project_id[:6])
+            target.mkdir(parents=True, exist_ok=True)
+            project = {"id": project_id, "name": name.strip(), "path": str(target)}
+            with self._store.lock:
+                self._store.data["projects"].append(project)
+                self._store.save()
+            return project
+
+    def assign_project(self, session_id, project_id):
+        with self._agent.lock:
+            self._idle()
+            project = next((p for p in self._store.data["projects"] if p["id"] == project_id), None)
+            if project_id and not project:
+                raise ValueError("Project not found.")
+            with self._store.lock:
+                s = next(s for s in self._store.data["sessions"] if s["id"] == session_id)
+                s["project_id"] = project_id
+                if project:
+                    s["workspace"] = project["path"]
+                    s["cwd"] = project["path"]
+                self._store.save()
+            return {"ok": True}
 
     def get_session(self, session_id):
         return next((s for s in self._store.snapshot()["sessions"] if s["id"] == session_id), None)
@@ -82,7 +136,7 @@ class DesktopAPI:
         with self._agent.lock:
             self._idle()
             with self._store.lock:
-                session = {"id": uuid.uuid4().hex, "title": "Nuova attivita'", "history": [], "plan": [],
+                session = {"id": uuid.uuid4().hex, "title": "New activity", "history": [], "plan": [],
                            "workspace": self._store.data["settings"]["workspace"], "project_id": ""}
                 self._store.data["sessions"].insert(0, session)
                 self._store.save()
@@ -124,31 +178,84 @@ class DesktopAPI:
             with self._store.lock:
                 s = next(s for s in self._store.data["sessions"] if s["id"] == session_id)
                 s["workspace"] = str(workspace)
+                s["cwd"] = str(workspace)
                 self._store.data["settings"]["workspace"] = str(workspace)
                 self._store.save()
             return str(workspace)
 
-    def attach_file(self):
-        self._idle()
+    def attach_file(self, session_id):
         if not self._window:
             return None
         import webview
-        files = self._window.create_file_dialog(webview.OPEN_DIALOG, allow_multiple=False)
+        files = self._window.create_file_dialog(webview.OPEN_DIALOG, allow_multiple=True)
         if not files:
             return None
-        target = Path(files[0])
         from .tools import sensitive
-        if sensitive(target) or target.resolve().is_relative_to(self._store.root.resolve()):
-            raise ValueError("Allegato privato o contenente credenziali: usa un esempio senza segreti.")
-        if target.stat().st_size > 20000:
-            raise ValueError("Allega un file di testo sotto 20 KB; per file piu' grandi usa la cartella progetto.")
-        content = redact(target.read_text(encoding="utf-8"), [self._store.vault.get("provider"), self._store.vault.get("github")])
-        return {"name": target.name, "content": content}
+        session = self.get_session(session_id)
+        if not session or len(files) > 10:
+            raise ValueError("Choose a chat and at most ten files.")
+        workspace = Path(session["workspace"]).resolve()
+        folder = workspace / ".veyq-attachments"
+        if sensitive(folder.resolve()) or folder.is_symlink() or not folder.resolve().is_relative_to(workspace):
+            raise ValueError("Attachment folder is protected or points outside the project.")
+        result = []
+        for value in files:
+            source = Path(value).resolve()
+            if sensitive(source) or source.is_relative_to(self._store.root.resolve()) or not source.is_file():
+                raise ValueError("Protected attachment: use an example without secrets.")
+            if source.stat().st_size > 20_000_000:
+                raise ValueError("Attachment limit is 20 MB per file.")
+            folder.mkdir(exist_ok=True)
+            destination = folder / (uuid.uuid4().hex[:8] + "-" + source.name)
+            shutil.copy2(source, destination)
+            record = {"name": source.name, "path": str(destination), "bytes": destination.stat().st_size}
+            if source.stat().st_size < 1_000_000:
+                try:
+                    text = source.read_text(encoding="utf-8")
+                    if "\x00" not in text:
+                        record["text"] = text[:8000]
+                        record["truncated"] = len(text) > 8000
+                except (UnicodeError, OSError):
+                    pass
+            result.append(record)
+        return result
+
+    def link_folder(self):
+        if not self._window:
+            return None
+        import webview
+        selected = self._window.create_file_dialog(webview.FOLDER_DIALOG)
+        if not selected:
+            return None
+        target = Path(selected[0]).resolve()
+        from .tools import sensitive
+        if sensitive(target) or target.is_relative_to(self._store.root.resolve()) or target == Path(target.anchor):
+            raise ValueError("Choose a folder outside protected data.")
+        return str(target)
 
     def start_run(self, session_id, text):
         with self._agent.lock:
             self._idle()
             return self._agent.start(session_id, text)
+
+    def follow_up(self, session_id, text):
+        return self._agent.follow_up(session_id, text)
+
+    def answer_question(self, question_id, answer):
+        return self._agent.resolve_question(question_id, answer)
+
+    def regenerate(self, session_id, history_index, confirmed=False):
+        with self._agent.lock:
+            self._idle()
+            if not confirmed or type(history_index) is not int:
+                raise ValueError("Confirm regeneration; later chat messages will be removed, executed actions stay applied.")
+            session = next(s for s in self._store.data["sessions"] if s["id"] == session_id)
+            if not 0 <= history_index < len(session["history"]) or session["history"][history_index]["role"] != "assistant":
+                raise ValueError("Choose an assistant response.")
+            with self._store.lock:
+                session["history"] = session["history"][:history_index]
+                self._store.save()
+            return self._agent.start(session_id, "Regenerate the response using existing tool evidence. Completed side effects remain applied; inspect before repeating any action.")
 
     def browse_project(self, session_id, path="."):
         self._idle()
@@ -159,7 +266,7 @@ class DesktopAPI:
         return self._agent.manual(session_id, "read_file", {"path": path, "start_line": start_line, "end_line": start_line + 299})
 
     def get_events(self, after=0):
-        return self._agent.poll(after)
+        return {**self._agent.poll(after), "model_busy": self._maintenance.locked()}
 
     def stop_run(self):
         return self._agent.stop()
@@ -174,6 +281,50 @@ class DesktopAPI:
         self._idle()
         with self._store.lock:
             self._store.data["memory"] = ""
+            self._store.save()
+        return {"ok": True}
+
+    def save_memory(self, text):
+        self._idle()
+        if not isinstance(text, str) or len(text) > 10000:
+            raise ValueError("Memory limit: 10000 characters.")
+        if redact(text, [self._store.vault.get("provider"), self._store.vault.get("github")]) != text:
+            raise ValueError("Do not store credentials in memory.")
+        with self._store.lock:
+            self._store.data["memory"] = text
+            self._store.save()
+        return {"ok": True}
+
+    def open_external(self, url):
+        from urllib.parse import urlsplit
+        parsed = urlsplit(url)
+        if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or len(url) > 4000:
+            raise ValueError("Only public HTTPS links can be opened.")
+        from .network import public_target
+        public_target(url)
+        import webbrowser
+        webbrowser.open(url)
+        return {"ok": True}
+
+    def open_provider_account(self):
+        from urllib.parse import urlsplit
+        s = self.get_settings()
+        if s["provider"] == "local":
+            return self.open_external("https://ollama.com")
+        p = urlsplit(s["url"])
+        return self.open_external("https://" + p.netloc)
+
+    def setup_local_engine(self, confirmed=False):
+        self._idle()
+        if confirmed is not True:
+            raise ValueError("Confirm installation of the optional local engine.")
+        from .setup import setup_engine
+        with self._maintenance:
+            return setup_engine(self._store.root)
+
+    def finish_setup(self):
+        with self._store.lock:
+            self._store.data["settings"]["setup_completed"] = True
             self._store.save()
         return {"ok": True}
 
@@ -221,11 +372,47 @@ class DesktopAPI:
                            headers={"Authorization": "Bearer " + token} if token else {}, timeout=(5, 10), allow_redirects=False)
             r.raise_for_status()
             key = "models" if s["provider"] == "local" else "data"
-            return {"ok": True, "models": [m.get("name", m.get("id")) for m in r.json().get(key, [])]}
+            records = r.json().get(key, [])
+            return {"ok": True, "models": [m.get("name", m.get("id")) for m in records], "details": records}
         except Exception as e:
             return {"ok": False, "error": redact(str(e), [token])}
         finally:
             client.close()
+
+    def get_model_catalog(self):
+        from .models import catalog, hardware
+        return {"models": catalog(), "hardware": hardware(self._store.data["settings"]["workspace"])}
+
+    def get_model_info(self, name):
+        from .models import estimate
+        info = estimate(name)
+        s = self.get_settings()
+        if s["provider"] != "local":
+            return info
+        client = requests.Session()
+        client.trust_env = False
+        try:
+            token = self._store.vault.get("provider")
+            response = client.post(validate_endpoint(s["url"], s["network"]) + "/api/show", json={"model": name}, headers={"Authorization": "Bearer " + token} if token else {}, timeout=(5, 10), allow_redirects=False)
+            if response.status_code == 200:
+                data = response.json()
+                info["installed_capabilities"] = data.get("capabilities", [])
+                info["parameters"] = data.get("details", {}).get("parameter_size")
+                info["quantization"] = data.get("details", {}).get("quantization_level")
+        except Exception:
+            pass
+        finally:
+            client.close()
+        return info
+
+    def open_model_source(self, name):
+        from .models import catalog
+        model = next((m for m in catalog() if m["name"] == name), None)
+        if not model:
+            raise ValueError("Choose a catalog model.")
+        import webbrowser
+        webbrowser.open(model["source"])
+        return {"ok": True}
 
     def model_action(self, model, action, confirmed=False):
         self._idle()
@@ -235,13 +422,19 @@ class DesktopAPI:
             raise RuntimeError("Manutenzione gia' in corso.")
         client = requests.Session()
         client.trust_env = False
+        self._model_cancel.clear()
         try:
             s = self.get_settings()
             if s["provider"] != "local":
                 raise ValueError("Gestione download disponibile solo per il motore locale.")
-            if action == "pull" and not s["network"]:
-                raise ValueError("Abilita la rete prima di scaricare modelli.")
+            # The user's explicit model-download confirmation is independent of
+            # the agent's network permission, like the app updater and installer.
             base = validate_endpoint(s["url"], s["network"])
+            if action == "pull" and base in {"http://localhost:11434", "http://127.0.0.1:11434"} and os.name == "nt":
+                from .setup import engine_available, setup_engine
+                if not engine_available():
+                    self._agent.emit("model", {"status": "Setting up the local engine…"})
+                    setup_engine(self._store.root)
             token = self._store.vault.get("provider")
             headers = {"Authorization": "Bearer " + token} if token else {}
             if action == "delete":
@@ -249,17 +442,32 @@ class DesktopAPI:
                     r.raise_for_status()
             else:
                 with client.post(base + "/api/pull", headers=headers, json={"model": model, "stream": True}, stream=True, timeout=(10, 90), allow_redirects=False) as r:
+                    self._model_response = r
                     r.raise_for_status()
                     for line in r.iter_lines():
+                        if self._model_cancel.is_set():
+                            return {"ok": False, "cancelled": True}
                         if line:
                             chunk = json.loads(line)
                             if "error" in chunk:
                                 raise RuntimeError(chunk["error"])
                             self._agent.emit("model", {"status": chunk.get("status"), "completed": chunk.get("completed"), "total": chunk.get("total")})
             return {"ok": True}
+        except Exception:
+            if self._model_cancel.is_set():
+                return {"ok": False, "cancelled": True}
+            raise
         finally:
+            self._model_response = None
             client.close()
             self._maintenance.release()
+
+    def cancel_model_action(self):
+        self._model_cancel.set()
+        if self._model_response is not None:
+            from .engine import interrupt_response
+            interrupt_response(self._model_response)
+        return {"ok": True}
 
     def check_updates(self):
         self._idle()
@@ -306,6 +514,10 @@ def main():
     window = webview.create_window("Veyq", url=str(ROOT / "index.html"), js_api=api,
                                   width=1440, height=940, min_size=(900, 650), resizable=True, text_select=True)
     api._window = window
+    import faulthandler
+    window.events.loaded += faulthandler.cancel_dump_traceback_later
     window.events.closed += api._agent.stop
-    webview.start(debug=False)
+    window.events.closing += api._agent.stop
+    window.events.closed += api.cancel_model_action
+    webview.start(debug=False, icon=str(ROOT / "assets" / "brand" / "veyq-dark.ico"))
     instance.close()

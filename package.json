@@ -1,0 +1,6 @@
+{
+  "name": "veyq-desktop-tests",
+  "private": true,
+  "scripts": { "test": "node tests/ui.test.cjs" },
+  "devDependencies": { "jsdom": "^27.0.0" }
+}

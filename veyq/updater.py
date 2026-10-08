@@ -14,11 +14,19 @@ from pathlib import Path, PurePosixPath
 
 from .network import public_request
 from .storage import atomic_json
+from .signing import verify_manifest
 
 UPDATE_REPO = "gabriele-gaudissard/Veyq-Agent-App"
-ROOT_FILES = {"app.py", "index.html", "app.js", "app.css", "Veyq.bat", "Launcher.ps1", "install.ps1",
+ROOT_FILES = {"app.py", "index.html", "app.js", "app.css", "i18n.js", "ui-translations.json", "Veyq.bat", "Launcher.ps1", "install.ps1",
               "Installer.bat", "Installer_only_shortcut.bat", "requirements.txt", "README.md",
               "LICENSE", "THIRD_PARTY_NOTICES.md", "build.json"}
+ASSET_FILES = {"assets/brand/mark-dark.svg", "assets/brand/mark-light.svg", "assets/brand/logo-dark.svg",
+               "assets/brand/logo-light.svg", "assets/brand/logo-dark.png", "assets/brand/logo-light.png",
+               "assets/brand/icon-dark.png", "assets/brand/veyq-dark.ico", "assets/brand/README.md",
+               "docs/screenshots/workspace.png", "docs/screenshots/explorer.png", "docs/screenshots/permissions.png",
+               "assets/vendor/marked.js", "assets/vendor/purify.js", "assets/vendor/highlight.js",
+               "assets/vendor/atom-one-dark.css", "assets/vendor/marked-LICENSE.md",
+               "assets/vendor/DOMPurify-LICENSE", "assets/vendor/highlight-LICENSE", "docs/REQUIREMENTS.md"}
 
 
 def program_path(name):
@@ -27,12 +35,13 @@ def program_path(name):
         raise ValueError("Percorso non valido nell'aggiornamento.")
     if str(path) != name:
         raise ValueError("Percorso non canonico.")
-    if name not in ROOT_FILES and not (len(path.parts) == 2 and path.parts[0] == "veyq" and path.suffix == ".py" and re.fullmatch(r"[A-Za-z0-9_]+\.py", path.name)):
+    if name not in ROOT_FILES | ASSET_FILES and not (len(path.parts) == 2 and path.parts[0] == "veyq" and path.suffix == ".py" and re.fullmatch(r"[A-Za-z0-9_]+\.py", path.name)):
         raise ValueError("File non ammesso nel pacchetto: " + name)
     return name
 
 
 def validate_bundle(blob, manifest, destination):
+    verify_manifest(manifest)
     if hashlib.sha256(blob).hexdigest() != manifest["archive_sha256"]:
         raise ValueError("Checksum archivio non corrispondente.")
     files = manifest["files"]
@@ -70,9 +79,9 @@ def enable_updates(root, store):
         return {"managed": False, "message": "Checkout di sviluppo: aggiorna con Git."}
     build = json.loads((root / "build.json").read_text(encoding="utf-8-sig")) if (root / "build.json").exists() else {"commit": "initial"}
     files = {}
-    for path in [*(root / "veyq").glob("*.py"), *(root / name for name in ROOT_FILES if (root / name).exists())]:
+    for path in [*(root / "veyq").glob("*.py"), *(root / name for name in ROOT_FILES | ASSET_FILES if (root / name).exists())]:
         files[path.relative_to(root).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
-    atomic_json(store.root / "installation.json", {"root": str(root), "commit": build["commit"], "files": files})
+    atomic_json(store.root / "installation.json", {"root": str(root), "commit": build["commit"], "sequence": build.get("sequence", 0), "files": files})
     return {"managed": True}
 
 
@@ -110,10 +119,13 @@ class Updater:
         if any(not url.startswith(prefix) for url in assets.values()):
             raise ValueError("Asset pubblicato fuori dal repository autorizzato.")
         manifest = json.loads(public_request(assets["veyq-update.json"])["text"])
+        verify_manifest(manifest)
         if not re.fullmatch(r"[a-f0-9]{40}", manifest.get("commit", "")):
             raise ValueError("Identificatore versione non valido.")
         if manifest["commit"] == installation["commit"]:
             return {"ready": False, "message": "Veyq e' aggiornato."}
+        if manifest["sequence"] <= installation.get("sequence", 0):
+            raise ValueError("Versione precedente o ripetuta: aggiornamento rifiutato.")
         failed = self.store.root / "failed-update.json"
         if failed.exists():
             previous_failure = json.loads(failed.read_text(encoding="utf-8"))
@@ -132,7 +144,10 @@ class Updater:
             return {"ok": False, "message": "Nessun aggiornamento disponibile."}
         helper = self.store.root / "updates" / "update_worker.py"
         shutil.copy2(self.root / "veyq" / "update_worker.py", helper)
-        python = getattr(sys, "_base_executable", sys.executable)
+        shutil.copy2(self.root / "veyq" / "signing.py", helper.with_name("signing.py"))
+        # Use the active runtime: signature verification must be available before
+        # creating a separate environment for a dependency update.
+        python = sys.executable
         flags = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {"start_new_session": True}
         subprocess.Popen([python, str(helper), str(self.pending), str(os.getpid())], cwd=self.root, **flags)
         return {"ok": True}

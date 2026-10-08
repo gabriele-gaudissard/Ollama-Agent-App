@@ -1,4 +1,4 @@
-"""Standalone update transaction; no third-party imports or model-controlled args."""
+"""Update transaction with publisher-signature verification and rollback."""
 import hashlib
 import json
 import os
@@ -8,6 +8,11 @@ import sys
 import time
 import venv
 from pathlib import Path
+
+if __package__:
+    from .signing import verify_manifest
+else:
+    from signing import verify_manifest
 
 
 def write_json(path, data):
@@ -41,6 +46,9 @@ def apply(plan_file, parent_pid=0, restart=True):
     plan = json.loads(plan_file.read_text(encoding="utf-8"))
     root, stage, data = (Path(plan[k]).resolve() for k in ("root", "stage", "data_root"))
     manifest, previous = plan["manifest"], plan["previous"]
+    verify_manifest(manifest)
+    if manifest["sequence"] <= previous.get("sequence", 0):
+        raise ValueError("Aggiornamento precedente o ripetuto rifiutato.")
     if not stage.is_relative_to(data / "updates") or root == Path(root.anchor) or (root / ".git").exists():
         raise ValueError("Installazione o staging non valido.")
     # Check every staged and installed path immediately before applying.
@@ -96,7 +104,7 @@ def apply(plan_file, parent_pid=0, restart=True):
         for name in manifest["files"]:
             if name.endswith(".py"):
                 py_compile.compile(str(root / name), doraise=True)
-        write_json(data / "installation.json", {"root": str(root), "commit": manifest["commit"], "files": manifest["files"]})
+        write_json(data / "installation.json", {"root": str(root), "commit": manifest["commit"], "sequence": manifest["sequence"], "files": manifest["files"]})
         write_json(backup / "previous-installation.json", previous)
         plan_file.unlink()
         write_json(data / "update-status.json", {"ok": True, "commit": manifest["commit"], "backup": str(backup)})
@@ -109,6 +117,7 @@ def apply(plan_file, parent_pid=0, restart=True):
             runtime_path.unlink(missing_ok=True)
         else:
             runtime_path.write_bytes(old_runtime)
+        write_json(data / "installation.json", previous)
         raise
     finally:
         if restart:

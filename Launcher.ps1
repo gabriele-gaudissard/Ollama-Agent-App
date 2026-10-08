@@ -14,4 +14,6 @@ if (-not (Test-Path -LiteralPath $pythonPath)) {
     if ($systemPython) { $pythonPath = $systemPython.Source }
     else { throw 'Python non trovato. Esegui Installer.bat.' }
 }
-Start-Process -FilePath $pythonPath -ArgumentList @('"' + (Join-Path $appRoot 'app.py') + '"') -WorkingDirectory $appRoot -WindowStyle Hidden
+# pythonw already avoids a console. Hiding this process also hides its first
+# Windows Forms window, leaving a running agent with no visible interface.
+Start-Process -FilePath $pythonPath -ArgumentList @('"' + (Join-Path $appRoot 'app.py') + '"') -WorkingDirectory $appRoot -WindowStyle Normal

@@ -1,85 +1,114 @@
 <!doctype html>
-<html lang="it">
+
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta content="width=device-width,initial-scale=1" name="viewport" />
     <meta
-      http-equiv="Content-Security-Policy"
       content="default-src 'none'; script-src 'self' 'unsafe-eval'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+      http-equiv="Content-Security-Policy"
     />
     <title>Veyq</title>
-    <link rel="stylesheet" href="app.css" />
-    <script src="app.js" defer></script>
+    <link href="app.css" rel="stylesheet" />
+    <script defer="" src="i18n.js"></script>
+    <script defer="True" src="assets/vendor/marked.js"></script>
+    <script defer="True" src="assets/vendor/purify.js"></script>
+    <script defer="True" src="assets/vendor/highlight.js"></script>
+    <script defer="" src="app.js"></script>
+    <link href="assets/vendor/atom-one-dark.css" rel="stylesheet" />
   </head>
   <body>
     <div class="shell">
       <aside class="sidebar">
-        <div class="brand"><span class="logo">V/</span>Veyq</div>
+        <div class="brand">
+          <img
+            alt=""
+            class="logo"
+            height="42"
+            src="assets/brand/mark-dark.svg"
+            width="42"
+          />Veyq
+        </div>
         <div class="sub">Your ideas. Real actions.</div>
-        <button id="newChat" class="primary">+ Nuova attività</button
-        ><input id="search" placeholder="Cerca chat…" aria-label="Cerca chat" />
-        <div class="eyebrow">Attività recenti</div>
-        <nav id="sessions" class="sessions"></nav>
+        <button class="primary" id="newChat">+ New activity</button>
+        <div class="project-tools">
+          <span class="eyebrow">Projects</span
+          ><button id="newProject">+ Project</button>
+        </div>
+        <input
+          aria-label="Search chats"
+          id="search"
+          placeholder="Search chats…"
+          title="Chat search includes message contents."
+        />
+        <div class="eyebrow">Recent activities</div>
+        <nav class="sessions" id="sessions"></nav>
         <div class="sidebar-footer">
-          <button id="backups">↶ Backup dei file</button
-          ><button id="memory">◇ Memoria locale</button
-          ><button id="settingsButton">⚙ Impostazioni</button>
-          <div class="sub">Desktop agent · v4.0<br />Nessuna telemetria</div>
+          <button id="backups">↶ File backups</button
+          ><button id="memory">◇ Local memory</button
+          ><button id="settingsButton">⚙ Settings</button>
+          <div class="sub">Desktop agent · v4.0<br />No telemetry</div>
         </div>
       </aside>
       <main>
         <header class="topbar">
           <div>
-            <div class="workspace-label">CARTELLA DI PROGETTO</div>
-            <div id="workspace" class="workspace">
-              Scegli un progetto per iniziare
+            <div class="workspace-label">PROJECT FOLDER</div>
+            <div class="workspace" id="workspace">
+              Choose a project to begin
             </div>
+            <span class="sub" id="modelBadge">Local engine</span>
           </div>
-          <button id="chooseFolder">Apri cartella</button
-          ><button id="exploreFiles" title="Esplora i file del progetto">
-            ▤ File
+          <select aria-label="Project" id="projectAssignment">
+            <option value="">No project</option></select
+          ><button id="chooseFolder">Open folder</button
+          ><button id="exploreFiles" title="Explore project files">
+            ▤ Files
           </button>
-          <button id="mode" class="chip">Approva per me</button>
+          <button class="chip" id="mode">Approve for me</button
+          ><button id="toggleActivity" title="Toggle activity">◫</button>
         </header>
-        <div id="messages" class="messages">
-          <section id="welcome" class="welcome">
+        <div class="messages" id="messages">
+          <section class="welcome" id="welcome">
             <div class="eyebrow">Build with intent</div>
-            <h1>Da un’idea<br />a <span>qualcosa che funziona.</span></h1>
+            <h1>From an idea<br />to <span>something that works.</span></h1>
             <p>
-              Veyq legge il progetto, pianifica il lavoro e usa strumenti reali.
-              Puoi seguire ogni azione e scegliere quanto controllo mantenere.
+              Veyq reads your project, plans the work and uses real tools.
+              Follow each action and choose how much control to keep.
             </p>
             <div class="suggestions">
               <button
                 class="suggestion"
-                data-prompt="Esamina il progetto selezionato, spiegami la sua architettura e individua i problemi più importanti."
+                data-prompt="Inspect this project, explain its architecture and identify the most important problems."
               >
-                <b>↗ Esplora un progetto</b
+                <b>↗ Explore a project</b
                 ><span class="sub"
-                  >Comprendi codice, file e dipendenze</span
+                  >Understand code, files and dependencies</span
                 ></button
               ><button
                 class="suggestion"
-                data-prompt="Aiutami a correggere un bug nel progetto. Inizia leggendo i file e identifica quali informazioni mancano."
+                data-prompt="Fix a bug in the selected project. Start by reading the relevant files and identify any essential missing information."
               >
-                <b>⌘ Scrivi e verifica codice</b
+                <b>⌘ Write and test code</b
                 ><span class="sub"
-                  >Modifiche concrete, test e risultati</span
+                  >Real changes, tests and results</span
                 ></button
               ><button
                 class="suggestion"
-                data-prompt="Analizza la cartella selezionata e proponi una struttura più chiara. Prima di spostare file, presenta un piano."
+                data-prompt="Inspect the selected folder and propose a clearer structure. Publish a plan before moving files."
               >
-                <b>▤ Organizza i file</b
+                <b>▤ Organize files</b
                 ><span class="sub"
-                  >Gestisci il progetto con backup</span
+                  >Manage your project with backups</span
                 ></button
               ><button
                 class="suggestion"
-                data-prompt="Controlla il repository GitHub configurato, riepiloga le issue aperte e proponi le prossime attività."
+                data-prompt="Inspect the configured GitHub repository, summarize its open issues and propose the next tasks."
               >
-                <b>⎇ Lavora con GitHub</b
-                ><span class="sub">Issue, codice, commit e pull request</span>
+                <b>⎇ Work with GitHub</b
+                ><span class="sub"
+                  >Issues, code, commits and pull requests</span
+                >
               </button>
             </div>
           </section>
@@ -87,263 +116,368 @@
         <div class="composer-area">
           <div class="composer">
             <textarea
+              aria-label="Message for Veyq"
               id="prompt"
-              placeholder="Descrivi quello che vuoi realizzare…"
-              aria-label="Messaggio per Veyq"
+              placeholder="Describe what you want to build…"
             ></textarea>
             <div class="composer-actions">
               <div class="left">
-                <button id="attach" title="Allega testo">+ File</button
-                ><button id="online" class="chip">Solo locale</button
-                ><span id="modelBadge" class="sub">Motore locale</span>
+                <button id="attach" title="Attach files">+ File</button
+                ><button id="linkFolder">Link folder</button
+                ><button class="chip" id="online">Local only</button>
               </div>
-              <button id="send" class="primary">Invia ↑</button>
+              <button class="primary" id="send">Send ↑</button>
             </div>
           </div>
           <div class="hint">
-            Invio per inviare · Shift+Invio per andare a capo · Verifica sempre
-            i risultati importanti
+            Enter to send · Shift+Enter for a new line · Verify important
+            results
           </div>
         </div>
       </main>
       <aside class="activity-panel">
         <div class="activity-header">
           <div class="eyebrow">Activity</div>
-          <div id="status" class="status">
-            <span class="dot"></span><span id="state">Pronto</span>
+          <div class="status" id="status">
+            <span class="dot"></span><span id="state">Ready</span>
           </div>
         </div>
-        <div id="plan" class="plan" hidden></div>
-        <div id="activity" class="activity">
-          <div id="activityEmpty" class="activity-empty">
-            Qui vedrai gli strumenti usati,<br />i risultati e le verifiche.<br /><br />Le
-            modifiche ai file creano<br />backup locali recuperabili.
+        <div class="plan" hidden="" id="plan"></div>
+        <div class="activity" id="activity">
+          <div class="activity-empty" id="activityEmpty">
+            Here you will see the tools used,<br />results and checks.<br /><br />File
+            changes create<br />recoverable local backups.
           </div>
         </div>
         <div class="activity-note">
-          I permessi sono controllati dal backend. I comandi approvati usano i
-          privilegi del tuo account Windows.
+          The backend checks permissions. Approved commands use your Windows
+          account privileges.
         </div>
         <div class="settings-bottom">
-          <button id="renameChat">Rinomina</button
-          ><button id="exportChat">Esporta</button
-          ><button id="deleteChat" class="danger">Elimina chat</button>
+          <button id="renameChat">Rename</button
+          ><button id="exportChat">Export</button
+          ><button class="danger" id="deleteChat">Delete chat</button>
         </div>
       </aside>
     </div>
-    <div id="settingsModal" class="modal">
+    <div aria-modal="true" class="modal" id="settingsModal" role="dialog">
       <section class="dialog">
-        <h2>Il tuo agente, le tue regole.</h2>
+        <h2>Your agent, your rules.</h2>
         <p class="intro">
-          Modello, accessi e privacy. Le impostazioni restano sul computer; i
-          token sono custoditi nel vault del sistema.
+          Model, access and privacy. Settings stay on this computer; tokens are
+          kept in the system vault.
+        </p>
+        <p class="sub">
+          Desktop control uses your Windows account. Protected credentials and
+          Veyq permission controls are excluded. Vision models can use
+          screenshots; other models use accessible window elements.
         </p>
         <div class="grid">
           <label class="field"
+            >Language<select id="language">
+              <option value="en">English</option>
+              <option value="it">Italian</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+            </select></label
+          ><label class="field"
+            >Installed models<select id="installedModels">
+              <option value="">Choose a model</option>
+            </select></label
+          >
+          <label class="field"
             >Provider<select id="provider">
-              <option value="local">Motore locale</option>
+              <option value="local">Local engine</option>
               <option value="compatible">
-                API compatibile con Chat Completions
+                Chat Completions compatible API
               </option></select
-            ><small
-              >Il modello deve supportare chiamate strutturate agli
-              strumenti.</small
-            ></label
+            ><small>The model must support structured tool calls.</small></label
           ><label class="field"
             >Endpoint<input id="endpoint" type="url" /><small
-              >Locale: http://localhost:11434 · API: URL base comprensivo di
+              >Local: http://localhost:11434 · API: base URL including
               /v1</small
             ></label
           ><label class="field"
-            >Modello<input id="model" list="models" /><datalist
+            >Model<input id="model" list="models" /><datalist
               id="models"
             ></datalist></label
           ><label class="field"
-            >Token provider<input
+            >Provider token<input
+              autocomplete="off"
               id="providerToken"
               type="password"
-              autocomplete="off"
-            /><small
-              >Non viene restituito al browser o al modello.</small
-            ></label
+            /><small>Never returned to the browser or model.</small></label
           ><label class="field full-width"
-            >Modalità di autorizzazione<select id="permission">
-              <option value="always">
-                Chiedi sempre — ogni strumento richiede conferma
-              </option>
+            >Approval mode<select id="permission">
+              <option value="always">Always ask — confirm every tool</option>
               <option value="auto">
-                Approva per me — file nel progetto; conferma comandi, rete e
-                pubblicazione
+                Approve for me — project files; confirm commands, network and
+                publication
               </option>
               <option value="full">
-                Accesso completo — esegui senza conferme
+                Full access — run without confirmations
               </option>
             </select></label
-          ><label id="fullConfirm" class="check full-width"
+          ><label class="check full-width" id="fullConfirm"
             ><input id="fullConsent" type="checkbox" /><span
-              >Confermo l’accesso completo. I comandi possono leggere,
-              modificare ed eliminare file con i privilegi del mio account. Non
-              è una sandbox del sistema operativo.</span
+              >I confirm full access. Commands can read, change and delete files
+              with my account privileges. This is not an operating-system
+              sandbox.</span
             ></label
           ><label class="check full-width"
             ><input id="network" type="checkbox" /><span
-              >Abilita strumenti online e terminale.<br /><span class="sub"
-                >Query, pagine e contenuti inviati a GitHub possono uscire dal
-                computer. Un provider remoto riceve anche il contesto della
-                chat. Con questa opzione disattivata, il terminale è
-                bloccato.</span
+              >Enable online tools, terminal and desktop control.<br /><span
+                class="sub"
+                >Queries, pages and GitHub content can leave this computer. A
+                remote provider also receives chat context. When disabled,
+                unrestricted terminal and desktop actions are blocked.</span
+              ></span
+            ></label
+          ><label class="check full-width"
+            ><input id="vision" type="checkbox" /><span
+              >Enable image input for a remote vision model<br /><small
+                >Window screenshots may be sent to this provider when requested
+                by desktop tools.</small
               ></span
             ></label
           ><label class="field"
-            >Passi massimi per attività<input
+            >Maximum steps (0 = unlimited)<input
               id="maxSteps"
-              type="number"
-              min="1"
-              max="100" /></label
+              max="100"
+              min="0"
+              type="number" /></label
           ><label class="field"
-            >Timeout comandi (secondi)<input
+            >Command timeout (0 = disabled)<input
               id="timeout"
-              type="number"
-              min="1"
-              max="600" /></label
+              max="600"
+              min="0"
+              type="number" /></label
           ><label class="field"
-            >Repository GitHub<input
+            >Default GitHub repository (optional)<input
               id="githubRepo"
-              placeholder="owner/repository" /></label
+              placeholder="owner/repository"
+            /><small
+              >Veyq can use any repository you request. This field is only a
+              default.</small
+            ></label
           ><label class="field"
-            >Token GitHub<input
+            >GitHub token<input
+              autocomplete="off"
               id="githubToken"
               type="password"
-              autocomplete="off"
             /><small
-              >Usa un token limitato ai repository necessari. Le scritture
-              richiedono conferma in modalità automatica.</small
+              >Use a token limited to the repositories you need. Writes require
+              approval in automatic mode.</small
             ></label
           ><label class="check full-width"
             ><input id="autoUpdate" type="checkbox" /><span
-              >Aggiornamenti automatici da GitHub<br /><span class="sub"
-                >Controllo all’avvio e ogni ora. Download verificato, backup
-                della versione precedente e riavvio quando non ci sono attività.
-                Questo controllo contatta GitHub anche se gli strumenti
-                dell’agente sono offline.</span
+              >Automatic updates from GitHub<br /><span class="sub"
+                >Check at startup and hourly. Signed download, previous-version
+                backup and restart when idle. This check contacts GitHub even
+                when agent tools are offline.</span
               ></span
             ></label
           >
         </div>
         <div class="settings-bottom">
-          <button id="refreshModels">Verifica connessione e modelli</button
-          ><button id="downloadModel">Scarica modello</button
-          ><button id="deleteModel" class="danger">Elimina modello</button
-          ><button id="clearProviderToken">Rimuovi token provider</button
-          ><button id="clearGithubToken">Rimuovi token GitHub</button
-          ><button id="updates">Controlla aggiornamenti</button>
+          <button id="refreshModels">Refresh installed models</button
+          ><button id="downloadModel">Download model</button
+          ><button id="openCatalog">Model catalog</button
+          ><button id="modelInfo">ⓘ Details</button
+          ><button id="setupEngine">Set up local engine</button
+          ><button id="providerAccount">Open provider account</button
+          ><button class="danger" id="deleteModel">Delete model</button
+          ><button id="clearProviderToken">Remove provider token</button
+          ><button id="clearGithubToken">Remove GitHub token</button
+          ><button id="updates">Check for updates</button>
         </div>
-        <p id="modelStatus" class="sub"></p>
+        <p class="sub" id="modelStatus"></p>
         <div class="divider"></div>
         <p class="sub">
-          Chat e memoria sono file locali in chiaro, protetti dal tuo account; i
-          token sono cifrati separatamente. Il registro contiene metadati delle
-          azioni, non il contenuto delle chat. Nessun servizio analytics, font o
-          script esterno.
+          Chats and memory are local plaintext files protected by your account;
+          tokens are encrypted separately. The audit log stores action metadata,
+          not chat contents. No analytics, remote fonts or scripts.
         </p>
-        <p class="sub">Cartella dati: <span id="dataDir"></span></p>
+        <p class="sub">Data folder: <span id="dataDir"></span></p>
         <div class="buttons">
-          <button id="closeSettings">Chiudi</button
-          ><button id="saveSettings" class="primary">Salva impostazioni</button>
+          <button id="closeSettings">Close</button
+          ><button class="primary" id="saveSettings">Save settings</button>
         </div>
-      </section>
-    </div>
-    <div id="approvalModal" class="modal approval">
-      <section class="dialog">
-        <div class="eyebrow">Autorizzazione richiesta</div>
-        <h2 id="approvalTool"></h2>
-        <p id="approvalReason" class="intro"></p>
-        <p class="sub">Progetto: <span id="approvalWorkspace"></span></p>
-        <pre id="approvalArgs"></pre>
-        <pre id="approvalDiff" hidden></pre>
-        <p class="sub">
-          L’approvazione vale soltanto per questa azione e per questi parametri.
-          Rifiutare non esegue l’azione.
-        </p>
-        <div class="buttons">
-          <button id="deny" class="danger">Rifiuta</button
-          ><button id="allow" class="primary">Approva questa azione</button>
-        </div>
-      </section>
-    </div>
-    <div id="memoryModal" class="modal">
-      <section class="dialog">
-        <h2>Memoria locale</h2>
-        <p class="intro">
-          Preferenze persistenti usate nelle chat future. Non salvare
-          credenziali qui.
-        </p>
-        <pre id="memoryText"></pre>
-        <div class="buttons">
-          <button id="clearMemory" class="danger">Cancella memoria</button
-          ><button id="closeMemory">Chiudi</button>
-        </div>
-      </section>
-    </div>
-    <div id="backupsModal" class="modal">
-      <section class="dialog">
-        <h2>Backup dei file</h2>
-        <p class="intro">
-          Versioni salvate prima delle modifiche. I backup possono contenere
-          codice privato e restano nel tuo profilo locale.
-        </p>
-        <div id="backupList"></div>
-        <div class="buttons"><button id="closeBackups">Chiudi</button></div>
       </section>
     </div>
     <div
-      id="explorerModal"
-      class="modal"
-      role="dialog"
       aria-modal="true"
+      class="modal approval"
+      id="approvalModal"
+      role="dialog"
+    >
+      <section class="dialog">
+        <div class="eyebrow">Approval required</div>
+        <h2 id="approvalTool"></h2>
+        <p class="intro" id="approvalReason"></p>
+        <p class="sub">Project: <span id="approvalWorkspace"></span></p>
+        <pre id="approvalArgs"></pre>
+        <pre hidden="" id="approvalDiff"></pre>
+        <p class="sub">
+          Approval applies only to this action and these exact parameters.
+          Denying leaves the action unexecuted.
+        </p>
+        <div class="buttons">
+          <button class="danger" id="deny">Deny</button
+          ><button class="primary" id="allow">Approve this action</button>
+        </div>
+      </section>
+    </div>
+    <div aria-modal="true" class="modal" id="memoryModal" role="dialog">
+      <section class="dialog">
+        <h2>Local memory</h2>
+        <p class="intro">
+          Persistent preferences for future chats. Do not save credentials here.
+        </p>
+        <textarea aria-label="Edit memory" id="memoryText" rows="8"></textarea>
+        <div class="buttons">
+          <button class="primary" id="saveMemory">Save memory</button
+          ><button class="danger" id="clearMemory">Clear memory</button
+          ><button id="closeMemory">Close</button>
+        </div>
+      </section>
+    </div>
+    <div aria-modal="true" class="modal" id="backupsModal" role="dialog">
+      <section class="dialog">
+        <h2>File backups</h2>
+        <p class="intro">
+          Versions saved before changes. Backups can contain private code and
+          stay in your local profile.
+        </p>
+        <div id="backupList"></div>
+        <div class="buttons"><button id="closeBackups">Close</button></div>
+      </section>
+    </div>
+    <div
       aria-labelledby="explorerTitle"
+      aria-modal="true"
+      class="modal"
+      id="explorerModal"
+      role="dialog"
     >
       <section class="dialog explorer-dialog">
         <div class="explorer-heading">
           <div>
             <div class="eyebrow">Workspace</div>
-            <h2 id="explorerTitle">Dentro il progetto.</h2>
+            <h2 id="explorerTitle">Inside the project.</h2>
           </div>
-          <button id="closeExplorer" aria-label="Chiudi esplora file">
-            Chiudi ×
+          <button aria-label="Close file explorer" id="closeExplorer">
+            Close ×
           </button>
         </div>
         <p class="intro">
-          Esplora e leggi i file. Le operazioni usano gli stessi controlli di
-          autorizzazione dell’agente.
+          Browse and read files. These operations use the same approval checks
+          as agent tools.
         </p>
         <div class="explorer-toolbar">
-          <button id="explorerUp" title="Cartella superiore">↑</button
-          ><button id="explorerRoot">Progetto</button
-          ><span id="explorerPath" class="sub">.</span>
+          <button id="explorerUp" title="Parent folder">↑</button
+          ><button id="explorerRoot">Project</button
+          ><span class="sub" id="explorerPath">.</span>
         </div>
         <div class="explorer-grid">
           <nav
-            id="fileList"
+            aria-label="Files and folders"
             class="file-list"
-            aria-label="File e cartelle"
+            id="fileList"
           ></nav>
           <div class="file-view">
-            <div id="filePreviewTitle" class="eyebrow">Seleziona un file</div>
+            <div class="eyebrow" id="filePreviewTitle">Select a file</div>
             <pre id="filePreview">
-Il contenuto apparirà qui. I file di credenziali sono esclusi.</pre
-            >
+Contents will appear here. Credential files are excluded.</pre>
             <div class="explorer-toolbar">
-              <button id="previousLines" disabled>← Righe precedenti</button
-              ><button id="nextLines" disabled>Righe successive →</button
-              ><button id="askAboutFile" class="primary" disabled>
-                Usa in chat
+              <button disabled="" id="previousLines">← Previous lines</button
+              ><button disabled="" id="nextLines">Next lines →</button
+              ><button class="primary" disabled="" id="askAboutFile">
+                Use in chat
               </button>
             </div>
           </div>
         </div>
       </section>
     </div>
-    <div id="toast" class="toast" role="status"></div>
+    <div aria-modal="true" class="modal" id="catalogModal" role="dialog">
+      <section class="dialog catalog-dialog">
+        <div class="explorer-heading">
+          <h2>Model catalog</h2>
+          <button id="closeCatalog">Close ×</button>
+        </div>
+        <p class="intro">
+          Ten curated popular families. Requirements are estimates; context and
+          quantization change memory use. Not a universal performance ranking.
+        </p>
+        <p class="sub" id="hardwareInfo"></p>
+        <div id="catalogList"></div>
+        <p aria-live="polite" class="sub" id="catalogProgress"></p>
+        <button class="danger" hidden="" id="cancelDownload">
+          Cancel download
+        </button>
+      </section>
+    </div>
+    <div aria-modal="true" class="modal" id="modelInfoModal" role="dialog">
+      <section class="dialog">
+        <h2 id="modelInfoTitle">Model details</h2>
+        <div id="modelInfoContent"></div>
+        <div class="buttons">
+          <button id="modelSource">Source</button
+          ><button id="closeModelInfo">Close</button>
+        </div>
+      </section>
+    </div>
+    <div aria-modal="true" class="modal" id="questionModal" role="dialog">
+      <section class="dialog">
+        <div class="eyebrow">Information needed</div>
+        <h2 id="questionText"></h2>
+        <div class="question-options" id="questionOptions"></div>
+        <textarea
+          id="questionAnswer"
+          placeholder="Your answer…"
+          rows="3"
+        ></textarea
+        ><button class="danger" id="stopQuestion">Stop activity</button>
+        <div class="buttons">
+          <button class="primary" id="submitAnswer">Answer</button>
+        </div>
+      </section>
+    </div>
+    <div aria-modal="true" class="modal" id="projectModal" role="dialog">
+      <section class="dialog">
+        <h2>New project</h2>
+        <label class="field"
+          >Project name<input id="projectName" maxlength="100"
+        /></label>
+        <div class="buttons">
+          <button id="closeProject">Close</button
+          ><button class="primary" id="createProject">Create project</button>
+        </div>
+      </section>
+    </div>
+    <div aria-modal="true" class="modal" id="setupModal" role="dialog">
+      <section class="dialog">
+        <div class="eyebrow">First run</div>
+        <h2>Welcome to Veyq</h2>
+        <p class="intro">
+          Choose a local model or configure a remote API in Settings. Downloads
+          start only after your choice.
+        </p>
+        <p class="sub" id="setupStatus"></p>
+        <div class="grid">
+          <button id="setupSmall">7B · lighter</button
+          ><button id="setupBalanced">8B · balanced</button
+          ><button id="setupLarge">14B · agent</button>
+        </div>
+        <button id="setupInstall">Set up local engine</button>
+        <div class="buttons">
+          <button id="setupSettings">Settings</button
+          ><button id="setupCatalog">Model catalog</button
+          ><button id="closeSetup">Close</button>
+        </div>
+      </section>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
   </body>
 </html>

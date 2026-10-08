@@ -1,4 +1,5 @@
 import copy
+import base64
 import io
 import hashlib
 import json
@@ -19,6 +20,8 @@ from veyq.storage import Store, redact
 from veyq.tools import ToolRunner
 from veyq.updater import validate_bundle, program_path, Updater
 from veyq.update_worker import apply
+from veyq.signing import verify_manifest, sign_manifest
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 
 class AgentTests(unittest.TestCase):
@@ -96,7 +99,7 @@ class AgentTests(unittest.TestCase):
         self.assertFalse((self.workspace / "denied.txt").exists())
 
     def test_shell_exit_code_and_timeout(self):
-        self.settings.update(network=True, permission="full")
+        self.settings.update(network=True, permission="full", command_timeout=120)
         command = "Write-Output 'verified'; exit 7" if os.name == "nt" else "echo verified; exit 7"
         r = self.runner.execute("exec_cmd", {"command": command})["result"]
         self.assertEqual(r["exit_code"], 7)
@@ -333,6 +336,14 @@ class AgentTests(unittest.TestCase):
 
 
 class UpdateTests(unittest.TestCase):
+    def setUp(self):
+        self.signer = Ed25519PrivateKey.generate()
+        self.signing_key = base64.b64encode(self.signer.private_bytes_raw()).decode()
+        public = base64.b64encode(self.signer.public_key().public_bytes_raw()).decode()
+        trust = patch("veyq.signing.TRUSTED_PUBLIC_KEY", public)
+        trust.start()
+        self.addCleanup(trust.stop)
+
     def bundle(self, bad=None):
         files = {"app.py": b"pass\n", "index.html": b"new", "build.json": b'{"commit":"new"}',
                  "requirements.txt": b"same", "veyq/desktop.py": b"pass\n", "veyq/update_worker.py": b"pass\n"}
@@ -343,8 +354,23 @@ class UpdateTests(unittest.TestCase):
             for name, content in files.items():
                 z.writestr(name, content)
         blob = out.getvalue()
-        return blob, {"commit": "a" * 40, "archive_sha256": hashlib.sha256(blob).hexdigest(),
-                      "files": {n: hashlib.sha256(b).hexdigest() for n, b in files.items()}}
+        return blob, sign_manifest({"version": "4.0.0", "sequence": 1, "commit": "a" * 40, "archive_sha256": hashlib.sha256(blob).hexdigest(),
+                      "files": {n: hashlib.sha256(b).hexdigest() for n, b in files.items()}}, self.signing_key)
+
+    def test_signatures_reject_unsigned_tampered_and_wrong_key(self):
+        blob, manifest = self.bundle()
+        verify_manifest(manifest)
+        unsigned = {k: v for k, v in manifest.items() if k != "signature"}
+        with self.assertRaises(ValueError):
+            verify_manifest(unsigned)
+        manifest["commit"] = "b" * 40
+        with self.assertRaises(ValueError):
+            verify_manifest(manifest)
+        _, manifest = self.bundle()
+        other = Ed25519PrivateKey.generate()
+        manifest["signature"]["value"] = base64.b64encode(other.sign(b"malicious")).decode()
+        with self.assertRaises(ValueError):
+            verify_manifest(manifest)
 
     def test_bundle_hash_and_zip_traversal(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -385,6 +411,7 @@ class UpdateTests(unittest.TestCase):
             validate_bundle(blob, manifest, stage)
             (stage / "app.py").write_text("def broken syntax")
             manifest["files"]["app.py"] = hashlib.sha256((stage / "app.py").read_bytes()).hexdigest()
+            manifest = sign_manifest(manifest, self.signing_key)
             (root / "app.py").write_text("# old")
             (root / "requirements.txt").write_bytes(b"same")
             previous = {"root": str(root), "commit": "old", "files": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in root.iterdir()}}
@@ -394,6 +421,21 @@ class UpdateTests(unittest.TestCase):
                 apply(plan, restart=False)
             self.assertEqual((root / "app.py").read_text(), "# old")
             self.assertFalse((root / "index.html").exists())
+
+    def test_worker_rejects_replayed_version_before_writes(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "app"; data = Path(temp) / "data"; stage = data / "updates" / "stage"
+            root.mkdir(); stage.mkdir(parents=True)
+            blob, manifest = self.bundle()
+            validate_bundle(blob, manifest, stage)
+            original = b"# keep this file"
+            (root / "app.py").write_bytes(original)
+            previous = {"sequence": manifest["sequence"], "commit": "old", "files": {"app.py": hashlib.sha256(original).hexdigest()}}
+            plan = data / "pending-update.json"
+            plan.write_text(json.dumps({"root": str(root), "stage": str(stage), "data_root": str(data), "manifest": manifest, "previous": previous}))
+            with self.assertRaises(ValueError):
+                apply(plan, restart=False)
+            self.assertEqual((root / "app.py").read_bytes(), original)
 
     def test_developer_checkout_is_never_overwritten(self):
         with tempfile.TemporaryDirectory() as temp:

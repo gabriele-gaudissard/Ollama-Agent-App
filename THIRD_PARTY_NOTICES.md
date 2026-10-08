@@ -11,8 +11,22 @@ Components used at runtime retain their own names, licenses and attribution:
 | Requests | Model endpoint HTTP client | Apache-2.0 |
 | Beautiful Soup | HTML text extraction | MIT |
 | keyring | OS credential storage outside Windows | MIT |
+| cryptography | Ed25519 publisher-signature verification | Apache-2.0 / BSD-3-Clause |
 | Ollama, when selected by the user | Optional existing local model server | MIT |
 
 Model weights are supplied separately and have their own licenses. Veyq does not redistribute model weights or claim ownership of upstream engines. Compatibility with another provider does not imply affiliation or endorsement.
 
 Dependencies downloaded by pip include their original license files. See each package's distribution metadata for the authoritative terms and transitive dependencies.
+
+Additional runtime components:
+
+| Component | Purpose | License |
+| --- | --- | --- |
+| pywinauto | Windows accessibility and input controller | BSD-3-Clause |
+| pypdf | PDF text extraction | BSD-3-Clause |
+| Pillow | Window screenshot encoding | HPND |
+| marked | Markdown rendering | MIT; bundled license in assets/vendor |
+| DOMPurify | HTML sanitation | Apache-2.0 or MPL-2.0; bundled license in assets/vendor |
+| highlight.js | Source-code highlighting | BSD-3-Clause; bundled license in assets/vendor |
+
+The original Veyq marks are project artwork. Logo rebuild tooling uses resvg/Pillow and is optional development tooling. Node/jsdom are used only for UI tests, not shipped as a desktop runtime.

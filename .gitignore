@@ -16,6 +16,7 @@ build.json
 venv/
 env/
 release/
+node_modules/
 __pycache__/
 *.py[cod]
 .vscode/

@@ -14,7 +14,10 @@ import uuid
 from pathlib import Path
 from urllib.parse import parse_qs, quote, urlsplit
 
-from bs4 import BeautifulSoup
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    BeautifulSoup = None
 from .network import public_request
 
 
@@ -26,6 +29,7 @@ def schema(name, description, properties, required=()):
 
 S = {"type": "string"}
 I = {"type": "integer"}
+B = {"type": "boolean"}
 TOOLS = [
     schema("list_dir", "List workspace directory entries, without following links.", {"path": S}, ["path"]),
     schema("read_file", "Read a UTF-8 file with line numbers; use pagination for large files.", {"path": S, "start_line": I, "end_line": I}, ["path"]),
@@ -39,9 +43,16 @@ TOOLS = [
     schema("git_status", "Read status/diff/log through fixed Git arguments; no arbitrary Git flags.", {"view": {"type": "string", "enum": ["status", "diff", "log"]}}, ["view"]),
     schema("web_search", "Search DuckDuckGo, with Bing fallback, and return titles, URLs and snippets.", {"query": S}, ["query"]),
     schema("read_url", "Read public HTTP(S) documentation. Private network targets are blocked.", {"url": S}, ["url"]),
-    schema("github", "GitHub REST for the user-selected owner/repo only. GET reads; POST/PATCH/PUT/DELETE mutations need approval in auto mode. PUT contents requires base64 content and current SHA for replacement. Endpoint begins with issues, pulls, contents, commits, branches, or releases. Credentials are injected by backend.", {"method": {"type": "string", "enum": ["GET", "POST", "PATCH", "PUT", "DELETE"]}, "endpoint": S, "body": {"type": "object"}}, ["method", "endpoint"]),
+    schema("github", "GitHub REST for ANY owner/repository specified in repository; the optional configured repository is only a default. GET reads; POST/PATCH/PUT/DELETE mutations need approval in auto mode. PUT contents requires base64 content and current SHA for replacement. Endpoint can be empty for repo metadata, or begin with issues, pulls, contents, commits, branches, releases, tags, collaborators or actions. Token permissions are enforced by GitHub; credentials are injected by backend.", {"repository": S, "method": {"type": "string", "enum": ["GET", "POST", "PATCH", "PUT", "DELETE"]}, "endpoint": S, "body": {"type": "object"}}, ["method", "endpoint"]),
     schema("update_plan", "Publish task steps with pending, in_progress or completed status.", {"steps": {"type": "array", "items": {"type": "object", "properties": {"step": S, "status": {"type": "string", "enum": ["pending", "in_progress", "completed"]}}, "required": ["step", "status"], "additionalProperties": False}}}, ["steps"]),
     schema("save_memory", "Save a useful preference locally for future chats. Never store secrets.", {"text": S}, ["text"]),
+    schema("ask_user", "Ask one concise question only when essential information is missing and cannot be inferred. Never ask routine implementation or capability questions. No secrets in answers.", {"question": S, "options": {"type": "array", "items": S}}, ["question"]),
+    schema("clone_repository", "Clone a public GitHub owner/repository into a new project subfolder. Then inspect its README, configure dependencies and run relevant checks using exec_cmd.", {"repository": S, "destination": S, "branch": S}, ["repository", "destination"]),
+    schema("read_project_context", "Read other chats belonging to this project, excluding unrelated projects. Paginate with offset; use a returned chat_id and start_char to read a full conversation in bounded chunks.", {"offset": I, "chat_id": S, "start_char": I}, []),
+    schema("computer_windows", "List open Windows applications for real desktop interaction. Sensitive system/password-manager windows and Veyq's own controls are protected.", {}, []),
+    schema("computer_inspect", "Inspect one returned window_id and its accessible elements. Optionally capture a screenshot for a vision-capable model. Do not invent window IDs or element indexes.", {"window_id": I, "screenshot": B}, ["window_id"]),
+    schema("computer_action", "Click an inspected element, type literal text, or send a shortcut such as CTRL+S. Uses a snapshot_id and element index from computer_inspect; re-inspect after EVERY action. Runs with current Windows user privileges.", {"snapshot_id": S, "index": I, "action": {"type": "string", "enum": ["click", "type", "key"]}, "text": S}, ["snapshot_id", "index", "action"]),
+    schema("read_document", "Extract bounded text from a PDF or DOCX file; other files use read_file. Never execute document macros.", {"path": S}, ["path"]),
 ]
 SPECS = {t["function"]["name"]: t["function"]["parameters"] for t in TOOLS}
 READ_ONLY = {"list_dir", "read_file", "search_files", "git_status"}
@@ -55,7 +66,7 @@ def linklike(path):
 
 def validate(value, spec, label="arguments"):
     kind = spec.get("type")
-    correct = {"string": lambda x: isinstance(x, str), "integer": lambda x: isinstance(x, int) and not isinstance(x, bool),
+    correct = {"string": lambda x: isinstance(x, str), "boolean": lambda x: isinstance(x, bool), "integer": lambda x: isinstance(x, int) and not isinstance(x, bool),
                "object": lambda x: isinstance(x, dict), "array": lambda x: isinstance(x, list)}
     if kind in correct and not correct[kind](value):
         raise ValueError(f"{label}: tipo {kind} richiesto.")
@@ -81,19 +92,25 @@ def validate(value, spec, label="arguments"):
 
 def sensitive(path):
     p = Path(path)
-    return (any(part.lower() in {".ssh", ".aws", ".azure", ".codex"} for part in p.parts)
+    return (any(part.lower() in {".ssh", ".aws", ".azure", ".codex", ".git", ".gnupg", ".kube", ".docker"} for part in p.parts)
             or p.name.lower() in {"credentials", "credentials.dpapi", "codex_data.json", "state.json", "id_rsa", "id_ed25519", ".netrc", ".npmrc", ".pypirc"}
             or p.name.lower().startswith(".env") or p.suffix.lower() in {".pem", ".key", ".pfx", ".p12"})
 
 
 class ToolRunner:
-    def __init__(self, store, settings, run_id, cancel, emit, approve, app_root, session):
+    def __init__(self, store, settings, run_id, cancel, emit, approve, app_root, session, question=None):
         self.store, self.settings, self.run_id = store, settings, run_id
         self.cancel, self.emit, self.approve = cancel, emit, approve
         self.workspace = Path(settings["workspace"]).resolve()
         self.app_root = Path(app_root).resolve()
         self.session = session
         self.process = None
+        self.question = question
+        self.cwd = self.path(session.get("cwd") or str(self.workspace))
+        if not self.cwd.is_dir():
+            self.cwd = self.workspace
+        from .computer import Computer
+        self.computer = Computer(store.root)
 
     def path(self, value):
         raw = Path(value)
@@ -121,11 +138,13 @@ class ToolRunner:
 
     def decision(self, name, args, paths):
         mode = self.settings["permission"]
-        if name in {"web_search", "read_url", "github"} and not self.settings["network"]:
+        if name == "ask_user":
+            return False, "Essential user information"
+        if name in {"web_search", "read_url", "github", "clone_repository"} and not self.settings["network"]:
             raise PermissionError("Accesso online disattivato nelle impostazioni.")
         # A shell has unrestricted host privileges; with offline tools enabled it
         # could still reach the network. Refuse it unless network is enabled.
-        if name == "exec_cmd" and not self.settings["network"]:
+        if name in {"exec_cmd", "computer_windows", "computer_inspect", "computer_action"} and not self.settings["network"]:
             raise PermissionError("Terminale disabilitato mentre la rete e' spenta: i comandi non sono isolati dal sistema.")
         outside = any(not p.is_relative_to(self.workspace) for p in paths)
         app_write = name in WRITE and any(p.is_relative_to(self.app_root) or ".git" in p.parts for p in paths)
@@ -137,7 +156,7 @@ class ToolRunner:
             return True, "Accesso fuori dal progetto"
         if app_write:
             return True, "Modifica dell'app o dei metadati Git"
-        if name in {"exec_cmd", "delete_file", "save_memory"}:
+        if name in {"exec_cmd", "delete_file", "save_memory", "clone_repository", "computer_windows", "computer_inspect", "computer_action", "read_project_context"}:
             return True, "Operazione che richiede conferma"
         if name == "github" and args["method"] != "GET":
             return True, "Pubblicazione/modifica su GitHub"
@@ -185,9 +204,13 @@ class ToolRunner:
                 raise PermissionError("Percorso cambiato durante l'approvazione. Riprovare.")
             self.emit("tool_start", {"tool": name, "arguments": args, "reason": reason})
             result = getattr(self, "tool_" + name)(**args)
-            self.store.audit(self.run_id, name, "completed", digest)
-            self.emit("tool_result", {"tool": name, "result": result})
-            return {"ok": True, "result": result}
+            failed = name in {"exec_cmd", "clone_repository", "git_status"} and result.get("exit_code", 0) != 0
+            envelope = {"ok": not failed, "result": result}
+            if failed:
+                envelope["error"] = "Command failed. Inspect exit_code/output, fix the cause and retry; do not claim success."
+            self.store.audit(self.run_id, name, "failed" if failed else "completed", digest)
+            self.emit("tool_result", {"tool": name, "result": envelope})
+            return envelope
         except Exception as e:
             self.store.audit(self.run_id, name, "failed", digest)
             result = {"ok": False, "error": str(e)[:2000]}
@@ -198,6 +221,114 @@ class ToolRunner:
         target = self.path(path)
         return [{"name": p.name, "kind": "link" if p.is_symlink() else "dir" if p.is_dir() else "file"}
                 for p in sorted(target.iterdir(), key=lambda p: p.name.lower()) if not sensitive(p)][:500]
+
+    def tool_ask_user(self, question, options=None):
+        if not question.strip() or len(question) > 2000 or len(options or []) > 5:
+            raise ValueError("Question must be concise, with at most five options.")
+        if not self.question:
+            raise RuntimeError("Interactive questions are unavailable in this context.")
+        return self.question(question.strip(), options or [])
+
+    def tool_computer_windows(self):
+        return self.computer.windows()
+
+    def tool_computer_inspect(self, window_id, screenshot=False):
+        if screenshot:
+            # Check installed capabilities before capturing private pixels.
+            import requests
+            from .engine import validate_endpoint
+            if self.settings["provider"] == "local":
+                client = requests.Session()
+                client.trust_env = False
+                try:
+                    token = self.store.vault.get("provider")
+                    r = client.post(validate_endpoint(self.settings["url"], self.settings["network"]) + "/api/show", json={"model": self.settings["model"]}, headers={"Authorization": "Bearer " + token} if token else {}, timeout=(5, 10), allow_redirects=False)
+                    r.raise_for_status()
+                    screenshot = "vision" in r.json().get("capabilities", [])
+                finally:
+                    client.close()
+            else:
+                screenshot = bool(self.settings.get("vision"))
+        result = self.computer.inspect(window_id, screenshot)
+        if not screenshot:
+            result["vision_note"] = "Accessible elements are available. Screenshots require a model with vision capability."
+        return result
+
+    def tool_computer_action(self, snapshot_id, index, action, text=""):
+        if self.cancel.is_set():
+            raise RuntimeError("Activity stopped; no desktop input sent.")
+        return self.computer.action(snapshot_id, index, action, text)
+
+    def tool_read_document(self, path):
+        target = self.path(path)
+        if target.stat().st_size > 5_000_000:
+            raise ValueError("Document limit is 5 MB.")
+        if target.suffix.lower() == ".pdf":
+            from pypdf import PdfReader
+            reader = PdfReader(target)
+            if reader.is_encrypted:
+                raise ValueError("Encrypted PDF: provide an unlocked copy without secrets.")
+            text = "\n".join((p.extract_text() or "")[:5000] for p in list(reader.pages)[:30])[:30000]
+            return {"path": str(target), "content": text, "note": "First 30 pages, at most 30000 characters; scanned pages may require OCR."}
+        if target.suffix.lower() == ".docx":
+            import zipfile
+            import xml.etree.ElementTree as ET
+            with zipfile.ZipFile(target) as z:
+                info = z.getinfo("word/document.xml")
+                if info.file_size > 2_000_000:
+                    raise ValueError("Document XML exceeds 2 MB.")
+                root = ET.fromstring(z.read(info))
+            text = "\n".join(n.text or "" for n in root.iter() if n.tag.endswith("}t"))[:30000]
+            return {"path": str(target), "content": text}
+        raise ValueError("Use read_document for PDF/DOCX, read_file for text files.")
+
+    def tool_read_project_context(self, offset=0, chat_id="", start_char=0):
+        project_id = self.session.get("project_id")
+        if not project_id:
+            return {"chats": [], "note": "This chat has no assigned project."}
+        if offset < 0 or start_char < 0:
+            raise ValueError("Offsets must be nonnegative.")
+        matching = [s for s in self.store.snapshot()["sessions"] if s.get("project_id") == project_id and s["id"] != self.session.get("id")]
+        if chat_id:
+            selected = next((s for s in matching if s["id"] == chat_id), None)
+            if not selected:
+                raise ValueError("Chat does not belong to this project.")
+            text = "\n".join(m.get("role", "") + ": " + str(m.get("content", "")) for m in selected.get("history", []) if m.get("role") in {"user", "assistant"})
+            return {"chat_id": chat_id, "title": selected["title"], "content": text[start_char:start_char + 15000], "next_char": start_char + 15000 if len(text) > start_char + 15000 else None}
+        chats = []
+        remaining = 20000
+        for s in matching[offset:]:
+            content = "\n".join(m.get("role", "") + ": " + str(m.get("content", "")) for m in s.get("history", []) if m.get("role") in {"user", "assistant"})[-5000:][:remaining]
+            chats.append({"chat_id": s["id"], "title": s["title"], "content": content, "note": "Recent excerpt; use chat_id/start_char to read the full chat."})
+            remaining -= len(content)
+            if remaining <= 0 or len(chats) >= 6:
+                break
+        return {"chats": chats, "total_chats": len(matching), "next_offset": offset + len(chats) if len(matching) > offset + len(chats) else None}
+
+    def tool_clone_repository(self, repository, destination, branch=""):
+        if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository) or any(p in {".", ".."} for p in repository.split("/")):
+            raise ValueError("Use a GitHub owner/repository identifier.")
+        target = self.path(destination)
+        if target.exists():
+            raise ValueError("Clone destination already exists; choose a new folder.")
+        if branch and (not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_./-]{0,150}", branch) or ".." in branch or branch.endswith("/")):
+            raise ValueError("Invalid branch name.")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        argv = ["git", "-c", "core.hooksPath=" + str(self.store.root / "empty-hooks"), "clone", "--depth", "1"]
+        if branch:
+            argv += ["--branch", branch]
+        argv += ["--", "https://github.com/" + repository.removesuffix(".git") + ".git", str(target)]
+        result = self.run_process(argv, target.parent, min(300, self.settings["command_timeout"]))
+        if branch and result["exit_code"] != 0 and "Remote branch" in result.get("output", "") and "not found" in result.get("output", "") and not target.exists():
+            # An invented branch should not make the user troubleshoot Git. The
+            # repository's own default branch is authoritative for this clone.
+            retry = [a for i, a in enumerate(argv) if i not in {argv.index("--branch"), argv.index("--branch") + 1}]
+            first_error = result["output"]
+            result = self.run_process(retry, target.parent, min(300, self.settings["command_timeout"]))
+            result["branch_note"] = "Requested branch was absent; cloned the repository's default branch instead."
+            result["first_attempt"] = first_error[:2000]
+        result["path"] = str(target)
+        return result
 
     def tool_read_file(self, path, start_line=1, end_line=300):
         target = self.path(path)
@@ -300,7 +431,7 @@ class ToolRunner:
             timed_out = False
             try:
                 while self.process.poll() is None:
-                    if self.cancel.wait(.1) or time.monotonic() - started > timeout:
+                    if self.cancel.wait(.1) or (timeout > 0 and time.monotonic() - started > timeout):
                         timed_out = not self.cancel.is_set()
                         self.stop_process()
                         break
@@ -317,12 +448,35 @@ class ToolRunner:
                 self.stop_process()
                 self.process = None
 
-    def tool_exec_cmd(self, command, cwd=".", timeout=120):
+    def tool_exec_cmd(self, command, cwd=".", timeout=0):
         if not command.strip() or len(command) > 20000:
             raise ValueError("Comando vuoto o troppo lungo.")
-        timeout = max(1, min(timeout, self.settings["command_timeout"], 600))
-        argv = ["powershell", "-NoProfile", "-NonInteractive", "-Command", command] if os.name == "nt" else ["/bin/sh", "-c", command]
-        return self.run_process(argv, self.path(cwd), timeout)
+        timeout = 0 if self.settings["command_timeout"] == 0 else max(1, min(timeout or self.settings["command_timeout"], self.settings["command_timeout"], 600))
+        start = self.cwd if cwd == "." else self.path(cwd)
+        # Each shell is isolated; a side channel persists its final filesystem cwd.
+        # The marker path is generated by the backend, never interpolated user text.
+        with tempfile.TemporaryDirectory(prefix="veyq-cwd-") as temp:
+            marker = Path(temp) / "cwd.txt"
+            if os.name == "nt":
+                escaped = str(marker).replace("'", "''")
+                wrapped = "try {\n" + command + "\n} finally { [IO.File]::WriteAllText('" + escaped + "', (Get-Location).Path) }; if($LASTEXITCODE -ne $null){exit $LASTEXITCODE}"
+                argv = ["powershell", "-NoProfile", "-NonInteractive", "-Command", wrapped]
+            else:
+                import shlex
+                argv = ["/bin/sh", "-c", command + "\nveyq_code=$?; pwd > " + shlex.quote(str(marker)) + "; exit $veyq_code"]
+            result = self.run_process(argv, start, timeout)
+            if marker.exists() and not result["cancelled"] and not result["timed_out"]:
+                target = self.path(marker.read_text(encoding="utf-8-sig").strip())
+                if target.is_dir():
+                    # A cwd outside the workspace is allowed only in full access;
+                    # automatic mode keeps the same boundary as the approved command.
+                    if self.settings["permission"] == "full" or target.is_relative_to(self.workspace):
+                        self.cwd = target
+                        with self.store.lock:
+                            self.session["cwd"] = str(target)
+                            self.store.save()
+            result["cwd"] = str(self.cwd)
+            return result
 
     def tool_git_status(self, view):
         options = {"status": ["status", "--short", "--branch"],
@@ -333,6 +487,8 @@ class ToolRunner:
         return self.run_process(argv, self.workspace, 20)
 
     def tool_web_search(self, query):
+        if BeautifulSoup is None:
+            raise RuntimeError("Web tools need Beautiful Soup. Run Installer.bat to repair dependencies.")
         if not query.strip() or len(query) > 1000:
             raise ValueError("Query di ricerca vuota o troppo lunga.")
         providers = [("https://html.duckduckgo.com/html/?q=", ".result", ".result__a", ".result__snippet"),
@@ -368,19 +524,21 @@ class ToolRunner:
         return {"results": [], "notice": "Nessun risultato o motori temporaneamente bloccati. Prova una URL diretta."}
 
     def tool_read_url(self, url):
+        if BeautifulSoup is None:
+            raise RuntimeError("Web tools need Beautiful Soup. Run Installer.bat to repair dependencies.")
         response = public_request(url, cancel=self.cancel)
         if not any(t in response["content_type"] for t in ("text/", "json", "xml")):
             raise ValueError("Formato non testuale: usa il terminale autorizzato per gestire il download.")
         soup = BeautifulSoup(response["text"], "html.parser")
         for tag in soup(["script", "style", "nav", "footer"]):
             tag.decompose()
-        return {"url": response["url"], "content": soup.get_text("\n", strip=True)[:25000], "untrusted": True}
+        return {"url": response["url"], "content": soup.get_text("\n", strip=True)[:15000], "untrusted": True}
 
-    def tool_github(self, method, endpoint, body=None):
-        repo = self.settings.get("github_repo", "")
-        if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo):
-            raise ValueError("Imposta prima il repository GitHub owner/repo.")
-        if not re.fullmatch(r"(?:issues|pulls|contents|commits|branches|releases)(?:/[A-Za-z0-9_.~/-]+)?(?:\?[A-Za-z0-9_=&%.-]+)?", endpoint) or ".." in endpoint:
+    def tool_github(self, method, endpoint, body=None, repository=""):
+        repo = repository or self.settings.get("github_repo", "")
+        if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo) or any(p in {".", ".."} for p in repo.split("/")):
+            raise ValueError("Specify an owner/repository in this action or set an optional default in Settings.")
+        if endpoint and (not re.fullmatch(r"(?:issues|pulls|contents|commits|branches|releases|tags|collaborators|actions)(?:/[A-Za-z0-9_.~/-]+)?(?:\?[A-Za-z0-9_=&%.-]+)?", endpoint) or ".." in endpoint):
             raise ValueError("Endpoint GitHub non ammesso.")
         token = self.store.vault.get("github")
         headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
