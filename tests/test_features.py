@@ -119,10 +119,10 @@ class FeatureTests(unittest.TestCase):
     def test_cd_persists_across_shells_and_restart(self):
         (self.workspace/'sub').mkdir()
         self.assertTrue(self.runner.execute('exec_cmd',{'command':'cd sub'})['ok'])
-        self.assertEqual(self.runner.cwd,self.workspace/'sub')
+        self.assertEqual(self.runner.cwd,(self.workspace/'sub').resolve())
         result=self.runner.execute('exec_cmd',{'command':'pwd'})
         self.assertIn('sub',result['result']['output'])
-        self.assertEqual(Store(self.store.root).data['sessions'][0]['cwd'],str(self.workspace/'sub'))
+        self.assertEqual(Path(Store(self.store.root).data['sessions'][0]['cwd']).resolve(),(self.workspace/'sub').resolve())
 
     def test_clone_uses_fixed_arguments_and_disallows_existing_destination(self):
         with patch.object(self.runner,'run_process',return_value={'exit_code':0}) as run:
