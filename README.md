@@ -1,89 +1,82 @@
-# 🚀 Codex Professional Agent
+# Veyq
 
-Codex Professional Agent is a fully autonomous, local AI software engineer. Powered by local LLMs via [Ollama](https://ollama.com/), it doesn't just generate text: **it reasons, executes system commands, reads/writes files, searches the web, and fixes its own bugs.**
+Veyq (pronounced "vayk") is an independent Windows desktop AI agent. It connects to an existing local model server or a Chat Completions compatible API, and uses structured tools to work on a selected project.
 
-Think of it as your personal, open-source, local alternative to Devin or GitHub Copilot Workspace, running entirely on your machine with zero API costs and 100% privacy.
+## What it actually does
 
-## ✨ Key Features
+The Python backend owns the complete model → tool → result loop. The interface displays messages and approves specific actions; code fences and generated HTML are never interpreted as commands.
 
-* 🧠 **Autonomous ReAct Loop:** The agent uses a *Reason + Act* loop. It can chain multiple actions together (e.g., scan a directory $\rightarrow$ read a file $\rightarrow$ write a fix $\rightarrow$ run a test).
+- Coding: inspect and search files, create/edit code, run shell commands and tests, inspect Git status/diffs/logs.
+- File management: create directories, move individual files, delete individual files with confirmation, and restore backups from the interface.
+- Online work: web search with source URLs, read public documentation, and GitHub REST reads/writes scoped to the repository you configure.
+- Tasks: visible plans, streaming output, action history, bounded loops, cancellation, and persistent chats.
+- Privacy: local chat storage, OS credential vault, metadata-only audit log, no analytics or CDN scripts, explicit online setting.
+- Distribution: every tested push to main publishes a GitHub Release; managed installations check for and apply updates automatically.
 
-* 💻 **Native Terminal Execution:** Executes PowerShell and Git commands directly on your machine.
+Agent quality depends on the model, hardware and task. Veyq does not guarantee successful completion of every task or parity with hosted frontier agents. It currently has no general GUI/computer-control tool, voice/video generation, scheduled autonomous missions, or generic MCP connector manager.
 
-* 📂 **Advanced File Management:** Reads and writes code, configurations, and even 3D models (`.obj`, `.stl`, `.scad`).
+## Install and launch
 
-* 🌐 **Web Browsing & Scraping:** Uses DuckDuckGo to search for solutions and can scrape full web documentation URLs to learn new APIs on the fly.
+Windows 10/11, Python 3.11+ and a model with structured tool calling are required. A working local engine is already sufficient; no paid API is required for local use.
 
-* 🔄 **Auto-Healing:** If a command or script fails, the agent intercepts the error output and automatically tries an alternative solution without user intervention.
+1. Download `veyq-update.zip` from [the latest release](https://github.com/gabriele-gaudissard/Veyq-Agent-App/releases/latest).
+2. Extract it to a writable application folder, outside your project folders.
+3. Run `Installer.bat`. It creates a virtual environment, installs Python packages, registers the installation and creates the **Veyq** Desktop shortcut. It does not overwrite chat data or download models without your action.
+4. Launch **Veyq**, choose your project folder and configure your provider/model in Settings.
 
-* 💾 **Long-Term Memory:** Can remember specific project rules, server IPs, or preferences across different sessions.
+For an existing source checkout, launch `Veyq.bat`; its fallback uses the existing Python installation. `Installer_only_shortcut.bat` creates only the new shortcut. The old local model service continues to work; its executable has not been renamed or removed.
 
-* 🌍 **Multilingual:** UI and AI reasoning fully support English, Italian, Spanish, and French.
+The local protocol uses `/api/chat` and `/api/tags`. A compatible API uses `/chat/completions` and `/models`; include `/v1` in the configured base URL if your provider requires it. Remote endpoints require HTTPS and the online setting. Provider tokens are optional for unauthenticated local endpoints.
 
-* 📥 **Built-in Model Manager:** Download, switch, or delete Ollama models directly from the UI.
+## Permission modes
 
-## 🛠️ Built-in Tools
+| Mode | Behavior |
+| --- | --- |
+| Chiedi sempre | Each model tool call pauses for one explicit approval. |
+| Approva per me (default) | Reads and file changes inside the selected project proceed automatically. Commands, outside-project access, application-source changes, deletions, memory writes, network requests and GitHub publication require approval. |
+| Accesso completo | Tools proceed without approvals, subject to hard validation, protected credential paths and the online switch. Enabling it requires an explicit checkbox. |
 
-The agent natively understands and utilizes the following tools:
+These are application permission gates, **not an operating-system sandbox**. Approved shell commands run with the Windows user's privileges and may reach other files and the network. For this reason the terminal is disabled when online tools are disabled. Use a separate OS account or isolated VM when executing untrusted code. Full access cannot guarantee credential isolation from arbitrary shell commands.
 
-* `exec_cmd`: Runs PowerShell/Git commands.
-* `list_dir`: Scans local directories.
-* `read_file` / `create_file`: Reads existing files or creates new ones.
-* `web_search`: Searches the web for up-to-date knowledge.
-* `read_url`: Extracts clean text from documentation pages.
-* `save_memory`: Stores persistent facts in its local database.
+Approval is bound to one tool, its exact arguments and a digest. File content changes while approval is pending invalidate the action. Denial is recorded; an approval expires after ten minutes. Settings/project changes are blocked during a run. Cancellation stops pending approvals and kills running command process trees; a stalled model HTTP stream may take up to its 90-second read timeout to return. Completed mutations are preserved.
 
-## 🚀 Installation (One-Click Setup)
+## GitHub
 
-This project is designed for Windows and requires zero manual configuration.
+Set `owner/repository` and a fine-grained token in Settings. Choose only the permissions needed for that repository. Tokens stay in the backend vault and are injected into authenticated requests, never added to model context. The GitHub tool supports issues, pull requests, contents, commits, branches and releases through GET/POST/PATCH. Use approved Git commands for local branches, commits and pushes. Windows Git credential-manager authentication remains separate.
 
-1. **Clone or Download** this repository to your computer.
-2. Double-click the **`Installer.bat`** file.
-3. The setup will automatically:
-   * Install required Python dependencies (`pywebview`, `requests`, `beautifulsoup4`).
-   * Check for Ollama (and install it if missing).
-   * Ask you which starting AI model you want to use (e.g., `qwen2.5-coder:14b`).
-   * Download the model.
-   * Create a handy shortcut named **Ollama** on your Desktop.
-4. Launch the app using the **Ollama** shortcut on your Desktop!
+## Automatic updates
 
-*(Note: The `Ollama.bat` file in the folder is the main launcher used by the shortcut).*
+The release workflow runs Windows tests and syntax checks before publishing `veyq-update.zip` and its SHA-256 manifest. Pushing a file change to **main** triggers this pipeline; editing an unpushed local file or another branch does not publish an update.
 
-### Prerequisites (If installing manually)
+Managed installations check GitHub on startup and hourly, verify the archive and every file, reject archive traversal/links, stage the update and restart when the agent is idle. The updater preserves the data folder, backs up replaced app files and rolls back file changes on installation failure. Changed requirements are installed in a separate virtual environment before switching runtimes. Failed downloads, offline machines and rate limits leave the current app installed. The automatic-update option independently contacts GitHub even when model tools are offline; disable both settings to avoid outbound traffic.
 
-* Python 3.8+
-* [Ollama](https://ollama.com/) installed and running in the background.
+The publisher is the fixed repository `gabriele-gaudissard/Veyq-Agent-App`. SHA-256 verifies integrity against the manifest delivered from that repository over HTTPS; this is not an independent code-signing system. Anyone authorized to publish there can distribute application code. Protect the repository account and branch accordingly.
 
-## 💻 Recommended Hardware & Models
+Developer checkouts containing `.git` are deliberately never overwritten by automatic updates. Update those with Git. Managed installations with locally edited application files also stop before overwriting them. The update status and previous builds are stored under the local data directory.
 
-Since this runs 100% locally, your hardware dictates the speed and intelligence of the agent.
+Users of the old application must install this version once: their existing version has no updater and cannot acquire one automatically.
 
-| Model | Recommended For | VRAM Requirement | 
-| ----- | ----- | ----- | 
-| **`qwen2.5-coder:1.5b/3b`** | Low-end PCs, basic scripting | 4GB - 6GB VRAM | 
-| **`llama3.1:8b`** / **`qwen2.5-coder:7b`** | Fast, everyday coding and tasks | 8GB VRAM (e.g., RTX 3060/4060) | 
-| **`qwen2.5-coder:14b`** | **Optimal!** Complex autonomous tasks | 16GB VRAM (e.g., RTX 4080) | 
-| **`devstral:24b`** | Heavy SWE benchmark tasks | 24GB VRAM (e.g., RTX 4090) | 
+## Local data and recovery
 
-*Note: You can easily download and manage these models directly from the app's Settings menu.*
+By default data lives in `%LOCALAPPDATA%\Veyq`; `VEYQ_DATA_DIR` can set another location. The legacy `codex_data.json` is imported once, preserving chats/projects/preferences and moving any provider token into the vault. The old token field is scrubbed after successful migration.
 
-## 🎨 Interface Highlights
+`state.json` contains chats, workspace paths, settings and memory **in plaintext**. Windows credentials use DPAPI bound to the current user; other platforms require a functioning system keyring. `audit.jsonl` contains timestamps, tool names, outcomes and argument hashes, not commands or file contents. File backups can contain private code. Protect the Windows account and disk. The interface supports chat export/deletion, memory clearing, token removal and individual-file restore.
 
-* **Dark Mode UI:** Modern, clean interface inspired by top-tier IDEs.
-* **Markdown & Syntax Highlighting:** Beautifully rendered code blocks with 1-click copy.
-* **Live Action Badge:** See exactly what the agent is doing in the background (e.g., "⚡ Terminal...", "📖 Reading file...").
-* **Session Management:** Save, rename, and resume previous chats from the sidebar.
+Known credential paths such as `.env`, SSH keys, certificate keys and the agent data directory are blocked by structured file tools. Recognized tokens and configured credentials are redacted from model output and logs; this is a best-effort safeguard, not a universal secret detector. Web tools block private/reserved addresses and use DNS-pinned connections with redirect validation.
 
-## 🤝 Contributing
+## Development and validation
 
-Feel free to fork this project, submit pull requests, or open an issue if you find bugs or have feature requests. Let's build the ultimate open-source local AI agent together!
+```powershell
+python -m pip install -r requirements.txt
+python -m unittest discover -s tests -v
+python -m compileall -q app.py veyq
+node --check app.js
+python app.py --self-check
+python scripts/build_release.py release
+```
 
-## ⚠️ Disclaimer and Liability
-This application grants an AI model direct execution permissions on your local operating system via PowerShell. It is capable of creating, modifying, and deleting files autonomously.
+The test suite covers permission denial, command cancellation/timeouts, backup/recovery, exact-edit failures, credential migration/storage, public-network checks, tool protocol pairing, safe Markdown behavior, update integrity, traversal rejection and rollback. Live-model behavior should also be tested with your selected model.
 
-By using this software, you acknowledge that AI models can hallucinate, make mistakes, or generate destructive commands. You use this tool entirely at your own risk. The author assumes no liability for any data loss, system corruption, security breaches, or unintended consequences resulting from the use of this agent. It is highly recommended to monitor the terminal output panel during execution.
+## Naming and license
 
-
-## 📜 License
-
-This project is open-source and available under the [MIT License](LICENSE).
+The selected name is Veyq. A preliminary web search on 8 October 2026 found no matching commercial software brand; this does not certify trademark or domain availability. The application is independent of upstream model providers. Mandatory third-party attribution remains in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and the author copyright remains in [LICENSE](LICENSE).

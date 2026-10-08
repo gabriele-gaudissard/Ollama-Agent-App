@@ -1,23 +1,24 @@
-# Local Database and User Settings (CONTAINS TOKENS AND PRIVATE CHATS)
+# Private state and secrets
 codex_data.json
-
-# Dynamically generated files from the Installer
-Start_Codex.bat
-*.vbs
+veyq_data.json
+state.json
+credentials.dpapi
+runtime.json
+build.json
 *.lnk
-
-# Python Cache
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Virtual Environments
+*.vbs
+.env*
+*.pem
+*.key
+# Local builds and runtime
+.venv/
+.veyq-runtime/
 venv/
 env/
-.env
-
-# OS System and IDE files
-.DS_Store
-Thumbs.db
+release/
+__pycache__/
+*.py[cod]
 .vscode/
 .idea/
+Thumbs.db
+.DS_Store
