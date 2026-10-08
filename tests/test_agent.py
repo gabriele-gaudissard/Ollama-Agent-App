@@ -3,6 +3,7 @@ import io
 import hashlib
 import json
 import os
+import subprocess
 import tempfile
 import threading
 import time
@@ -147,15 +148,32 @@ class AgentTests(unittest.TestCase):
         try:
             (self.workspace / "link").symlink_to(outside, target_is_directory=True)
         except OSError:
-            self.skipTest("Symlinks not allowed on this account")
+            if os.name != "nt":
+                raise
+            # Directory junctions exercise the same escape without requiring
+            # Windows Developer Mode / symbolic-link privileges.
+            subprocess.run(["cmd", "/c", "mklink", "/J", str(self.workspace / "link"), str(outside)],
+                           check=True, capture_output=True)
         self.allowed = False
         self.assertFalse(self.runner.execute("write_file", {"path": "link/x", "content": "x"})["ok"])
         self.assertFalse((outside / "x").exists())
 
     def test_private_network_blocked(self):
-        for url in ["http://127.0.0.1/", "http://[::1]/", "http://169.254.169.254/", "file:///etc/passwd", "https://user:pass@example.com/", "http://example.com:22/"]:
+        for url in ["http://127.0.0.1/", "http://[::1]/", "http://169.254.169.254/", "http://224.0.0.1/", "file:///etc/passwd", "https://user:pass@example.com/", "http://example.com:22/"]:
             with self.assertRaises(ValueError):
                 public_target(url)
+
+    def test_search_fallback_returns_source_urls(self):
+        with patch("veyq.tools.public_request", side_effect=[{"text": "no results"}, {"text": '<li class="b_algo"><h2><a href="https://docs.python.org/3/">Python docs</a></h2><div class="b_caption"><p>Official documentation</p></div></li>'}]):
+            results = self.runner.tool_web_search("Python documentation")
+        self.assertEqual(results[0]["url"], "https://docs.python.org/3/")
+
+    def test_github_put_requires_approval_in_auto(self):
+        self.settings["network"] = True
+        self.allowed = False
+        result = self.runner.execute("github", {"method": "PUT", "endpoint": "contents/test.txt", "body": {"content": "aGVsbG8=", "message": "update"}})
+        self.assertFalse(result["ok"])
+        self.assertEqual(self.approvals[0]["tool"], "github")
 
     def test_remote_provider_requires_online_and_tls(self):
         with self.assertRaises(PermissionError):

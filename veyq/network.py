@@ -15,7 +15,7 @@ def public_target(url):
     if port != (443 if p.scheme == "https" else 80):
         raise ValueError("Porta web non ammessa.")
     addresses = sorted({row[4][0] for row in socket.getaddrinfo(p.hostname, port, type=socket.SOCK_STREAM)})
-    if not addresses or any(not ipaddress.ip_address(ip).is_global for ip in addresses):
+    if not addresses or any(not ipaddress.ip_address(ip).is_global or ipaddress.ip_address(ip).is_multicast or ipaddress.ip_address(ip).is_reserved for ip in addresses):
         raise ValueError("Rete privata, loopback o indirizzo riservato bloccato.")
     return p, port, addresses[0]
 

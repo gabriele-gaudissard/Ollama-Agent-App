@@ -1,33 +1,551 @@
-'use strict';
-const $ = id => document.getElementById(id);
-let api, sessionId = '', settings = {}, sessions = [], busy = false, polling = false;
-let lastSeq = 0, streamNode = null, streamText = '', approvalId = '', updateReady = false;
-const modes = {always:'Chiedi sempre',auto:'Approva per me',full:'Accesso completo'};
-function toast(text){$('toast').textContent=String(text);$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',6500)}
-async function call(name,...args){if(!api)throw Error('Apri l’app con Veyq.bat per usare il motore locale.');return await api[name](...args)}
-function action(id,fn){$(id).addEventListener('click',()=>Promise.resolve().then(fn).catch(e=>toast(e.message||e)))}
-function open(id){$(id).classList.add('open')}
-function close(id){$(id).classList.remove('open')}
-function setBusy(value,state){busy=value;$('send').textContent=value?'Ferma':'Invia ↑';$('send').classList.toggle('danger',value);$('state').textContent=state|| (value?'In esecuzione':'Pronto');$('status').classList.toggle('busy',value);for(const id of ['newChat','chooseFolder','attach','settingsButton'])$(id).disabled=value}
-function codeBlock(parent,text,language){const wrap=document.createElement('div');wrap.className='codebox';const btn=document.createElement('button');btn.className='copy';btn.textContent='Copia '+(language||'');btn.addEventListener('click',()=>navigator.clipboard.writeText(text).then(()=>toast('Copiato')).catch(()=>toast('Seleziona il testo e usa Ctrl+C')));const pre=document.createElement('pre');const code=document.createElement('code');code.textContent=text;pre.append(code);wrap.append(btn,pre);parent.append(wrap)}
+"use strict";
+const $ = (id) => document.getElementById(id);
+let api,
+  sessionId = "",
+  settings = {},
+  sessions = [],
+  busy = false,
+  polling = false;
+let lastSeq = 0,
+  streamNode = null,
+  streamText = "",
+  approvalId = "",
+  updateReady = false;
+const modes = {
+  always: "Chiedi sempre",
+  auto: "Approva per me",
+  full: "Accesso completo",
+};
+function toast(text) {
+  $("toast").textContent = String(text);
+  $("toast").style.display = "block";
+  setTimeout(() => ($("toast").style.display = "none"), 6500);
+}
+async function call(name, ...args) {
+  if (!api) throw Error("Apri l’app con Veyq.bat per usare il motore locale.");
+  return await api[name](...args);
+}
+function action(id, fn) {
+  $(id).addEventListener("click", () =>
+    Promise.resolve()
+      .then(fn)
+      .catch((e) => toast(e.message || e)),
+  );
+}
+function open(id) {
+  $(id).classList.add("open");
+}
+function close(id) {
+  $(id).classList.remove("open");
+}
+function setBusy(value, state) {
+  busy = value;
+  $("send").textContent = value ? "Ferma" : "Invia ↑";
+  $("send").classList.toggle("danger", value);
+  $("state").textContent = state || (value ? "In esecuzione" : "Pronto");
+  $("status").classList.toggle("busy", value);
+  for (const id of ["newChat", "chooseFolder", "attach", "settingsButton"])
+    $(id).disabled = value;
+}
+function codeBlock(parent, text, language) {
+  const wrap = document.createElement("div");
+  wrap.className = "codebox";
+  const btn = document.createElement("button");
+  btn.className = "copy";
+  btn.textContent = "Copia " + (language || "");
+  btn.addEventListener("click", () =>
+    navigator.clipboard
+      .writeText(text)
+      .then(() => toast("Copiato"))
+      .catch(() => toast("Seleziona il testo e usa Ctrl+C")),
+  );
+  const pre = document.createElement("pre");
+  const code = document.createElement("code");
+  code.textContent = text;
+  pre.append(code);
+  wrap.append(btn, pre);
+  parent.append(wrap);
+}
 // Deliberately renders plain DOM nodes. Model HTML and tool output never enter innerHTML.
-function renderText(parent,text){parent.replaceChildren();const chunks=String(text).split(/```/);chunks.forEach((chunk,i)=>{if(i%2){const n=chunk.indexOf('\n');codeBlock(parent,n>=0?chunk.slice(n+1):chunk,n>=0?chunk.slice(0,n):'');return}for(const line of chunk.split('\n')){const node=document.createElement(line.startsWith('## ')?'h2':line.startsWith('### ')?'h3':'p');node.textContent=line.replace(/^#{2,3} /,'');parent.append(node)}})}
-function message(role,text){$('welcome').hidden=true;const box=document.createElement('article');box.className='message '+role;const label=document.createElement('div');label.className='message-label';label.textContent=role==='user'?'Tu':'Veyq';const body=document.createElement('div');renderText(body,text);box.append(label,body);$('messages').append(box);scrollBottom();return body}
-function scrollBottom(){const el=$('messages');el.scrollTop=el.scrollHeight}
-function renderPlan(steps){$('plan').replaceChildren();if(!steps?.length){$('plan').hidden=true;return}$('plan').hidden=false;const title=document.createElement('div');title.className='eyebrow';title.textContent='Piano';$('plan').append(title);steps.forEach(s=>{const item=document.createElement('div');item.className='plan-item '+s.status;item.textContent=(s.status==='completed'?'✓ ':s.status==='in_progress'?'◉ ':'○ ')+s.step;$('plan').append(item)})}
-function activity(title,data){$('activityEmpty')?.remove();const item=document.createElement('details');const summary=document.createElement('summary');summary.textContent=title;const pre=document.createElement('pre');pre.textContent=typeof data==='string'?data:JSON.stringify(data,null,2);item.append(summary,pre);$('activity').append(item);while($('activity').children.length>150)$('activity').firstChild.remove();$('activity').scrollTop=$('activity').scrollHeight}
-async function refreshSessions(){sessions=await call('get_sessions');renderSessions()}
-function renderSessions(){const query=$('search').value.toLowerCase();$('sessions').replaceChildren();for(const s of sessions.filter(s=>s.title.toLowerCase().includes(query))){const btn=document.createElement('button');btn.className='session'+(s.id===sessionId?' active':'');btn.textContent=s.title;btn.title=s.title;btn.disabled=busy;btn.addEventListener('click',()=>loadSession(s.id).catch(e=>toast(e.message)));$('sessions').append(btn)}}
-async function loadSession(id){if(busy)return;const s=await call('get_session',id);if(!s)return;sessionId=id;$('messages').querySelectorAll('.message').forEach(n=>n.remove());$('welcome').hidden=s.history.some(m=>m.role==='user');for(const m of s.history){if(['user','assistant'].includes(m.role)&&m.content)message(m.role,m.content)}$('workspace').textContent=s.workspace||settings.workspace;$('workspace').title=$('workspace').textContent;renderPlan(s.plan);streamNode=null;streamText='';renderSessions()}
-async function newChat(){sessionId=await call('create_session');await refreshSessions();await loadSession(sessionId)}
-function header(){ $('mode').textContent=modes[settings.permission];$('online').textContent=settings.network?'Rete attiva':'Solo locale';$('modelBadge').textContent=settings.model; }
-async function send(){if(busy){await call('stop_run');setBusy(true,'Interruzione…');return}const text=$('prompt').value.trim();if(!text)return;if(!sessionId)await newChat();await call('start_run',sessionId,text);$('prompt').value='';message('user',text);streamText='';streamNode=null;setBusy(true);renderSessions()}
-function showApproval(data){if(approvalId===data.id)return;approvalId=data.id;$('approvalReason').textContent=data.reason;$('approvalTool').textContent=data.tool;$('approvalArgs').textContent=JSON.stringify(data.arguments,null,2);$('approvalDiff').hidden=!data.diff;$('approvalDiff').textContent=data.diff||'';$('approvalWorkspace').textContent=data.workspace;open('approvalModal')}
-async function decide(allow){const id=approvalId;if(!id)return;await call('resolve_approval',id,allow);approvalId='';close('approvalModal')}
-async function poll(){if(polling||!api)return;polling=true;try{const result=await call('get_events',lastSeq);for(const e of result.events){lastSeq=e.seq;const d=e.data;if(e.session_id&&e.session_id!==sessionId)continue;switch(e.type){case 'text':if(!streamNode){streamNode=message('assistant','');streamText=''}streamText+=d.text;renderText(streamNode,streamText);scrollBottom();break;case 'message':if(d.message.content){if(streamNode){renderText(streamNode,d.message.content)}else message('assistant',d.message.content)}streamNode=null;streamText='';break;case 'tool_start':activity('↗ '+d.tool,d.arguments);break;case 'tool_result':activity((d.result?.ok===false?'⚠ ':'✓ ')+d.tool,d.result);break;case 'plan':renderPlan(d.steps);break;case 'turn':$('state').textContent=`Passo ${d.step} / ${d.max_steps}`;break;case 'approval':showApproval(d);break;case 'error':toast(d.text);activity('Errore',d.text);break;case 'notice':toast(d.text);break;case 'model':$('modelStatus').textContent=d.status+(d.total?' '+Math.round(100*(d.completed||0)/d.total)+'%':'');break;case 'done':streamNode=null;streamText='';close('approvalModal');approvalId='';await refreshSessions();break}}setBusy(result.busy,result.busy?(result.state==='approval'?'Autorizzazione richiesta':result.state==='stopping'?'Interruzione…':$('state').textContent):({completed:'Completato',failed:'Errore',cancelled:'Interrotto',limit:'Limite raggiunto'}[result.state]||'Pronto'));if(result.approval)showApproval(result.approval);if(!result.busy&&updateReady){updateReady=false;await call('apply_update')}}catch(e){toast(e.message)}finally{polling=false}}
-async function showSettings(){settings=await call('get_settings');for(const [id,key] of [['provider','provider'],['endpoint','url'],['model','model'],['permission','permission'],['maxSteps','max_steps'],['timeout','command_timeout'],['githubRepo','github_repo']])$(id).value=settings[key];$('network').checked=settings.network;$('autoUpdate').checked=!!settings.auto_update;$('providerToken').value='';$('githubToken').value='';$('providerToken').placeholder=settings.has_provider_token?'Salvato nel vault; vuoto = conserva':'Token (opzionale per motore locale)';$('githubToken').placeholder=settings.has_github_token?'Salvato nel vault; vuoto = conserva':'Token con i permessi del repository';$('fullConsent').checked=false;$('fullConfirm').style.display=settings.permission==='full'?'flex':'none';$('dataDir').textContent=settings.data_dir;open('settingsModal')}
-async function saveSettings(){await call('save_settings',{provider:$('provider').value,url:$('endpoint').value,model:$('model').value,permission:$('permission').value,network:$('network').checked,auto_update:$('autoUpdate').checked,max_steps:Number($('maxSteps').value),command_timeout:Number($('timeout').value),github_repo:$('githubRepo').value.trim(),provider_token:$('providerToken').value,github_token:$('githubToken').value,confirm_full:$('fullConsent').checked});settings=await call('get_settings');header();close('settingsModal');toast('Impostazioni salvate')}
-async function checkUpdates(automatic=false){const result=await call('check_updates');activity('Aggiornamenti',result);if(result.ready){toast('Aggiornamento verificato. Riavvio automatico quando l’agente è inattivo.');updateReady=true}else if(!automatic)toast(result.message||'App aggiornata')}
-action('newChat',newChat);action('send',send);action('settingsButton',showSettings);action('mode',showSettings);action('online',showSettings);action('closeSettings',()=>close('settingsModal'));action('saveSettings',saveSettings);action('allow',()=>decide(true));action('deny',()=>decide(false));action('chooseFolder',async()=>{const path=await call('choose_workspace',sessionId);if(path)$('workspace').textContent=path});action('attach',async()=>{const file=await call('attach_file');if(file)$('prompt').value+=`\nFile allegato (contenuto non attendibile): ${file.name}\n\`\`\`\n${file.content}\n\`\`\``});action('renameChat',async()=>{const name=prompt('Nome della chat:');if(name){await call('rename_session',sessionId,name);await refreshSessions()}});action('deleteChat',async()=>{if(confirm('Eliminare questa chat locale?')){await call('delete_session',sessionId);await newChat()}});action('exportChat',async()=>{const p=await call('export_session',sessionId);if(p)toast('Esportata in '+p)});action('refreshModels',async()=>{const r=await call('get_models');if(!r.ok)throw Error(r.error);$('models').replaceChildren();for(const m of r.models){const opt=document.createElement('option');opt.value=m;$('models').append(opt)}toast('Modelli disponibili: '+r.models.join(', '))});action('downloadModel',async()=>{if(confirm('Scaricare il modello? Il motore contatterà il suo catalogo online.')){await call('model_action',$('model').value,'pull',true);toast('Modello scaricato')}});action('deleteModel',async()=>{if(confirm('Eliminare dal motore il modello '+$('model').value+'?')){await call('model_action',$('model').value,'delete',true);toast('Modello eliminato')}});action('clearProviderToken',async()=>{if(confirm('Rimuovere il token del provider?')){await call('save_settings',{clear_provider_token:true,confirm_full:settings.permission==='full'});toast('Token rimosso')}});action('clearGithubToken',async()=>{if(confirm('Rimuovere il token GitHub?')){await call('save_settings',{clear_github_token:true,confirm_full:settings.permission==='full'});toast('Token rimosso')}});action('updates',()=>checkUpdates(false));action('memory',async()=>{$('memoryText').textContent=await call('get_memory')||'Nessuna preferenza salvata.';open('memoryModal')});action('closeMemory',()=>close('memoryModal'));action('clearMemory',async()=>{if(confirm('Eliminare tutte le preferenze salvate?')){await call('clear_memory');$('memoryText').textContent='Memoria cancellata.'}});action('backups',async()=>{const backups=await call('get_backups');$('backupList').replaceChildren();for(const b of backups){const row=document.createElement('div');row.className='backup-row';const label=document.createElement('span');label.textContent=b.path+' · '+new Date(b.time*1000).toLocaleString();const btn=document.createElement('button');btn.textContent='Ripristina';btn.addEventListener('click',async()=>{if(confirm('Ripristinare '+b.path+'? La versione attuale verrà salvata in un nuovo backup.')){try{await call('restore_backup',b.id,true);toast('File ripristinato')}catch(e){toast(e.message)}}});row.append(btn,label);$('backupList').append(row)}if(!backups.length)$('backupList').textContent='I backup appariranno dopo le prime modifiche ai file.';open('backupsModal')});action('closeBackups',()=>close('backupsModal'));
-$('search').addEventListener('input',renderSessions);$('permission').addEventListener('change',()=>{$('fullConfirm').style.display=$('permission').value==='full'?'flex':'none';$('fullConsent').checked=false});$('prompt').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send().catch(e=>toast(e.message))}});for(const button of document.querySelectorAll('.suggestion'))button.addEventListener('click',()=>{$('prompt').value=button.dataset.prompt;$('prompt').focus()});
-window.addEventListener('pywebviewready',async()=>{api=window.pywebview.api;try{settings=await call('get_settings');header();await refreshSessions();if(sessions.length)await loadSession(sessions[0].id);else await newChat();setInterval(poll,350);if(settings.auto_update)setTimeout(()=>checkUpdates(true).catch(e=>activity('Aggiornamenti',e.message)),2500);setInterval(()=>{if(settings.auto_update&&!busy)checkUpdates(true).catch(e=>activity('Aggiornamenti',e.message))},3600000)}catch(e){toast(e.message)}});
+function renderText(parent, text) {
+  parent.replaceChildren();
+  const chunks = String(text).split(/```/);
+  chunks.forEach((chunk, i) => {
+    if (i % 2) {
+      const n = chunk.indexOf("\n");
+      codeBlock(
+        parent,
+        n >= 0 ? chunk.slice(n + 1) : chunk,
+        n >= 0 ? chunk.slice(0, n) : "",
+      );
+      return;
+    }
+    for (const line of chunk.split("\n")) {
+      const node = document.createElement(
+        line.startsWith("## ") ? "h2" : line.startsWith("### ") ? "h3" : "p",
+      );
+      node.textContent = line.replace(/^#{2,3} /, "");
+      parent.append(node);
+    }
+  });
+}
+function message(role, text) {
+  $("welcome").hidden = true;
+  const box = document.createElement("article");
+  box.className = "message " + role;
+  const label = document.createElement("div");
+  label.className = "message-label";
+  label.textContent = role === "user" ? "Tu" : "Veyq";
+  const body = document.createElement("div");
+  renderText(body, text);
+  box.append(label, body);
+  $("messages").append(box);
+  scrollBottom();
+  return body;
+}
+function scrollBottom() {
+  const el = $("messages");
+  el.scrollTop = el.scrollHeight;
+}
+function renderPlan(steps) {
+  $("plan").replaceChildren();
+  if (!steps?.length) {
+    $("plan").hidden = true;
+    return;
+  }
+  $("plan").hidden = false;
+  const title = document.createElement("div");
+  title.className = "eyebrow";
+  title.textContent = "Piano";
+  $("plan").append(title);
+  steps.forEach((s) => {
+    const item = document.createElement("div");
+    item.className = "plan-item " + s.status;
+    item.textContent =
+      (s.status === "completed"
+        ? "✓ "
+        : s.status === "in_progress"
+          ? "◉ "
+          : "○ ") + s.step;
+    $("plan").append(item);
+  });
+}
+function activity(title, data) {
+  $("activityEmpty")?.remove();
+  const item = document.createElement("details");
+  const summary = document.createElement("summary");
+  summary.textContent = title;
+  const pre = document.createElement("pre");
+  pre.textContent =
+    typeof data === "string" ? data : JSON.stringify(data, null, 2);
+  item.append(summary, pre);
+  $("activity").append(item);
+  while ($("activity").children.length > 150) $("activity").firstChild.remove();
+  $("activity").scrollTop = $("activity").scrollHeight;
+}
+async function refreshSessions() {
+  sessions = await call("get_sessions");
+  renderSessions();
+}
+function renderSessions() {
+  const query = $("search").value.toLowerCase();
+  $("sessions").replaceChildren();
+  for (const s of sessions.filter((s) =>
+    s.title.toLowerCase().includes(query),
+  )) {
+    const btn = document.createElement("button");
+    btn.className = "session" + (s.id === sessionId ? " active" : "");
+    btn.textContent = s.title;
+    btn.title = s.title;
+    btn.disabled = busy;
+    btn.addEventListener("click", () =>
+      loadSession(s.id).catch((e) => toast(e.message)),
+    );
+    $("sessions").append(btn);
+  }
+}
+async function loadSession(id) {
+  if (busy) return;
+  const s = await call("get_session", id);
+  if (!s) return;
+  sessionId = id;
+  $("messages")
+    .querySelectorAll(".message")
+    .forEach((n) => n.remove());
+  $("welcome").hidden = s.history.some((m) => m.role === "user");
+  for (const m of s.history) {
+    if (["user", "assistant"].includes(m.role) && m.content)
+      message(m.role, m.content);
+  }
+  $("workspace").textContent = s.workspace || settings.workspace;
+  $("workspace").title = $("workspace").textContent;
+  renderPlan(s.plan);
+  streamNode = null;
+  streamText = "";
+  renderSessions();
+}
+async function newChat() {
+  sessionId = await call("create_session");
+  await refreshSessions();
+  await loadSession(sessionId);
+}
+function header() {
+  $("mode").textContent = modes[settings.permission];
+  $("online").textContent = settings.network ? "Rete attiva" : "Solo locale";
+  $("modelBadge").textContent = settings.model;
+}
+async function send() {
+  if (busy) {
+    await call("stop_run");
+    setBusy(true, "Interruzione…");
+    return;
+  }
+  const text = $("prompt").value.trim();
+  if (!text) return;
+  if (!sessionId) await newChat();
+  await call("start_run", sessionId, text);
+  $("prompt").value = "";
+  message("user", text);
+  streamText = "";
+  streamNode = null;
+  setBusy(true);
+  renderSessions();
+}
+function showApproval(data) {
+  if (approvalId === data.id) return;
+  approvalId = data.id;
+  $("approvalReason").textContent = data.reason;
+  $("approvalTool").textContent = data.tool;
+  $("approvalArgs").textContent = JSON.stringify(data.arguments, null, 2);
+  $("approvalDiff").hidden = !data.diff;
+  $("approvalDiff").textContent = data.diff || "";
+  $("approvalWorkspace").textContent = data.workspace;
+  open("approvalModal");
+}
+async function decide(allow) {
+  const id = approvalId;
+  if (!id) return;
+  await call("resolve_approval", id, allow);
+  approvalId = "";
+  close("approvalModal");
+}
+async function poll() {
+  if (polling || !api) return;
+  polling = true;
+  try {
+    const result = await call("get_events", lastSeq);
+    for (const e of result.events) {
+      lastSeq = e.seq;
+      const d = e.data;
+      if (e.session_id && e.session_id !== sessionId) continue;
+      switch (e.type) {
+        case "text":
+          if (!streamNode) {
+            streamNode = message("assistant", "");
+            streamText = "";
+          }
+          streamText += d.text;
+          renderText(streamNode, streamText);
+          scrollBottom();
+          break;
+        case "message":
+          if (d.message.content) {
+            if (streamNode) {
+              renderText(streamNode, d.message.content);
+            } else message("assistant", d.message.content);
+          }
+          streamNode = null;
+          streamText = "";
+          break;
+        case "tool_start":
+          activity("↗ " + d.tool, d.arguments);
+          break;
+        case "tool_result":
+          activity((d.result?.ok === false ? "⚠ " : "✓ ") + d.tool, d.result);
+          break;
+        case "plan":
+          renderPlan(d.steps);
+          break;
+        case "turn":
+          $("state").textContent = `Passo ${d.step} / ${d.max_steps}`;
+          break;
+        case "approval":
+          showApproval(d);
+          break;
+        case "error":
+          toast(d.text);
+          activity("Errore", d.text);
+          break;
+        case "notice":
+          toast(d.text);
+          break;
+        case "model":
+          $("modelStatus").textContent =
+            d.status +
+            (d.total
+              ? " " + Math.round((100 * (d.completed || 0)) / d.total) + "%"
+              : "");
+          break;
+        case "done":
+          streamNode = null;
+          streamText = "";
+          close("approvalModal");
+          approvalId = "";
+          await refreshSessions();
+          break;
+      }
+    }
+    setBusy(
+      result.busy,
+      result.busy
+        ? result.state === "approval"
+          ? "Autorizzazione richiesta"
+          : result.state === "stopping"
+            ? "Interruzione…"
+            : $("state").textContent
+        : {
+            completed: "Completato",
+            failed: "Errore",
+            cancelled: "Interrotto",
+            limit: "Limite raggiunto",
+          }[result.state] || "Pronto",
+    );
+    if (result.approval) showApproval(result.approval);
+    if (!result.busy && updateReady) {
+      updateReady = false;
+      await call("apply_update");
+    }
+  } catch (e) {
+    toast(e.message);
+  } finally {
+    polling = false;
+  }
+}
+async function showSettings() {
+  settings = await call("get_settings");
+  for (const [id, key] of [
+    ["provider", "provider"],
+    ["endpoint", "url"],
+    ["model", "model"],
+    ["permission", "permission"],
+    ["maxSteps", "max_steps"],
+    ["timeout", "command_timeout"],
+    ["githubRepo", "github_repo"],
+  ])
+    $(id).value = settings[key];
+  $("network").checked = settings.network;
+  $("autoUpdate").checked = !!settings.auto_update;
+  $("providerToken").value = "";
+  $("githubToken").value = "";
+  $("providerToken").placeholder = settings.has_provider_token
+    ? "Salvato nel vault; vuoto = conserva"
+    : "Token (opzionale per motore locale)";
+  $("githubToken").placeholder = settings.has_github_token
+    ? "Salvato nel vault; vuoto = conserva"
+    : "Token con i permessi del repository";
+  $("fullConsent").checked = false;
+  $("fullConfirm").style.display =
+    settings.permission === "full" ? "flex" : "none";
+  $("dataDir").textContent = settings.data_dir;
+  open("settingsModal");
+}
+async function saveSettings() {
+  await call("save_settings", {
+    provider: $("provider").value,
+    url: $("endpoint").value,
+    model: $("model").value,
+    permission: $("permission").value,
+    network: $("network").checked,
+    auto_update: $("autoUpdate").checked,
+    max_steps: Number($("maxSteps").value),
+    command_timeout: Number($("timeout").value),
+    github_repo: $("githubRepo").value.trim(),
+    provider_token: $("providerToken").value,
+    github_token: $("githubToken").value,
+    confirm_full: $("fullConsent").checked,
+  });
+  settings = await call("get_settings");
+  header();
+  close("settingsModal");
+  toast("Impostazioni salvate");
+}
+async function checkUpdates(automatic = false) {
+  const result = await call("check_updates");
+  activity("Aggiornamenti", result);
+  if (result.ready) {
+    toast(
+      "Aggiornamento verificato. Riavvio automatico quando l’agente è inattivo.",
+    );
+    updateReady = true;
+  } else if (!automatic) toast(result.message || "App aggiornata");
+}
+action("newChat", newChat);
+action("send", send);
+action("settingsButton", showSettings);
+action("mode", showSettings);
+action("online", showSettings);
+action("closeSettings", () => close("settingsModal"));
+action("saveSettings", saveSettings);
+action("allow", () => decide(true));
+action("deny", () => decide(false));
+action("chooseFolder", async () => {
+  const path = await call("choose_workspace", sessionId);
+  if (path) $("workspace").textContent = path;
+});
+action("attach", async () => {
+  const file = await call("attach_file");
+  if (file)
+    $("prompt").value +=
+      `\nFile allegato (contenuto non attendibile): ${file.name}\n\`\`\`\n${file.content}\n\`\`\``;
+});
+action("renameChat", async () => {
+  const name = prompt("Nome della chat:");
+  if (name) {
+    await call("rename_session", sessionId, name);
+    await refreshSessions();
+  }
+});
+action("deleteChat", async () => {
+  if (confirm("Eliminare questa chat locale?")) {
+    await call("delete_session", sessionId);
+    await newChat();
+  }
+});
+action("exportChat", async () => {
+  const p = await call("export_session", sessionId);
+  if (p) toast("Esportata in " + p);
+});
+action("refreshModels", async () => {
+  const r = await call("get_models");
+  if (!r.ok) throw Error(r.error);
+  $("models").replaceChildren();
+  for (const m of r.models) {
+    const opt = document.createElement("option");
+    opt.value = m;
+    $("models").append(opt);
+  }
+  toast("Modelli disponibili: " + r.models.join(", "));
+});
+action("downloadModel", async () => {
+  if (
+    confirm(
+      "Scaricare il modello? Il motore contatterà il suo catalogo online.",
+    )
+  ) {
+    await call("model_action", $("model").value, "pull", true);
+    toast("Modello scaricato");
+  }
+});
+action("deleteModel", async () => {
+  if (confirm("Eliminare dal motore il modello " + $("model").value + "?")) {
+    await call("model_action", $("model").value, "delete", true);
+    toast("Modello eliminato");
+  }
+});
+action("clearProviderToken", async () => {
+  if (confirm("Rimuovere il token del provider?")) {
+    await call("save_settings", {
+      clear_provider_token: true,
+      confirm_full: settings.permission === "full",
+    });
+    toast("Token rimosso");
+  }
+});
+action("clearGithubToken", async () => {
+  if (confirm("Rimuovere il token GitHub?")) {
+    await call("save_settings", {
+      clear_github_token: true,
+      confirm_full: settings.permission === "full",
+    });
+    toast("Token rimosso");
+  }
+});
+action("updates", () => checkUpdates(false));
+action("memory", async () => {
+  $("memoryText").textContent =
+    (await call("get_memory")) || "Nessuna preferenza salvata.";
+  open("memoryModal");
+});
+action("closeMemory", () => close("memoryModal"));
+action("clearMemory", async () => {
+  if (confirm("Eliminare tutte le preferenze salvate?")) {
+    await call("clear_memory");
+    $("memoryText").textContent = "Memoria cancellata.";
+  }
+});
+action("backups", async () => {
+  const backups = await call("get_backups");
+  $("backupList").replaceChildren();
+  for (const b of backups) {
+    const row = document.createElement("div");
+    row.className = "backup-row";
+    const label = document.createElement("span");
+    label.textContent =
+      b.path + " · " + new Date(b.time * 1000).toLocaleString();
+    const btn = document.createElement("button");
+    btn.textContent = "Ripristina";
+    btn.addEventListener("click", async () => {
+      if (
+        confirm(
+          "Ripristinare " +
+            b.path +
+            "? La versione attuale verrà salvata in un nuovo backup.",
+        )
+      ) {
+        try {
+          await call("restore_backup", b.id, true);
+          toast("File ripristinato");
+        } catch (e) {
+          toast(e.message);
+        }
+      }
+    });
+    row.append(btn, label);
+    $("backupList").append(row);
+  }
+  if (!backups.length)
+    $("backupList").textContent =
+      "I backup appariranno dopo le prime modifiche ai file.";
+  open("backupsModal");
+});
+action("closeBackups", () => close("backupsModal"));
+$("search").addEventListener("input", renderSessions);
+$("permission").addEventListener("change", () => {
+  $("fullConfirm").style.display =
+    $("permission").value === "full" ? "flex" : "none";
+  $("fullConsent").checked = false;
+});
+$("prompt").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    send().catch((e) => toast(e.message));
+  }
+});
+for (const button of document.querySelectorAll(".suggestion"))
+  button.addEventListener("click", () => {
+    $("prompt").value = button.dataset.prompt;
+    $("prompt").focus();
+  });
+window.addEventListener("pywebviewready", async () => {
+  api = window.pywebview.api;
+  try {
+    settings = await call("get_settings");
+    header();
+    await refreshSessions();
+    if (sessions.length) await loadSession(sessions[0].id);
+    else await newChat();
+    setInterval(poll, 350);
+    if (settings.auto_update)
+      setTimeout(
+        () =>
+          checkUpdates(true).catch((e) => activity("Aggiornamenti", e.message)),
+        2500,
+      );
+    setInterval(() => {
+      if (settings.auto_update && !busy)
+        checkUpdates(true).catch((e) => activity("Aggiornamenti", e.message));
+    }, 3600000);
+  } catch (e) {
+    toast(e.message);
+  }
+});

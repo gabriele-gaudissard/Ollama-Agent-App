@@ -1,18 +1,298 @@
 <!doctype html>
 <html lang="it">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-eval'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
-<title>Veyq</title><link rel="stylesheet" href="app.css"><script src="app.js" defer></script>
-</head>
-<body><div class="shell">
-<aside class="sidebar"><div class="brand"><span class="logo">V/</span>Veyq</div><div class="sub">Your ideas. Real actions.</div><button id="newChat" class="primary">+ Nuova attività</button><input id="search" placeholder="Cerca chat…" aria-label="Cerca chat"><div class="eyebrow">Attività recenti</div><nav id="sessions" class="sessions"></nav><div class="sidebar-footer"><button id="backups">↶ Backup dei file</button><button id="memory">◇ Memoria locale</button><button id="settingsButton">⚙ Impostazioni</button><div class="sub">Desktop agent · v4.0<br>Nessuna telemetria</div></div></aside>
-<main><header class="topbar"><div><div class="workspace-label">CARTELLA DI PROGETTO</div><div id="workspace" class="workspace">Scegli un progetto per iniziare</div></div><button id="chooseFolder">Apri cartella</button><button id="mode" class="chip">Approva per me</button></header>
-<div id="messages" class="messages"><section id="welcome" class="welcome"><div class="eyebrow">Build with intent</div><h1>Da un’idea<br>a <span>qualcosa che funziona.</span></h1><p>Veyq legge il progetto, pianifica il lavoro e usa strumenti reali. Puoi seguire ogni azione e scegliere quanto controllo mantenere.</p><div class="suggestions"><button class="suggestion" data-prompt="Esamina il progetto selezionato, spiegami la sua architettura e individua i problemi più importanti."><b>↗ Esplora un progetto</b><span class="sub">Comprendi codice, file e dipendenze</span></button><button class="suggestion" data-prompt="Aiutami a correggere un bug nel progetto. Inizia leggendo i file e identifica quali informazioni mancano."><b>⌘ Scrivi e verifica codice</b><span class="sub">Modifiche concrete, test e risultati</span></button><button class="suggestion" data-prompt="Analizza la cartella selezionata e proponi una struttura più chiara. Prima di spostare file, presenta un piano."><b>▤ Organizza i file</b><span class="sub">Gestisci il progetto con backup</span></button><button class="suggestion" data-prompt="Controlla il repository GitHub configurato, riepiloga le issue aperte e proponi le prossime attività."><b>⎇ Lavora con GitHub</b><span class="sub">Issue, codice, commit e pull request</span></button></div></section></div>
-<div class="composer-area"><div class="composer"><textarea id="prompt" placeholder="Descrivi quello che vuoi realizzare…" aria-label="Messaggio per Veyq"></textarea><div class="composer-actions"><div class="left"><button id="attach" title="Allega testo">+ File</button><button id="online" class="chip">Solo locale</button><span id="modelBadge" class="sub">Motore locale</span></div><button id="send" class="primary">Invia ↑</button></div></div><div class="hint">Invio per inviare · Shift+Invio per andare a capo · Verifica sempre i risultati importanti</div></div></main>
-<aside class="activity-panel"><div class="activity-header"><div class="eyebrow">Activity</div><div id="status" class="status"><span class="dot"></span><span id="state">Pronto</span></div></div><div id="plan" class="plan" hidden></div><div id="activity" class="activity"><div id="activityEmpty" class="activity-empty">Qui vedrai gli strumenti usati,<br>i risultati e le verifiche.<br><br>Le modifiche ai file creano<br>backup locali recuperabili.</div></div><div class="activity-note">I permessi sono controllati dal backend. I comandi approvati usano i privilegi del tuo account Windows.</div><div class="settings-bottom"><button id="renameChat">Rinomina</button><button id="exportChat">Esporta</button><button id="deleteChat" class="danger">Elimina chat</button></div></aside></div>
-<div id="settingsModal" class="modal"><section class="dialog"><h2>Il tuo agente, le tue regole.</h2><p class="intro">Modello, accessi e privacy. Le impostazioni restano sul computer; i token sono custoditi nel vault del sistema.</p><div class="grid"><label class="field">Provider<select id="provider"><option value="local">Motore locale</option><option value="compatible">API compatibile con Chat Completions</option></select><small>Il modello deve supportare chiamate strutturate agli strumenti.</small></label><label class="field">Endpoint<input id="endpoint" type="url"><small>Locale: http://localhost:11434 · API: URL base comprensivo di /v1</small></label><label class="field">Modello<input id="model" list="models"><datalist id="models"></datalist></label><label class="field">Token provider<input id="providerToken" type="password" autocomplete="off"><small>Non viene restituito al browser o al modello.</small></label><label class="field full-width">Modalità di autorizzazione<select id="permission"><option value="always">Chiedi sempre — ogni strumento richiede conferma</option><option value="auto">Approva per me — file nel progetto; conferma comandi, rete e pubblicazione</option><option value="full">Accesso completo — esegui senza conferme</option></select></label><label id="fullConfirm" class="check full-width"><input id="fullConsent" type="checkbox"><span>Confermo l’accesso completo. I comandi possono leggere, modificare ed eliminare file con i privilegi del mio account. Non è una sandbox del sistema operativo.</span></label><label class="check full-width"><input id="network" type="checkbox"><span>Abilita strumenti online e terminale.<br><span class="sub">Query, pagine e contenuti inviati a GitHub possono uscire dal computer. Un provider remoto riceve anche il contesto della chat. Con questa opzione disattivata, il terminale è bloccato.</span></span></label><label class="field">Passi massimi per attività<input id="maxSteps" type="number" min="1" max="100"></label><label class="field">Timeout comandi (secondi)<input id="timeout" type="number" min="1" max="600"></label><label class="field">Repository GitHub<input id="githubRepo" placeholder="owner/repository"></label><label class="field">Token GitHub<input id="githubToken" type="password" autocomplete="off"><small>Usa un token limitato ai repository necessari. Le scritture richiedono conferma in modalità automatica.</small></label><label class="check full-width"><input id="autoUpdate" type="checkbox"><span>Aggiornamenti automatici da GitHub<br><span class="sub">Controllo all’avvio e ogni ora. Download verificato, backup della versione precedente e riavvio quando non ci sono attività. Questo controllo contatta GitHub anche se gli strumenti dell’agente sono offline.</span></span></label></div><div class="settings-bottom"><button id="refreshModels">Verifica connessione e modelli</button><button id="downloadModel">Scarica modello</button><button id="deleteModel" class="danger">Elimina modello</button><button id="clearProviderToken">Rimuovi token provider</button><button id="clearGithubToken">Rimuovi token GitHub</button><button id="updates">Controlla aggiornamenti</button></div><p id="modelStatus" class="sub"></p><div class="divider"></div><p class="sub">Chat e memoria sono file locali in chiaro, protetti dal tuo account; i token sono cifrati separatamente. Il registro contiene metadati delle azioni, non il contenuto delle chat. Nessun servizio analytics, font o script esterno.</p><p class="sub">Cartella dati: <span id="dataDir"></span></p><div class="buttons"><button id="closeSettings">Chiudi</button><button id="saveSettings" class="primary">Salva impostazioni</button></div></section></div>
-<div id="approvalModal" class="modal approval"><section class="dialog"><div class="eyebrow">Autorizzazione richiesta</div><h2 id="approvalTool"></h2><p id="approvalReason" class="intro"></p><p class="sub">Progetto: <span id="approvalWorkspace"></span></p><pre id="approvalArgs"></pre><pre id="approvalDiff" hidden></pre><p class="sub">L’approvazione vale soltanto per questa azione e per questi parametri. Rifiutare non esegue l’azione.</p><div class="buttons"><button id="deny" class="danger">Rifiuta</button><button id="allow" class="primary">Approva questa azione</button></div></section></div>
-<div id="memoryModal" class="modal"><section class="dialog"><h2>Memoria locale</h2><p class="intro">Preferenze persistenti usate nelle chat future. Non salvare credenziali qui.</p><pre id="memoryText"></pre><div class="buttons"><button id="clearMemory" class="danger">Cancella memoria</button><button id="closeMemory">Chiudi</button></div></section></div>
-<div id="backupsModal" class="modal"><section class="dialog"><h2>Backup dei file</h2><p class="intro">Versioni salvate prima delle modifiche. I backup possono contenere codice privato e restano nel tuo profilo locale.</p><div id="backupList"></div><div class="buttons"><button id="closeBackups">Chiudi</button></div></section></div><div id="toast" class="toast" role="status"></div>
-</body></html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self' 'unsafe-eval'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <title>Veyq</title>
+    <link rel="stylesheet" href="app.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand"><span class="logo">V/</span>Veyq</div>
+        <div class="sub">Your ideas. Real actions.</div>
+        <button id="newChat" class="primary">+ Nuova attività</button
+        ><input id="search" placeholder="Cerca chat…" aria-label="Cerca chat" />
+        <div class="eyebrow">Attività recenti</div>
+        <nav id="sessions" class="sessions"></nav>
+        <div class="sidebar-footer">
+          <button id="backups">↶ Backup dei file</button
+          ><button id="memory">◇ Memoria locale</button
+          ><button id="settingsButton">⚙ Impostazioni</button>
+          <div class="sub">Desktop agent · v4.0<br />Nessuna telemetria</div>
+        </div>
+      </aside>
+      <main>
+        <header class="topbar">
+          <div>
+            <div class="workspace-label">CARTELLA DI PROGETTO</div>
+            <div id="workspace" class="workspace">
+              Scegli un progetto per iniziare
+            </div>
+          </div>
+          <button id="chooseFolder">Apri cartella</button
+          ><button id="mode" class="chip">Approva per me</button>
+        </header>
+        <div id="messages" class="messages">
+          <section id="welcome" class="welcome">
+            <div class="eyebrow">Build with intent</div>
+            <h1>Da un’idea<br />a <span>qualcosa che funziona.</span></h1>
+            <p>
+              Veyq legge il progetto, pianifica il lavoro e usa strumenti reali.
+              Puoi seguire ogni azione e scegliere quanto controllo mantenere.
+            </p>
+            <div class="suggestions">
+              <button
+                class="suggestion"
+                data-prompt="Esamina il progetto selezionato, spiegami la sua architettura e individua i problemi più importanti."
+              >
+                <b>↗ Esplora un progetto</b
+                ><span class="sub"
+                  >Comprendi codice, file e dipendenze</span
+                ></button
+              ><button
+                class="suggestion"
+                data-prompt="Aiutami a correggere un bug nel progetto. Inizia leggendo i file e identifica quali informazioni mancano."
+              >
+                <b>⌘ Scrivi e verifica codice</b
+                ><span class="sub"
+                  >Modifiche concrete, test e risultati</span
+                ></button
+              ><button
+                class="suggestion"
+                data-prompt="Analizza la cartella selezionata e proponi una struttura più chiara. Prima di spostare file, presenta un piano."
+              >
+                <b>▤ Organizza i file</b
+                ><span class="sub"
+                  >Gestisci il progetto con backup</span
+                ></button
+              ><button
+                class="suggestion"
+                data-prompt="Controlla il repository GitHub configurato, riepiloga le issue aperte e proponi le prossime attività."
+              >
+                <b>⎇ Lavora con GitHub</b
+                ><span class="sub">Issue, codice, commit e pull request</span>
+              </button>
+            </div>
+          </section>
+        </div>
+        <div class="composer-area">
+          <div class="composer">
+            <textarea
+              id="prompt"
+              placeholder="Descrivi quello che vuoi realizzare…"
+              aria-label="Messaggio per Veyq"
+            ></textarea>
+            <div class="composer-actions">
+              <div class="left">
+                <button id="attach" title="Allega testo">+ File</button
+                ><button id="online" class="chip">Solo locale</button
+                ><span id="modelBadge" class="sub">Motore locale</span>
+              </div>
+              <button id="send" class="primary">Invia ↑</button>
+            </div>
+          </div>
+          <div class="hint">
+            Invio per inviare · Shift+Invio per andare a capo · Verifica sempre
+            i risultati importanti
+          </div>
+        </div>
+      </main>
+      <aside class="activity-panel">
+        <div class="activity-header">
+          <div class="eyebrow">Activity</div>
+          <div id="status" class="status">
+            <span class="dot"></span><span id="state">Pronto</span>
+          </div>
+        </div>
+        <div id="plan" class="plan" hidden></div>
+        <div id="activity" class="activity">
+          <div id="activityEmpty" class="activity-empty">
+            Qui vedrai gli strumenti usati,<br />i risultati e le verifiche.<br /><br />Le
+            modifiche ai file creano<br />backup locali recuperabili.
+          </div>
+        </div>
+        <div class="activity-note">
+          I permessi sono controllati dal backend. I comandi approvati usano i
+          privilegi del tuo account Windows.
+        </div>
+        <div class="settings-bottom">
+          <button id="renameChat">Rinomina</button
+          ><button id="exportChat">Esporta</button
+          ><button id="deleteChat" class="danger">Elimina chat</button>
+        </div>
+      </aside>
+    </div>
+    <div id="settingsModal" class="modal">
+      <section class="dialog">
+        <h2>Il tuo agente, le tue regole.</h2>
+        <p class="intro">
+          Modello, accessi e privacy. Le impostazioni restano sul computer; i
+          token sono custoditi nel vault del sistema.
+        </p>
+        <div class="grid">
+          <label class="field"
+            >Provider<select id="provider">
+              <option value="local">Motore locale</option>
+              <option value="compatible">
+                API compatibile con Chat Completions
+              </option></select
+            ><small
+              >Il modello deve supportare chiamate strutturate agli
+              strumenti.</small
+            ></label
+          ><label class="field"
+            >Endpoint<input id="endpoint" type="url" /><small
+              >Locale: http://localhost:11434 · API: URL base comprensivo di
+              /v1</small
+            ></label
+          ><label class="field"
+            >Modello<input id="model" list="models" /><datalist
+              id="models"
+            ></datalist></label
+          ><label class="field"
+            >Token provider<input
+              id="providerToken"
+              type="password"
+              autocomplete="off"
+            /><small
+              >Non viene restituito al browser o al modello.</small
+            ></label
+          ><label class="field full-width"
+            >Modalità di autorizzazione<select id="permission">
+              <option value="always">
+                Chiedi sempre — ogni strumento richiede conferma
+              </option>
+              <option value="auto">
+                Approva per me — file nel progetto; conferma comandi, rete e
+                pubblicazione
+              </option>
+              <option value="full">
+                Accesso completo — esegui senza conferme
+              </option>
+            </select></label
+          ><label id="fullConfirm" class="check full-width"
+            ><input id="fullConsent" type="checkbox" /><span
+              >Confermo l’accesso completo. I comandi possono leggere,
+              modificare ed eliminare file con i privilegi del mio account. Non
+              è una sandbox del sistema operativo.</span
+            ></label
+          ><label class="check full-width"
+            ><input id="network" type="checkbox" /><span
+              >Abilita strumenti online e terminale.<br /><span class="sub"
+                >Query, pagine e contenuti inviati a GitHub possono uscire dal
+                computer. Un provider remoto riceve anche il contesto della
+                chat. Con questa opzione disattivata, il terminale è
+                bloccato.</span
+              ></span
+            ></label
+          ><label class="field"
+            >Passi massimi per attività<input
+              id="maxSteps"
+              type="number"
+              min="1"
+              max="100" /></label
+          ><label class="field"
+            >Timeout comandi (secondi)<input
+              id="timeout"
+              type="number"
+              min="1"
+              max="600" /></label
+          ><label class="field"
+            >Repository GitHub<input
+              id="githubRepo"
+              placeholder="owner/repository" /></label
+          ><label class="field"
+            >Token GitHub<input
+              id="githubToken"
+              type="password"
+              autocomplete="off"
+            /><small
+              >Usa un token limitato ai repository necessari. Le scritture
+              richiedono conferma in modalità automatica.</small
+            ></label
+          ><label class="check full-width"
+            ><input id="autoUpdate" type="checkbox" /><span
+              >Aggiornamenti automatici da GitHub<br /><span class="sub"
+                >Controllo all’avvio e ogni ora. Download verificato, backup
+                della versione precedente e riavvio quando non ci sono attività.
+                Questo controllo contatta GitHub anche se gli strumenti
+                dell’agente sono offline.</span
+              ></span
+            ></label
+          >
+        </div>
+        <div class="settings-bottom">
+          <button id="refreshModels">Verifica connessione e modelli</button
+          ><button id="downloadModel">Scarica modello</button
+          ><button id="deleteModel" class="danger">Elimina modello</button
+          ><button id="clearProviderToken">Rimuovi token provider</button
+          ><button id="clearGithubToken">Rimuovi token GitHub</button
+          ><button id="updates">Controlla aggiornamenti</button>
+        </div>
+        <p id="modelStatus" class="sub"></p>
+        <div class="divider"></div>
+        <p class="sub">
+          Chat e memoria sono file locali in chiaro, protetti dal tuo account; i
+          token sono cifrati separatamente. Il registro contiene metadati delle
+          azioni, non il contenuto delle chat. Nessun servizio analytics, font o
+          script esterno.
+        </p>
+        <p class="sub">Cartella dati: <span id="dataDir"></span></p>
+        <div class="buttons">
+          <button id="closeSettings">Chiudi</button
+          ><button id="saveSettings" class="primary">Salva impostazioni</button>
+        </div>
+      </section>
+    </div>
+    <div id="approvalModal" class="modal approval">
+      <section class="dialog">
+        <div class="eyebrow">Autorizzazione richiesta</div>
+        <h2 id="approvalTool"></h2>
+        <p id="approvalReason" class="intro"></p>
+        <p class="sub">Progetto: <span id="approvalWorkspace"></span></p>
+        <pre id="approvalArgs"></pre>
+        <pre id="approvalDiff" hidden></pre>
+        <p class="sub">
+          L’approvazione vale soltanto per questa azione e per questi parametri.
+          Rifiutare non esegue l’azione.
+        </p>
+        <div class="buttons">
+          <button id="deny" class="danger">Rifiuta</button
+          ><button id="allow" class="primary">Approva questa azione</button>
+        </div>
+      </section>
+    </div>
+    <div id="memoryModal" class="modal">
+      <section class="dialog">
+        <h2>Memoria locale</h2>
+        <p class="intro">
+          Preferenze persistenti usate nelle chat future. Non salvare
+          credenziali qui.
+        </p>
+        <pre id="memoryText"></pre>
+        <div class="buttons">
+          <button id="clearMemory" class="danger">Cancella memoria</button
+          ><button id="closeMemory">Chiudi</button>
+        </div>
+      </section>
+    </div>
+    <div id="backupsModal" class="modal">
+      <section class="dialog">
+        <h2>Backup dei file</h2>
+        <p class="intro">
+          Versioni salvate prima delle modifiche. I backup possono contenere
+          codice privato e restano nel tuo profilo locale.
+        </p>
+        <div id="backupList"></div>
+        <div class="buttons"><button id="closeBackups">Chiudi</button></div>
+      </section>
+    </div>
+    <div id="toast" class="toast" role="status"></div>
+  </body>
+</html>

@@ -42,7 +42,7 @@ Approval is bound to one tool, its exact arguments and a digest. File content ch
 
 ## GitHub
 
-Set `owner/repository` and a fine-grained token in Settings. Choose only the permissions needed for that repository. Tokens stay in the backend vault and are injected into authenticated requests, never added to model context. The GitHub tool supports issues, pull requests, contents, commits, branches and releases through GET/POST/PATCH. Use approved Git commands for local branches, commits and pushes. Windows Git credential-manager authentication remains separate.
+Set `owner/repository` and a fine-grained token in Settings. Choose only the permissions needed for that repository. Tokens stay in the backend vault and are injected into authenticated requests, never added to model context. The GitHub tool supports issues, pull requests, contents, commits, branches and releases through GET/POST/PATCH/PUT/DELETE. Use approved Git commands for local branches, commits and pushes. Windows Git credential-manager authentication remains separate.
 
 ## Automatic updates
 

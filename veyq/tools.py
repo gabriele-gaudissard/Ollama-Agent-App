@@ -1,5 +1,6 @@
 """Validated tools and a permission gate shared by every agent action."""
 import difflib
+import base64
 import hashlib
 import json
 import os
@@ -36,9 +37,9 @@ TOOLS = [
     schema("delete_file", "Delete one regular file after making a recoverable backup. No recursive deletion.", {"path": S}, ["path"]),
     schema("exec_cmd", "Execute a shell command, tests or Git. Commands run with host user permissions, not in an OS sandbox. Needs approval except in full access.", {"command": S, "cwd": S, "timeout": I}, ["command"]),
     schema("git_status", "Read status/diff/log through fixed Git arguments; no arbitrary Git flags.", {"view": {"type": "string", "enum": ["status", "diff", "log"]}}, ["view"]),
-    schema("web_search", "Search the public web and return titles, URLs and snippets.", {"query": S}, ["query"]),
+    schema("web_search", "Search DuckDuckGo, with Bing fallback, and return titles, URLs and snippets.", {"query": S}, ["query"]),
     schema("read_url", "Read public HTTP(S) documentation. Private network targets are blocked.", {"url": S}, ["url"]),
-    schema("github", "GitHub REST for the user-selected owner/repo only. GET reads; POST/PATCH writes need approval. Endpoint begins with issues, pulls, contents, commits, branches, or releases. Credentials are injected by backend.", {"method": {"type": "string", "enum": ["GET", "POST", "PATCH"]}, "endpoint": S, "body": {"type": "object"}}, ["method", "endpoint"]),
+    schema("github", "GitHub REST for the user-selected owner/repo only. GET reads; POST/PATCH/PUT/DELETE mutations need approval in auto mode. PUT contents requires base64 content and current SHA for replacement. Endpoint begins with issues, pulls, contents, commits, branches, or releases. Credentials are injected by backend.", {"method": {"type": "string", "enum": ["GET", "POST", "PATCH", "PUT", "DELETE"]}, "endpoint": S, "body": {"type": "object"}}, ["method", "endpoint"]),
     schema("update_plan", "Publish task steps with pending, in_progress or completed status.", {"steps": {"type": "array", "items": {"type": "object", "properties": {"step": S, "status": {"type": "string", "enum": ["pending", "in_progress", "completed"]}}, "required": ["step", "status"], "additionalProperties": False}}}, ["steps"]),
     schema("save_memory", "Save a useful preference locally for future chats. Never store secrets.", {"text": S}, ["text"]),
 ]
@@ -332,21 +333,39 @@ class ToolRunner:
         return self.run_process(argv, self.workspace, 20)
 
     def tool_web_search(self, query):
-        response = public_request("https://html.duckduckgo.com/html/?q=" + quote(query), cancel=self.cancel)
-        soup = BeautifulSoup(response["text"], "html.parser")
-        results = []
-        for item in soup.select(".result")[:8]:
-            link = item.select_one(".result__a")
-            snippet = item.select_one(".result__snippet")
-            if link:
-                href = link.get("href", "")
-                href = parse_qs(urlsplit(href).query).get("uddg", [href])[0]
-                if urlsplit(href).scheme in {"http", "https"}:
-                    results.append({"title": link.get_text(" ", strip=True), "url": href,
-                                    "snippet": snippet.get_text(" ", strip=True) if snippet else ""})
-        if not results:
-            return {"results": [], "notice": "Nessun risultato o motore di ricerca temporaneamente bloccato. Prova una URL diretta."}
-        return results
+        if not query.strip() or len(query) > 1000:
+            raise ValueError("Query di ricerca vuota o troppo lunga.")
+        providers = [("https://html.duckduckgo.com/html/?q=", ".result", ".result__a", ".result__snippet"),
+                     ("https://www.bing.com/search?q=", "li.b_algo", "h2 a", ".b_caption p")]
+        for base, selector, link_selector, snippet_selector in providers:
+            try:
+                response = public_request(base + quote(query), cancel=self.cancel)
+                soup = BeautifulSoup(response["text"], "html.parser")
+                results = []
+                for item in soup.select(selector)[:8]:
+                    link = item.select_one(link_selector)
+                    snippet = item.select_one(snippet_selector)
+                    if not link:
+                        continue
+                    href = link.get("href", "")
+                    parameters = parse_qs(urlsplit(href).query)
+                    href = parameters.get("uddg", [href])[0]
+                    encoded = parameters.get("u", [""])[0]
+                    if urlsplit(href).hostname == "www.bing.com" and encoded.startswith("a1"):
+                        value = encoded[2:]
+                        try:
+                            href = base64.urlsafe_b64decode(value + "=" * (-len(value) % 4)).decode("utf-8")
+                        except (ValueError, UnicodeError):
+                            pass
+                    if urlsplit(href).scheme in {"http", "https"}:
+                        results.append({"title": link.get_text(" ", strip=True), "url": href,
+                                        "snippet": snippet.get_text(" ", strip=True) if snippet else ""})
+                if results:
+                    return results
+            except Exception:
+                if self.cancel.is_set():
+                    raise
+        return {"results": [], "notice": "Nessun risultato o motori temporaneamente bloccati. Prova una URL diretta."}
 
     def tool_read_url(self, url):
         response = public_request(url, cancel=self.cancel)
