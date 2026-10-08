@@ -10,6 +10,7 @@ The Python backend owns the complete model → tool → result loop. The interfa
 - File management: create directories, move individual files, delete individual files with confirmation, and restore backups from the interface.
 - Online work: web search with source URLs, read public documentation, and GitHub REST reads/writes scoped to the repository you configure.
 - Tasks: visible plans, streaming output, action history, bounded loops, cancellation, and persistent chats.
+- Interface: project file explorer with paginated code previews, keyboard navigation, and explicit action approvals. Manual file inspection follows the same permission mode as agent tools.
 - Privacy: local chat storage, OS credential vault, metadata-only audit log, no analytics or CDN scripts, explicit online setting.
 - Distribution: every tested push to main publishes a GitHub Release; managed installations check for and apply updates automatically.
 

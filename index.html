@@ -36,7 +36,10 @@
             </div>
           </div>
           <button id="chooseFolder">Apri cartella</button
-          ><button id="mode" class="chip">Approva per me</button>
+          ><button id="exploreFiles" title="Esplora i file del progetto">
+            ▤ File
+          </button>
+          <button id="mode" class="chip">Approva per me</button>
         </header>
         <div id="messages" class="messages">
           <section id="welcome" class="welcome">
@@ -291,6 +294,54 @@
         </p>
         <div id="backupList"></div>
         <div class="buttons"><button id="closeBackups">Chiudi</button></div>
+      </section>
+    </div>
+    <div
+      id="explorerModal"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="explorerTitle"
+    >
+      <section class="dialog explorer-dialog">
+        <div class="explorer-heading">
+          <div>
+            <div class="eyebrow">Workspace</div>
+            <h2 id="explorerTitle">Dentro il progetto.</h2>
+          </div>
+          <button id="closeExplorer" aria-label="Chiudi esplora file">
+            Chiudi ×
+          </button>
+        </div>
+        <p class="intro">
+          Esplora e leggi i file. Le operazioni usano gli stessi controlli di
+          autorizzazione dell’agente.
+        </p>
+        <div class="explorer-toolbar">
+          <button id="explorerUp" title="Cartella superiore">↑</button
+          ><button id="explorerRoot">Progetto</button
+          ><span id="explorerPath" class="sub">.</span>
+        </div>
+        <div class="explorer-grid">
+          <nav
+            id="fileList"
+            class="file-list"
+            aria-label="File e cartelle"
+          ></nav>
+          <div class="file-view">
+            <div id="filePreviewTitle" class="eyebrow">Seleziona un file</div>
+            <pre id="filePreview">
+Il contenuto apparirà qui. I file di credenziali sono esclusi.</pre
+            >
+            <div class="explorer-toolbar">
+              <button id="previousLines" disabled>← Righe precedenti</button
+              ><button id="nextLines" disabled>Righe successive →</button
+              ><button id="askAboutFile" class="primary" disabled>
+                Usa in chat
+              </button>
+            </div>
+          </div>
+        </div>
       </section>
     </div>
     <div id="toast" class="toast" role="status"></div>

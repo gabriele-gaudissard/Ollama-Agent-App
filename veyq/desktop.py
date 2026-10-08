@@ -150,6 +150,14 @@ class DesktopAPI:
             self._idle()
             return self._agent.start(session_id, text)
 
+    def browse_project(self, session_id, path="."):
+        self._idle()
+        return self._agent.manual(session_id, "list_dir", {"path": path})
+
+    def preview_project_file(self, session_id, path, start_line=1):
+        self._idle()
+        return self._agent.manual(session_id, "read_file", {"path": path, "start_line": start_line, "end_line": start_line + 299})
+
     def get_events(self, after=0):
         return self._agent.poll(after)
 

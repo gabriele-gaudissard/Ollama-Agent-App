@@ -11,6 +11,11 @@ let lastSeq = 0,
   streamText = "",
   approvalId = "",
   updateReady = false;
+let explorerPath = ".",
+  selectedFile = "",
+  previewLine = 1,
+  previewTotal = 0;
+const modalFocus = new Map();
 const modes = {
   always: "Chiedi sempre",
   auto: "Approva per me",
@@ -33,10 +38,19 @@ function action(id, fn) {
   );
 }
 function open(id) {
+  if (!$(id).classList.contains("open"))
+    modalFocus.set(id, document.activeElement);
   $(id).classList.add("open");
+  const focus =
+    id === "approvalModal"
+      ? $("deny")
+      : $(id).querySelector("input, select, button");
+  focus?.focus();
 }
 function close(id) {
   $(id).classList.remove("open");
+  modalFocus.get(id)?.focus();
+  modalFocus.delete(id);
 }
 function setBusy(value, state) {
   busy = value;
@@ -44,7 +58,13 @@ function setBusy(value, state) {
   $("send").classList.toggle("danger", value);
   $("state").textContent = state || (value ? "In esecuzione" : "Pronto");
   $("status").classList.toggle("busy", value);
-  for (const id of ["newChat", "chooseFolder", "attach", "settingsButton"])
+  for (const id of [
+    "newChat",
+    "chooseFolder",
+    "exploreFiles",
+    "attach",
+    "settingsButton",
+  ])
     $(id).disabled = value;
 }
 function codeBlock(parent, text, language) {
@@ -509,6 +529,116 @@ action("backups", async () => {
   open("backupsModal");
 });
 action("closeBackups", () => close("backupsModal"));
+
+async function browseFiles(path = ".") {
+  if (busy) throw Error("Attendi che l’attività sia terminata.");
+  $("fileList").textContent = "Lettura della cartella…";
+  const result = await call("browse_project", sessionId, path);
+  if (!result.ok) throw Error(result.error);
+  explorerPath = path;
+  $("explorerPath").textContent = path;
+  $("explorerUp").disabled = path === ".";
+  $("fileList").replaceChildren();
+  const entries = [...result.result].sort(
+    (a, b) =>
+      Number(b.kind === "dir") - Number(a.kind === "dir") ||
+      a.name.localeCompare(b.name),
+  );
+  for (const entry of entries) {
+    const button = document.createElement("button");
+    button.className = "file-entry";
+    button.textContent =
+      (entry.kind === "dir" ? "▸ " : entry.kind === "link" ? "↗ " : "· ") +
+      entry.name;
+    button.title = entry.name;
+    const relative = path === "." ? entry.name : path + "/" + entry.name;
+    button.addEventListener("click", () =>
+      (entry.kind === "dir"
+        ? browseFiles(relative)
+        : previewFile(relative)
+      ).catch((e) => toast(e.message)),
+    );
+    $("fileList").append(button);
+  }
+  if (!entries.length) $("fileList").textContent = "Cartella vuota.";
+}
+async function previewFile(path, line = 1) {
+  if (busy) throw Error("Attendi che l’attività sia terminata.");
+  $("filePreview").textContent = "Lettura del file…";
+  const result = await call("preview_project_file", sessionId, path, line);
+  if (!result.ok) {
+    $("filePreview").textContent = result.error;
+    throw Error(result.error);
+  }
+  selectedFile = path;
+  previewLine = line;
+  previewTotal = result.result.total_lines;
+  $("filePreviewTitle").textContent = path + " · " + previewTotal + " righe";
+  $("filePreview").textContent = result.result.content || "File vuoto.";
+  $("previousLines").disabled = line === 1;
+  $("nextLines").disabled = line + 299 >= previewTotal;
+  $("askAboutFile").disabled = false;
+}
+action("exploreFiles", async () => {
+  selectedFile = "";
+  $("askAboutFile").disabled = true;
+  $("filePreview").textContent = "Seleziona un file per leggerne il contenuto.";
+  $("filePreviewTitle").textContent = "Anteprima";
+  $("previousLines").disabled = true;
+  $("nextLines").disabled = true;
+  open("explorerModal");
+  await browseFiles();
+});
+action("closeExplorer", () => close("explorerModal"));
+action("explorerRoot", () => browseFiles());
+action("explorerUp", () =>
+  browseFiles(explorerPath.split("/").slice(0, -1).join("/") || "."),
+);
+action("previousLines", () =>
+  previewFile(selectedFile, Math.max(1, previewLine - 300)),
+);
+action("nextLines", () => previewFile(selectedFile, previewLine + 300));
+action("askAboutFile", () => {
+  $("prompt").value +=
+    ($("prompt").value ? "\n" : "") +
+    "Leggi il file " +
+    JSON.stringify(selectedFile) +
+    " del progetto e ";
+  close("explorerModal");
+  $("prompt").focus();
+});
+document.addEventListener("keydown", (e) => {
+  const dialogs = [...document.querySelectorAll(".modal.open")];
+  const current =
+    dialogs.find((d) => d.id === "approvalModal") || dialogs.at(-1);
+  if (e.key === "Escape" && current) {
+    e.preventDefault();
+    if (current.id === "approvalModal")
+      decide(false).catch((error) => toast(error.message));
+    else close(current.id);
+  }
+  if (e.key === "Tab" && current) {
+    const controls = [
+      ...current.querySelectorAll(
+        "button:not(:disabled), input, select, textarea",
+      ),
+    ].filter((n) => n.offsetParent !== null);
+    if (!controls.length) return;
+    const first = controls[0],
+      last = controls.at(-1);
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+  if (e.ctrlKey && e.key.toLowerCase() === "n" && !busy && !current) {
+    e.preventDefault();
+    newChat().catch((error) => toast(error.message));
+  }
+});
 $("search").addEventListener("input", renderSessions);
 $("permission").addEventListener("change", () => {
   $("fullConfirm").style.display =

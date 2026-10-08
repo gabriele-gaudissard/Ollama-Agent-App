@@ -235,6 +235,34 @@ class Agent:
             worker.start()
             return {"ok": True, "run_id": self.run_id}
 
+    def manual(self, session_id, name, arguments):
+        """User-driven file inspection uses the same gate, not a second API."""
+        if name not in {"list_dir", "read_file"}:
+            raise ValueError("Strumento manuale non ammesso.")
+        with self.lock:
+            if self.busy:
+                raise RuntimeError("Attendi la fine dell'attivita' prima di esplorare i file.")
+            state = self.store.snapshot()
+            session = next((s for s in state["sessions"] if s["id"] == session_id), None)
+            if not session:
+                raise ValueError("Chat non trovata.")
+            settings = state["settings"]
+            settings["workspace"] = session.get("workspace") or settings["workspace"]
+            self.secrets = [self.store.vault.get("provider"), self.store.vault.get("github")]
+            self.cancel.clear()
+            self.busy, self.state = True, "running"
+            self.current_session, self.run_id = session_id, uuid.uuid4().hex
+            self.runner = ToolRunner(self.store, settings, self.run_id, self.cancel, self.emit,
+                                     self.approve, self.app_root, session)
+        try:
+            result = self.runner.execute(name, arguments)
+            return json.loads(redact(json.dumps(result, ensure_ascii=False), self.secrets))
+        finally:
+            with self.lock:
+                self.busy, self.state = False, "idle"
+                self.pending = None
+            self.emit("done", {"state": "idle"})
+
     def _record(self, session, message):
         safe = json.loads(redact(json.dumps(message, ensure_ascii=False), self.secrets))
         with self.store.lock:

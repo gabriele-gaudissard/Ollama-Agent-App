@@ -214,6 +214,32 @@ class AgentTests(unittest.TestCase):
         self.assertFalse(hasattr(api, "execute_terminal"))
         self.assertFalse(hasattr(api, "create_or_update_file"))
 
+    def test_manual_explorer_uses_tool_gate(self):
+        api = DesktopAPI(self.store)
+        sid = api.create_session()
+        api.set_workspace(sid, str(self.workspace))
+        (self.workspace / "safe.py").write_text("print('hello')")
+        result = api.browse_project(sid)
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["result"][0]["name"], "safe.py")
+        preview = api.preview_project_file(sid, "safe.py")
+        self.assertIn("hello", preview["result"]["content"])
+        api.save_settings({"permission": "always"})
+        responses = []
+        worker = threading.Thread(target=lambda: responses.append(api.preview_project_file(sid, "safe.py")))
+        worker.start()
+        for _ in range(30):
+            if api._agent.pending:
+                break
+            time.sleep(.02)
+        self.assertTrue(api._agent.busy)
+        approval = api.get_events()["approval"]
+        self.assertEqual(approval["tool"], "read_file")
+        api.resolve_approval(approval["id"], False)
+        worker.join(3)
+        self.assertFalse(responses[0]["ok"])
+        self.assertFalse(api._agent.busy)
+
     def test_approval_expiry_and_cancellation(self):
         agent = Agent(self.store, self.root / "app")
         results = []
