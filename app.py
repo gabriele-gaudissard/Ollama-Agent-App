@@ -1,4 +1,4 @@
-"""Veyq desktop launcher."""
+"""Veynuq desktop launcher."""
 import os
 import sys
 import faulthandler
@@ -8,9 +8,13 @@ from pathlib import Path
 
 def startup_log():
     """Keep startup errors visible even when launched through pythonw."""
-    folder = Path(os.environ.get("VEYQ_DATA_DIR") or Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "Veyq")
-    if os.environ.get("VEYQ_DATA_DIR"):
-        folder = Path(os.environ["VEYQ_DATA_DIR"])
+    import json
+    data_dir = os.environ.get("VEYNUQ_DATA_DIR") or os.environ.get("VEYQ_DATA_DIR")
+    profile = Path(__file__).parent / "profile.json"
+    if not data_dir and profile.exists():
+        try: data_dir = json.loads(profile.read_text(encoding="utf-8"))["data_dir"]
+        except (OSError, ValueError, KeyError): pass
+    folder = Path(data_dir) if data_dir else Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "Veynuq"
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / "startup.log"
     if path.exists() and path.stat().st_size > 1_000_000:
@@ -47,10 +51,10 @@ if __name__ == '__main__':
         main()
     except Exception as error:
         faulthandler.cancel_dump_traceback_later()
-        logging.exception("Veyq startup failed")
+        logging.exception("Veynuq startup failed")
         if os.name == 'nt':
             import ctypes
-            ctypes.windll.user32.MessageBoxW(0, str(error) + "\n\nDiagnostica: " + str(diagnostic_path), 'Veyq - Avvio non riuscito', 0x10)
+            ctypes.windll.user32.MessageBoxW(0, str(error) + "\n\nDiagnostica: " + str(diagnostic_path), 'Veynuq - Avvio non riuscito', 0x10)
         else:
             print(str(error), file=sys.stderr)
         sys.exit(1)

@@ -2,6 +2,10 @@
 const $ = (id) => document.getElementById(id);
 const ui = (text) => window.VeyqI18N.text(text);
 let projects = [],
+  assignmentSession = "",
+  activeSession = "",
+  sessionLoad = 0,
+  liveDrafts = new Map(),
   questionId = "",
   infoModel = "",
   modelBusy = false;
@@ -32,7 +36,8 @@ function toast(text) {
   setTimeout(() => ($("toast").style.display = "none"), 6500);
 }
 async function call(name, ...args) {
-  if (!api) throw Error("Apri l’app con Veyq.bat per usare il motore locale.");
+  if (!api)
+    throw Error("Apri l’app con Veynuq.bat per usare il motore locale.");
   return await api[name](...args);
 }
 function action(id, fn) {
@@ -58,6 +63,7 @@ function close(id) {
   modalFocus.delete(id);
 }
 function setBusy(value, state) {
+  const changed = busy !== value;
   busy = value;
   updateSendButton();
 
@@ -72,8 +78,16 @@ function setBusy(value, state) {
     "projectAssignment",
   ])
     $(id).disabled = value;
+  $("prompt").disabled =
+    value && !!activeSession && activeSession !== sessionId;
+  if (changed) renderSessions();
 }
 function updateSendButton() {
+  if (busy && activeSession && activeSession !== sessionId) {
+    $("send").textContent = ui("Return to active chat");
+    $("send").classList.remove("danger", "follow-up");
+    return;
+  }
   const follow = busy && $("prompt").value.trim();
   $("send").textContent = ui(
     busy ? (follow ? "Send follow-up ↑" : "Ferma") : "Invia ↑",
@@ -174,7 +188,7 @@ function message(role, text, historyIndex = null) {
   box.className = "message " + role;
   const label = document.createElement("div");
   label.className = "message-label";
-  label.textContent = role === "user" ? "Tu" : "Veyq";
+  label.textContent = role === "user" ? "Tu" : "Veynuq";
   const body = document.createElement("div");
   body.className = "message-body";
   box.dataset.raw = text;
@@ -299,7 +313,6 @@ function renderSessions() {
       row.className = "session-row";
       const btn = document.createElement("button");
       btn.className = "session" + (s.id === sessionId ? " active" : "");
-      btn.disabled = busy;
       const title = document.createElement("span");
       title.textContent = s.untitled ? ui("New activity") : s.title;
       btn.addEventListener("mouseenter", () => {
@@ -325,6 +338,21 @@ function renderSessions() {
       menu.hidden = true;
       for (const [label, fn] of [
         [
+          "Add to project",
+          async () => {
+            assignmentSession = s.id;
+            $("chatProjectChoice").replaceChildren();
+            for (const p of [{ id: "", name: ui("No project") }, ...projects]) {
+              const option = document.createElement("option");
+              option.value = p.id;
+              option.textContent = p.name;
+              $("chatProjectChoice").append(option);
+            }
+            $("chatProjectChoice").value = s.project_id || "";
+            open("chatProjectModal");
+          },
+        ],
+        [
           "Rename",
           async () => {
             const name = prompt(ui("Chat name:"), s.title);
@@ -347,13 +375,31 @@ function renderSessions() {
       ]) {
         const action = document.createElement("button");
         action.textContent = ui(label);
-        action.addEventListener("click", () =>
-          fn().catch((e) => toast(e.message)),
-        );
+        action.addEventListener("click", () => {
+          menu.hidden = true;
+          fn().catch((e) => toast(e.message));
+        });
         menu.append(action);
       }
       more.addEventListener("click", () => {
-        menu.hidden = !menu.hidden;
+        const show = menu.hidden;
+        document
+          .querySelectorAll(".session-menu")
+          .forEach((m) => (m.hidden = true));
+        menu.hidden = !show;
+        if (show) {
+          const rect = more.getBoundingClientRect();
+          menu.style.left =
+            Math.max(8, Math.min(rect.left, window.innerWidth - 192)) + "px";
+          menu.style.top =
+            Math.max(
+              8,
+              Math.min(
+                rect.bottom + 6,
+                window.innerHeight - menu.offsetHeight - 12,
+              ),
+            ) + "px";
+        }
       });
       row.append(btn, more, menu);
       details.append(row);
@@ -362,9 +408,9 @@ function renderSessions() {
   }
 }
 async function loadSession(id) {
-  if (busy) return;
+  const request = ++sessionLoad;
   const s = await call("get_session", id);
-  if (!s) return;
+  if (!s || request !== sessionLoad) return;
   sessionId = id;
   $("messages")
     .querySelectorAll(".message")
@@ -386,6 +432,12 @@ async function loadSession(id) {
   renderPlan(s.plan);
   streamNode = null;
   streamText = "";
+  if (liveDrafts.has(id)) {
+    streamText = liveDrafts.get(id);
+    streamNode = message("assistant", streamText);
+  }
+  $("prompt").disabled = busy && !!activeSession && activeSession !== id;
+  updateSendButton();
   renderSessions();
 }
 async function newChat() {
@@ -404,6 +456,10 @@ function showWorkspace(path) {
   $("workspace").title = path;
 }
 async function send() {
+  if (busy && activeSession && activeSession !== sessionId) {
+    await loadSession(activeSession);
+    return;
+  }
   const text = $("prompt").value.trim();
   if (busy && !text) {
     await call("stop_run");
@@ -421,6 +477,7 @@ async function send() {
   }
   if (!sessionId) await newChat();
   await call("start_run", sessionId, text);
+  activeSession = sessionId;
   $("prompt").value = "";
   message("user", text);
   streamText = "";
@@ -451,9 +508,18 @@ async function poll() {
   polling = true;
   try {
     const result = await call("get_events", lastSeq);
+    activeSession = result.session_id || activeSession;
     for (const e of result.events) {
       lastSeq = e.seq;
       const d = e.data;
+      if (e.type === "text")
+        liveDrafts.set(
+          e.session_id,
+          (liveDrafts.get(e.session_id) || "") + d.text,
+        );
+      if (e.type === "message" || e.type === "done")
+        liveDrafts.delete(e.session_id);
+      if (e.type === "done") await refreshSessions();
       if (e.session_id && e.session_id !== sessionId) continue;
       switch (e.type) {
         case "text":
@@ -532,7 +598,6 @@ async function poll() {
           approvalId = "";
           close("questionModal");
           questionId = "";
-          await refreshSessions();
           break;
       }
     }
@@ -570,6 +635,7 @@ async function showSettings() {
   settings = await call("get_settings");
   $("language").value = settings.lang;
   loadInstalledModels().catch((e) => toast(e.message));
+  loadCatalogChoices().catch((e) => toast(e.message));
   for (const [id, key] of [
     ["provider", "provider"],
     ["endpoint", "url"],
@@ -838,6 +904,10 @@ action("askAboutFile", () => {
   $("prompt").focus();
 });
 document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape")
+    document
+      .querySelectorAll(".session-menu")
+      .forEach((m) => (m.hidden = true));
   const dialogs = [...document.querySelectorAll(".modal.open")];
   const current =
     dialogs.find((d) => d.id === "approvalModal") || dialogs.at(-1);
@@ -870,6 +940,12 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     newChat().catch((error) => toast(error.message));
   }
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".session-more, .session-menu"))
+    document
+      .querySelectorAll(".session-menu")
+      .forEach((m) => (m.hidden = true));
 });
 let searchTimer;
 $("search").addEventListener("input", () => {
@@ -974,6 +1050,7 @@ async function loadInstalledModels() {
   $("installedModels").value = $("model").value || settings.model;
 }
 async function showModelInfo(name) {
+  if (!name) throw Error(ui("Choose a model first."));
   const m = await call("get_model_info", name);
   infoModel = name;
   $("modelInfoTitle").textContent = name;
@@ -983,12 +1060,40 @@ async function showModelInfo(name) {
   const yes = (v) => ui(v == null ? "Unknown" : v ? "Yes" : "No");
   for (const [label, value] of [
     ["Weight", ui(m.weight)],
-    ["Capability level", ui(m.capability || "Unknown")],
-    ["Optional GPU memory (minimum)", m.vram_min_gb],
-    ["Estimated download", m.download_gb],
-    ["Minimum RAM", m.ram_min_gb],
-    ["Recommended RAM", m.ram_recommended_gb],
-    ["Optional GPU memory", m.vram_recommended_gb],
+    ["Best suited for", ui(m.capability || "Unknown")],
+    ["Metadata", ui(m.metadata_origin || "Metadata unavailable")],
+    ["Parameters", m.parameters],
+    ["Quantization", m.quantization],
+    [
+      "Maximum context",
+      m.context_tokens == null
+        ? null
+        : m.context_tokens.toLocaleString(settings.lang || "en") +
+          " " +
+          ui("tokens"),
+    ],
+    ["License", m.license],
+    [
+      "Installed size",
+      m.installed_size_gb == null ? null : m.installed_size_gb + " GB",
+    ],
+    [
+      "Estimated download",
+      m.download_gb == null ? null : "≈ " + m.download_gb + " GB",
+    ],
+    ["Minimum RAM", m.ram_min_gb == null ? null : "≈ " + m.ram_min_gb + " GiB"],
+    [
+      "Recommended RAM",
+      m.ram_recommended_gb == null
+        ? null
+        : "≈ " + m.ram_recommended_gb + " GiB",
+    ],
+    [
+      "Optional GPU memory",
+      m.vram_recommended_gb == null
+        ? null
+        : "≈ " + m.vram_recommended_gb + " GiB",
+    ],
     [
       "Tool calls",
       yes(
@@ -1009,30 +1114,87 @@ async function showModelInfo(name) {
     const key = document.createElement("dt"),
       val = document.createElement("dd");
     key.textContent = ui(label);
-    val.textContent =
-      value == null
-        ? ui("Unknown")
-        : String(value) + (typeof value === "number" ? " GB" : "");
+    val.textContent = value == null ? ui("Unknown") : String(value);
     list.append(key, val);
   }
   $("modelInfoContent").append(list);
-  for (const text of [ui("Suggested uses") + ": " + ui(m.uses), ui(m.note)]) {
+  for (const [label, text] of [
+    ["Suggested uses", m.uses],
+    ["Limitations", m.limitations],
+    ["Memory and speed", m.note],
+  ]) {
+    if (!text) continue;
     const p = document.createElement("p");
     p.className = "intro";
-    p.textContent = text;
+    const title = document.createElement("b");
+    title.textContent = ui(label) + ": ";
+    p.append(title, document.createTextNode(ui(text)));
     $("modelInfoContent").append(p);
+  }
+  if (m.hardware) {
+    const p = document.createElement("p");
+    p.className = "model-fit";
+    let fit = "Requirements cannot be assessed for this model.";
+    if (m.download_gb != null && m.hardware.disk_free_gb < m.download_gb * 1.2)
+      fit = "Not enough free disk for download and installation.";
+    else if (m.ram_min_gb != null && m.hardware.ram_gb != null)
+      fit =
+        m.hardware.ram_gb < m.ram_min_gb
+          ? "Below estimated minimum RAM. Choose a smaller model."
+          : m.hardware.ram_gb < m.ram_recommended_gb
+            ? "Above minimum RAM, below recommended. Use a shorter context."
+            : "Meets estimated RAM requirements. Speed depends on CPU, GPU and context.";
+    p.textContent =
+      ui("This computer") +
+      ": " +
+      ui(fit) +
+      " · " +
+      ui("Detected RAM") +
+      ": " +
+      (m.hardware.ram_gb ?? ui("Unknown")) +
+      " GiB · " +
+      ui("Free disk") +
+      ": " +
+      m.hardware.disk_free_gb +
+      " GB";
+    $("modelInfoContent").append(p);
+  }
+  if (m.tools === false) {
+    const p = document.createElement("p");
+    p.className = "model-warning";
+    p.textContent = ui(
+      "Chat-only model: autonomous actions require native tool calls.",
+    );
+    $("modelInfoContent").prepend(p);
   }
   $("modelSource").hidden = !m.source;
   open("modelInfoModal");
 }
+async function loadCatalogChoices() {
+  const r = await call("get_model_catalog");
+  $("catalogChoice").replaceChildren();
+  const empty = document.createElement("option");
+  empty.value = "";
+  empty.textContent = ui("Choose a model");
+  $("catalogChoice").append(empty);
+  for (const m of r.models) {
+    const option = document.createElement("option");
+    option.value = m.name;
+    option.textContent = m.name + " · ≈ " + m.download_gb + " GB";
+    $("catalogChoice").append(option);
+  }
+  $("downloadPopular").disabled = settings.provider !== "local";
+  $("downloadCustom").disabled = settings.provider !== "local";
+}
 async function showCatalog() {
   const r = await call("get_model_catalog");
+  const installed = await call("get_models");
   $("catalogList").replaceChildren();
   $("hardwareInfo").textContent =
     ui("Detected RAM") +
     ": " +
     (r.hardware.ram_gb ?? ui("Unknown")) +
-    " GB · " +
+    " GiB · " +
     ui("Free disk") +
     ": " +
     r.hardware.disk_free_gb +
@@ -1047,25 +1209,44 @@ async function showCatalog() {
     uses.className = "sub";
     uses.textContent =
       ui(m.weight) + " · ≈" + m.download_gb + " GB · " + ui(m.uses);
-    label.append(name, uses);
+    const nameRow = document.createElement("div");
+    nameRow.className = "model-name";
     const info = document.createElement("button");
     info.textContent = "ⓘ";
     info.title = ui("Model details");
+    info.setAttribute("aria-label", ui("Model details") + ": " + m.name);
     info.addEventListener("click", () =>
       showModelInfo(m.name).catch((e) => toast(e.message)),
     );
+    nameRow.append(name, info);
+    label.append(nameRow, uses);
     const download = document.createElement("button");
-    download.textContent = ui("Download");
+    const available = installed.ok && installed.models.includes(m.name);
+    download.textContent = ui(available ? "Select model" : "Download");
     download.disabled = settings.provider !== "local";
-    download.addEventListener("click", () =>
-      downloadModel(m.name).catch((e) => toast(e.message)),
-    );
-    row.append(label, info, download);
+    download.addEventListener("click", () => {
+      if (available) {
+        $("model").value = m.name;
+        $("installedModels").value = m.name;
+        close("catalogModal");
+        if (!$("settingsModal").classList.contains("open"))
+          showSettings()
+            .then(() => {
+              $("model").value = m.name;
+              $("installedModels").value = m.name;
+            })
+            .catch((e) => toast(e.message));
+        toast("Save settings to use this model.");
+      } else downloadModel(m.name).catch((e) => toast(e.message));
+    });
+    row.append(label, download);
     $("catalogList").append(row);
   }
   open("catalogModal");
 }
 async function downloadModel(name) {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$/.test(name || ""))
+    throw Error(ui("Enter a valid model name."));
   if (modelBusy) throw Error(ui("Wait for the current download to finish."));
   if (
     !confirm(
@@ -1098,6 +1279,11 @@ action("cancelDownload", () => call("cancel_model_action"));
 action("openCatalog", showCatalog);
 action("closeCatalog", () => close("catalogModal"));
 action("modelInfo", () => showModelInfo($("model").value));
+action("installedModelInfo", () => showModelInfo($("installedModels").value));
+action("catalogChoiceInfo", () => showModelInfo($("catalogChoice").value));
+action("customModelInfo", () => showModelInfo($("customModel").value.trim()));
+action("downloadPopular", () => downloadModel($("catalogChoice").value));
+action("downloadCustom", () => downloadModel($("customModel").value.trim()));
 action("closeModelInfo", () => close("modelInfoModal"));
 action("modelSource", () => call("open_model_source", infoModel));
 action("providerAccount", () => call("open_provider_account"));
@@ -1137,6 +1323,13 @@ action("newProject", () => {
   open("projectModal");
 });
 action("closeProject", () => close("projectModal"));
+action("closeChatProject", () => close("chatProjectModal"));
+action("saveChatProject", async () => {
+  await call("assign_project", assignmentSession, $("chatProjectChoice").value);
+  await refreshSessions();
+  if (assignmentSession === sessionId) await loadSession(sessionId);
+  close("chatProjectModal");
+});
 action("createProject", async () => {
   const p = await call("create_project", $("projectName").value);
   await call("assign_project", sessionId, p.id);

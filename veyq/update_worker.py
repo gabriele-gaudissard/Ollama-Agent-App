@@ -135,6 +135,14 @@ def restart_verified_installation(root, data):
                 return False
         flags = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {"start_new_session": True}
         if os.name == "nt":
+            # The signed installer owns the same desktop/start-menu icon setup
+            # for both first install and updates, including a branding change.
+            if {"install.ps1", "assets/brand/veynuq-dark.ico"}.issubset(installation["files"]):
+                try:
+                    subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(root / "install.ps1"), "-ShortcutOnly"], cwd=root, timeout=20, check=True,
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **flags)
+                except (OSError, subprocess.SubprocessError):
+                    pass  # A read-only Desktop must not prevent the app reopening.
             subprocess.Popen(["powershell", "-NoProfile", "-File", str(root / "Launcher.ps1")], cwd=root, **flags)
         else:
             subprocess.Popen([sys.executable, str(root / "app.py")], cwd=root, **flags)

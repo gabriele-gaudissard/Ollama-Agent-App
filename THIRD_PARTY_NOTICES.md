@@ -1,6 +1,6 @@
 # Third-party components
 
-Veyq is an independent application. The project author's MIT copyright notice in LICENSE is retained.
+Veynuq is an independent application. The project author's MIT copyright notice in LICENSE is retained.
 
 Components used at runtime retain their own names, licenses and attribution:
 
@@ -14,7 +14,7 @@ Components used at runtime retain their own names, licenses and attribution:
 | cryptography | Ed25519 publisher-signature verification | Apache-2.0 / BSD-3-Clause |
 | Ollama, when selected by the user | Optional existing local model server | MIT |
 
-Model weights are supplied separately and have their own licenses. Veyq does not redistribute model weights or claim ownership of upstream engines. Compatibility with another provider does not imply affiliation or endorsement.
+Model weights are supplied separately and have their own licenses. Veynuq does not redistribute model weights or claim ownership of upstream engines. Compatibility with another provider does not imply affiliation or endorsement.
 
 Dependencies downloaded by pip include their original license files. See each package's distribution metadata for the authoritative terms and transitive dependencies.
 
@@ -29,4 +29,4 @@ Additional runtime components:
 | DOMPurify | HTML sanitation | Apache-2.0 or MPL-2.0; bundled license in assets/vendor |
 | highlight.js | Source-code highlighting | BSD-3-Clause; bundled license in assets/vendor |
 
-The original Veyq marks are project artwork. Logo rebuild tooling uses resvg/Pillow and is optional development tooling. Node/jsdom are used only for UI tests, not shipped as a desktop runtime.
+The original Veynuq marks are project artwork. Logo rebuild tooling uses resvg/Pillow and is optional development tooling. Node/jsdom are used only for UI tests, not shipped as a desktop runtime.

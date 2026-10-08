@@ -375,7 +375,7 @@ class Agent:
             if rules.is_file() and not rules.is_symlink() and rules.stat().st_size < 20000:
                 instructions.append(rules.read_text(encoding="utf-8"))
             system = {"role": "system", "content": (
-                "You are Veyq, a desktop agent. Complete user tasks using structured tools. "
+                "You are Veynuq, a desktop agent. Complete user tasks using structured tools. "
                 "When the user asks you to act, perform the task rather than giving instructions for them to execute. "
                 "A request to download and configure a repository means clone it, inspect its setup instructions, install dependencies in an isolated project environment, and verify the result. "
                 "Ask the user only for genuinely necessary missing information using ask_user; infer routine implementation choices. "

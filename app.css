@@ -692,10 +692,9 @@ summary:focus-visible {
   opacity: 1;
 }
 .session-menu {
-  position: absolute;
-  right: 4px;
-  top: 35px;
-  z-index: 5;
+  position: fixed;
+  width: 180px;
+  z-index: 6;
   background: var(--raised);
   border: 1px solid var(--line);
   box-shadow: 0 10px 25px #0008;
@@ -788,6 +787,49 @@ summary:focus-visible {
 }
 .model-facts dd {
   margin: 0;
+}
+.model-picker,
+.model-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.model-picker input,
+.model-picker select {
+  flex: 1;
+  min-width: 0;
+}
+.info-button,
+.model-name button {
+  flex: none;
+  padding: 6px 10px;
+  border-radius: 50%;
+}
+.model-downloads {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  gap: 10px;
+  background: var(--panel);
+}
+.model-downloads .explorer-heading {
+  flex-wrap: wrap;
+}
+.model-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.model-fit,
+.model-warning {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  line-height: 1.5;
+}
+.model-warning {
+  color: #e6d69d;
+}
+#chatProjectChoice {
+  width: 100%;
 }
 .question-options {
   display: flex;

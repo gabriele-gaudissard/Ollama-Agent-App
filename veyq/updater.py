@@ -16,13 +16,13 @@ from .network import public_request
 from .storage import atomic_json
 from .signing import verify_manifest
 
-UPDATE_REPO = "gabriele-gaudissard/Veyq-Agent-App"
-ROOT_FILES = {"app.py", "index.html", "app.js", "app.css", "i18n.js", "ui-translations.json", "Veyq.bat", "Launcher.ps1", "install.ps1",
+UPDATE_REPO = "gabriele-gaudissard/Veynuq-Agent-App"
+ROOT_FILES = {"app.py", "index.html", "app.js", "app.css", "i18n.js", "ui-translations.json", "Veyq.bat", "Veynuq.bat", "Launcher.ps1", "install.ps1",
               "Installer.bat", "Installer_only_shortcut.bat", "requirements.txt", "README.md",
               "LICENSE", "THIRD_PARTY_NOTICES.md", "build.json"}
 ASSET_FILES = {"assets/brand/mark-dark.svg", "assets/brand/mark-light.svg", "assets/brand/logo-dark.svg",
                "assets/brand/logo-light.svg", "assets/brand/logo-dark.png", "assets/brand/logo-light.png",
-               "assets/brand/icon-dark.png", "assets/brand/veyq-dark.ico", "assets/brand/README.md",
+               "assets/brand/icon-dark.png", "assets/brand/veyq-dark.ico", "assets/brand/veynuq-dark.ico", "assets/brand/README.md",
                "docs/screenshots/workspace.png", "docs/screenshots/explorer.png", "docs/screenshots/permissions.png",
                "assets/vendor/marked.js", "assets/vendor/purify.js", "assets/vendor/highlight.js",
                "assets/vendor/atom-one-dark.css", "assets/vendor/marked-LICENSE.md",
@@ -123,7 +123,7 @@ class Updater:
         if not re.fullmatch(r"[a-f0-9]{40}", manifest.get("commit", "")):
             raise ValueError("Identificatore versione non valido.")
         if manifest["commit"] == installation["commit"]:
-            return {"ready": False, "message": "Veyq e' aggiornato."}
+            return {"ready": False, "message": "Veynuq e' aggiornato."}
         if manifest["sequence"] <= installation.get("sequence", 0):
             raise ValueError("Versione precedente o ripetuta: aggiornamento rifiutato.")
         failed = self.store.root / "failed-update.json"

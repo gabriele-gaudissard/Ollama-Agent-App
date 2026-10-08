@@ -25,7 +25,7 @@ class DesktopAPI:
         self._model_response = None
         with self._store.lock:
             if not self._store.data["settings"]["workspace"]:
-                workspace = self._store.root.parent / "Veyq Workspace"
+                workspace = self._store.root.parent / "Veynuq Workspace"
                 workspace.mkdir(exist_ok=True)
                 self._store.data["settings"]["workspace"] = str(workspace)
                 self._store.save()
@@ -385,10 +385,14 @@ class DesktopAPI:
         return {"models": catalog(), "hardware": hardware(self._store.data["settings"]["workspace"])}
 
     def get_model_info(self, name):
-        from .models import estimate
+        from .models import estimate, hardware
+        if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}", name):
+            raise ValueError("Choose a model first.")
         info = estimate(name)
         s = self.get_settings()
+        info["hardware"] = hardware(s["workspace"])
         if s["provider"] != "local":
+            info = {**estimate("unknown"), "name": name, "hardware": info["hardware"], "metadata_origin": "Remote provider: local requirements do not apply"}
             return info
         client = requests.Session()
         client.trust_env = False
@@ -397,9 +401,26 @@ class DesktopAPI:
             response = client.post(validate_endpoint(s["url"], s["network"]) + "/api/show", json={"model": name}, headers={"Authorization": "Bearer " + token} if token else {}, timeout=(5, 10), allow_redirects=False)
             if response.status_code == 200:
                 data = response.json()
-                info["installed_capabilities"] = data.get("capabilities", [])
-                info["parameters"] = data.get("details", {}).get("parameter_size")
-                info["quantization"] = data.get("details", {}).get("quantization_level")
+                info["installed"] = True
+                info["metadata_origin"] = "Installed engine metadata"
+                if isinstance(data.get("capabilities"), list):
+                    info["installed_capabilities"] = data["capabilities"]
+                    info["tools"] = "tools" in data["capabilities"]
+                    info["vision"] = "vision" in data["capabilities"]
+                details = data.get("details", {})
+                info["parameters"] = details.get("parameter_size") or info.get("parameters")
+                info["quantization"] = details.get("quantization_level") or info.get("quantization")
+                info["family"] = details.get("family")
+                limits = [v for k, v in data.get("model_info", {}).items() if k.endswith(".context_length") and isinstance(v, int)]
+                if limits: info["context_tokens"] = max(limits)
+                # A tag can be customized locally; its capabilities override catalog expectations.
+                tags = self.get_models()
+                record = next((m for m in tags.get("details", []) if m.get("name") == name), {})
+                if record.get("size"):
+                    info["installed_size_gb"] = round(record["size"] / 1e9, 2)
+                    if not info.get("source"):
+                        actual = estimate(name, record["size"])
+                        for k in ["download_gb", "ram_min_gb", "ram_recommended_gb", "vram_min_gb", "vram_recommended_gb"]: info[k] = actual[k]
         except Exception:
             pass
         finally:
@@ -417,6 +438,8 @@ class DesktopAPI:
 
     def model_action(self, model, action, confirmed=False):
         self._idle()
+        if not isinstance(model, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}", model):
+            raise ValueError("Enter a valid model name.")
         if not confirmed or action not in {"pull", "delete"}:
             raise ValueError("Conferma richiesta per la gestione dei modelli.")
         if not self._maintenance.acquire(blocking=False):
@@ -488,7 +511,7 @@ class DesktopAPI:
 def main():
     profile = ROOT / "profile.json"
     data_dir = None
-    if not os.environ.get("VEYQ_DATA_DIR") and profile.exists():
+    if not (os.environ.get("VEYNUQ_DATA_DIR") or os.environ.get("VEYQ_DATA_DIR")) and profile.exists():
         data_dir = Path(json.loads(profile.read_text(encoding="utf-8"))["data_dir"])
         if not data_dir.is_absolute():
             raise ValueError("The installed profile path must be absolute.")
@@ -507,7 +530,7 @@ def main():
             import fcntl
             fcntl.flock(instance, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
-        raise RuntimeError("Veyq e' gia' aperto.")
+        raise RuntimeError("Veynuq e' gia' aperto.")
     if "--self-check" in sys.argv:
         api = DesktopAPI(store)
         print(json.dumps({"version": "4.0.0", "models": api.get_models(), "data_dir": str(store.root)}))
@@ -520,7 +543,7 @@ def main():
         return
     import webview
     api = DesktopAPI(store)
-    window = webview.create_window("Veyq", url=str(ROOT / "index.html"), js_api=api,
+    window = webview.create_window("Veynuq", url=str(ROOT / "index.html"), js_api=api,
                                   width=1440, height=940, min_size=(900, 650), resizable=True, text_select=True)
     api._window = window
     import faulthandler
@@ -528,5 +551,5 @@ def main():
     window.events.closed += api._agent.stop
     window.events.closing += api._agent.stop
     window.events.closed += api.cancel_model_action
-    webview.start(debug=False, icon=str(ROOT / "assets" / "brand" / "veyq-dark.ico"))
+    webview.start(debug=False, icon=str(ROOT / "assets" / "brand" / "veynuq-dark.ico"))
     instance.close()

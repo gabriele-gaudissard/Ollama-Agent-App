@@ -80,10 +80,10 @@
       "es": "algo que funciona.",
       "fr": "quelque chose qui fonctionne."
     },
-    "Veyq reads your project, plans the work and uses real tools. Follow each action and choose how much control to keep.": {
-      "it": "Veyq legge il progetto, pianifica il lavoro e usa strumenti reali. Puoi seguire ogni azione e scegliere quanto controllo mantenere.",
-      "es": "Veyq lee tu proyecto, planifica el trabajo y utiliza herramientas reales. Sigue cada acción y elige cuánto control mantener.",
-      "fr": "Veyq lit votre projet, planifie le travail et utilise de vrais outils. Suivez chaque action et choisissez le contrôle à conserver."
+    "Veynuq reads your project, plans the work and uses real tools. Follow each action and choose how much control to keep.": {
+      "it": "Veynuq legge il progetto, pianifica il lavoro e usa strumenti reali. Puoi seguire ogni azione e scegliere quanto controllo mantenere.",
+      "es": "Veynuq lee tu proyecto, planifica el trabajo y utiliza herramientas reales. Sigue cada acción y elige cuánto control mantener.",
+      "fr": "Veynuq lit votre projet, planifie le travail et utilise de vrais outils. Suivez chaque action et choisissez le contrôle à conserver."
     },
     "↗ Explore a project": {
       "it": "↗ Esplora un progetto",
@@ -470,10 +470,10 @@
       "es": "Describe lo que quieres crear…",
       "fr": "Décrivez ce que vous voulez créer…"
     },
-    "Message for Veyq": {
-      "it": "Messaggio per Veyq",
-      "es": "Mensaje para Veyq",
-      "fr": "Message pour Veyq"
+    "Message for Veynuq": {
+      "it": "Messaggio per Veynuq",
+      "es": "Mensaje para Veynuq",
+      "fr": "Message pour Veynuq"
     },
     "Close file explorer": {
       "it": "Chiudi esplora file",
@@ -905,10 +905,10 @@
       "es": "Memoria guardada",
       "fr": "Mémoire enregistrée"
     },
-    "Welcome to Veyq": {
-      "it": "Benvenuto in Veyq",
-      "es": "Bienvenido a Veyq",
-      "fr": "Bienvenue dans Veyq"
+    "Welcome to Veynuq": {
+      "it": "Benvenuto in Veynuq",
+      "es": "Bienvenido a Veynuq",
+      "fr": "Bienvenue dans Veynuq"
     },
     "Choose a local model or configure a remote API in Settings. Downloads start only after your choice.": {
       "it": "Scegli un modello locale o configura un’API remota nelle Impostazioni. I download partono dopo la tua scelta.",
@@ -930,10 +930,10 @@
       "es": "El motor local no está disponible. Inícialo, instálalo con el botón de configuración o elige una API remota.",
       "fr": "Le moteur local est indisponible. Démarrez-le, installez-le avec le bouton de configuration ou choisissez une API distante."
     },
-    "Desktop control uses your Windows account. Protected credentials and Veyq permission controls are excluded. Vision models can use screenshots; other models use accessible window elements.": {
-      "it": "Il controllo del desktop usa il tuo account Windows. Le credenziali protette e i permessi di Veyq sono esclusi. I modelli visivi possono usare screenshot; gli altri usano gli elementi accessibili delle finestre.",
-      "es": "El control del escritorio usa tu cuenta Windows. Se excluyen las credenciales protegidas y los permisos de Veyq. Los modelos visuales pueden usar capturas; los otros usan elementos accesibles.",
-      "fr": "Le contrôle du bureau utilise votre compte Windows. Les identifiants protégés et les autorisations de Veyq sont exclus. Les modèles visuels utilisent les captures ; les autres utilisent les éléments accessibles."
+    "Desktop control uses your Windows account. Protected credentials and Veynuq permission controls are excluded. Vision models can use screenshots; other models use accessible window elements.": {
+      "it": "Il controllo del desktop usa il tuo account Windows. Le credenziali protette e i permessi di Veynuq sono esclusi. I modelli visivi possono usare screenshot; gli altri usano gli elementi accessibili delle finestre.",
+      "es": "El control del escritorio usa tu cuenta Windows. Se excluyen las credenciales protegidas y los permisos de Veynuq. Los modelos visuales pueden usar capturas; los otros usan elementos accesibles.",
+      "fr": "Le contrôle du bureau utilise votre compte Windows. Les identifiants protégés et les autorisations de Veynuq sont exclus. Les modèles visuels utilisent les captures ; les autres utilisent les éléments accessibles."
     },
     "First run": {
       "it": "Primo avvio",
@@ -1345,10 +1345,10 @@
       "es": "Repositorio GitHub predeterminado (opcional)",
       "fr": "Dépôt GitHub par défaut (facultatif)"
     },
-    "Veyq can use any repository you request. This field is only a default.": {
-      "it": "Veyq può usare qualsiasi repository richiesto. Questo campo è solo un valore predefinito.",
-      "es": "Veyq puede usar cualquier repositorio que solicites. Este campo solo es un valor predeterminado.",
-      "fr": "Veyq peut utiliser tout dépôt demandé. Ce champ est uniquement une valeur par défaut."
+    "Veynuq can use any repository you request. This field is only a default.": {
+      "it": "Veynuq può usare qualsiasi repository richiesto. Questo campo è solo un valore predefinito.",
+      "es": "Veynuq puede usar cualquier repositorio que solicites. Este campo solo es un valor predeterminado.",
+      "fr": "Veynuq peut utiliser tout dépôt demandé. Ce champ est uniquement une valeur par défaut."
     },
     "Maximum steps (0 = unlimited)": {
       "it": "Passi massimi (0 = illimitati)",
@@ -1429,6 +1429,256 @@
       "it": "Scaricare il modello? Il motore locale contatterà il catalogo online e, se necessario, installerà il motore ufficiale firmato.",
       "es": "¿Descargar el modelo? El motor local contactará con el catálogo e instalará el motor oficial firmado si es necesario.",
       "fr": "Télécharger ce modèle ? Le moteur local contactera le catalogue et installera le moteur officiel signé si nécessaire."
+    },
+    "Return to active chat": {
+      "it": "Torna alla chat in corso",
+      "es": "Volver al chat activo",
+      "fr": "Revenir au chat actif"
+    },
+    "Add to project": {
+      "it": "Aggiungi al progetto",
+      "es": "Añadir al proyecto",
+      "fr": "Ajouter au projet"
+    },
+    "Choose a project": {
+      "it": "Scegli un progetto",
+      "es": "Elegir un proyecto",
+      "fr": "Choisir un projet"
+    },
+    "Save": {
+      "it": "Salva",
+      "es": "Guardar",
+      "fr": "Enregistrer"
+    },
+    "Download free local models": {
+      "it": "Scarica modelli locali gratuiti",
+      "es": "Descargar modelos locales gratuitos",
+      "fr": "Télécharger des modèles locaux gratuits"
+    },
+    "Browse 10 popular models": {
+      "it": "Esplora 10 modelli popolari",
+      "es": "Explorar 10 modelos populares",
+      "fr": "Parcourir 10 modèles populaires"
+    },
+    "Choose a popular model": {
+      "it": "Scegli un modello popolare",
+      "es": "Elegir un modelo popular",
+      "fr": "Choisir un modèle populaire"
+    },
+    "Or enter a model name": {
+      "it": "Oppure scrivi il nome di un modello",
+      "es": "O escribe el nombre de un modelo",
+      "fr": "Ou saisir le nom d'un modèle"
+    },
+    "e.g. qwen3:8b or publisher/model:tag": {
+      "it": "es. qwen3:8b oppure autore/modello:tag",
+      "es": "p. ej. qwen3:8b o autor/modelo:etiqueta",
+      "fr": "p. ex. qwen3:8b ou auteur/modèle:tag"
+    },
+    "Free local downloads, subject to each model's license. No API subscription required.": {
+      "it": "Download locali gratuiti, secondo la licenza di ogni modello. Nessun abbonamento API richiesto.",
+      "es": "Descargas locales gratuitas, sujetas a la licencia de cada modelo. Sin suscripción API.",
+      "fr": "Téléchargements locaux gratuits, selon la licence de chaque modèle. Aucun abonnement API requis."
+    },
+    "Choose a model first.": {
+      "it": "Scegli prima un modello.",
+      "es": "Elige primero un modelo.",
+      "fr": "Choisissez d'abord un modèle."
+    },
+    "Enter a valid model name.": {
+      "it": "Inserisci un nome di modello valido.",
+      "es": "Introduce un nombre de modelo válido.",
+      "fr": "Saisissez un nom de modèle valide."
+    },
+    "Best suited for": {
+      "it": "Ideale per",
+      "es": "Ideal para",
+      "fr": "Idéal pour"
+    },
+    "Metadata": {
+      "it": "Origine dei dati",
+      "es": "Origen de los datos",
+      "fr": "Origine des données"
+    },
+    "Parameters": {
+      "it": "Parametri",
+      "es": "Parámetros",
+      "fr": "Paramètres"
+    },
+    "Quantization": {
+      "it": "Quantizzazione",
+      "es": "Cuantización",
+      "fr": "Quantification"
+    },
+    "Maximum context": {
+      "it": "Contesto massimo",
+      "es": "Contexto máximo",
+      "fr": "Contexte maximal"
+    },
+    "tokens": {
+      "it": "token",
+      "es": "tokens",
+      "fr": "tokens"
+    },
+    "License": {
+      "it": "Licenza",
+      "es": "Licencia",
+      "fr": "Licence"
+    },
+    "Installed size": {
+      "it": "Dimensione installata",
+      "es": "Tamaño instalado",
+      "fr": "Taille installée"
+    },
+    "Limitations": {
+      "it": "Limiti",
+      "es": "Limitaciones",
+      "fr": "Limites"
+    },
+    "Memory and speed": {
+      "it": "Memoria e velocità",
+      "es": "Memoria y velocidad",
+      "fr": "Mémoire et vitesse"
+    },
+    "This computer": {
+      "it": "Questo computer",
+      "es": "Este equipo",
+      "fr": "Cet ordinateur"
+    },
+    "Requirements cannot be assessed for this model.": {
+      "it": "Requisiti non verificabili per questo modello.",
+      "es": "No se pueden evaluar los requisitos de este modelo.",
+      "fr": "Les exigences de ce modèle ne peuvent pas être évaluées."
+    },
+    "Not enough free disk for download and installation.": {
+      "it": "Spazio su disco insufficiente per download e installazione.",
+      "es": "Espacio insuficiente para descargar e instalar.",
+      "fr": "Espace disque insuffisant pour le téléchargement et l'installation."
+    },
+    "Below estimated minimum RAM. Choose a smaller model.": {
+      "it": "RAM inferiore al minimo stimato. Scegli un modello più piccolo.",
+      "es": "RAM inferior al mínimo estimado. Elige un modelo más pequeño.",
+      "fr": "RAM inférieure au minimum estimé. Choisissez un modèle plus petit."
+    },
+    "Above minimum RAM, below recommended. Use a shorter context.": {
+      "it": "RAM sopra il minimo ma sotto quella consigliata. Usa un contesto più breve.",
+      "es": "RAM superior al mínimo e inferior a la recomendada. Usa un contexto más corto.",
+      "fr": "RAM supérieure au minimum mais inférieure à la recommandation. Utilisez un contexte plus court."
+    },
+    "Meets estimated RAM requirements. Speed depends on CPU, GPU and context.": {
+      "it": "RAM sufficiente secondo le stime. La velocità dipende da CPU, GPU e contesto.",
+      "es": "Cumple los requisitos estimados de RAM. La velocidad depende de CPU, GPU y contexto.",
+      "fr": "Répond aux exigences estimées de RAM. La vitesse dépend du CPU, du GPU et du contexte."
+    },
+    "Chat-only model: autonomous actions require native tool calls.": {
+      "it": "Modello per chat: le azioni autonome richiedono chiamate native agli strumenti.",
+      "es": "Modelo para chat: las acciones autónomas requieren llamadas nativas a herramientas.",
+      "fr": "Modèle de chat : les actions autonomes nécessitent des appels natifs aux outils."
+    },
+    "Select model": {
+      "it": "Seleziona modello",
+      "es": "Seleccionar modelo",
+      "fr": "Sélectionner le modèle"
+    },
+    "Save settings to use this model.": {
+      "it": "Salva le impostazioni per usare questo modello.",
+      "es": "Guarda los ajustes para usar este modelo.",
+      "fr": "Enregistrez les paramètres pour utiliser ce modèle."
+    },
+    "Catalog estimates": {
+      "it": "Stime del catalogo",
+      "es": "Estimaciones del catálogo",
+      "fr": "Estimations du catalogue"
+    },
+    "Metadata unavailable": {
+      "it": "Dati non disponibili",
+      "es": "Datos no disponibles",
+      "fr": "Données indisponibles"
+    },
+    "Installed engine metadata": {
+      "it": "Dati reali del motore installato",
+      "es": "Datos reales del motor instalado",
+      "fr": "Données réelles du moteur installé"
+    },
+    "Remote provider: local requirements do not apply": {
+      "it": "Provider remoto: i requisiti locali non si applicano",
+      "es": "Proveedor remoto: no se aplican requisitos locales",
+      "fr": "Fournisseur distant : les exigences locales ne s'appliquent pas"
+    },
+    "General agent": {
+      "it": "Agente generalista",
+      "es": "Agente generalista",
+      "fr": "Agent généraliste"
+    },
+    "Coding agent": {
+      "it": "Agente per programmazione",
+      "es": "Agente de programación",
+      "fr": "Agent de programmation"
+    },
+    "Reasoning agent": {
+      "it": "Agente per ragionamento",
+      "es": "Agente de razonamiento",
+      "fr": "Agent de raisonnement"
+    },
+    "Lightweight agent": {
+      "it": "Agente leggero",
+      "es": "Agente ligero",
+      "fr": "Agent léger"
+    },
+    "Vision and chat": {
+      "it": "Immagini e conversazione",
+      "es": "Imágenes y conversación",
+      "fr": "Images et conversation"
+    },
+    "Reasoning and chat": {
+      "it": "Ragionamento e conversazione",
+      "es": "Razonamiento y conversación",
+      "fr": "Raisonnement et conversation"
+    },
+    "Code assistance": {
+      "it": "Assistenza alla programmazione",
+      "es": "Asistencia de programación",
+      "fr": "Assistance à la programmation"
+    },
+    "Reasoning can increase response time.": {
+      "it": "Il ragionamento può aumentare il tempo di risposta.",
+      "es": "El razonamiento puede aumentar el tiempo de respuesta.",
+      "fr": "Le raisonnement peut augmenter le temps de réponse."
+    },
+    "MoE activates fewer parameters but still needs memory for all weights.": {
+      "it": "MoE attiva meno parametri ma richiede memoria per tutti i pesi.",
+      "es": "MoE activa menos parámetros pero necesita memoria para todos los pesos.",
+      "fr": "MoE active moins de paramètres mais nécessite de la mémoire pour tous les poids."
+    },
+    "Large weights require substantial memory; CPU use can be very slow.": {
+      "it": "I pesi grandi richiedono molta memoria; l'uso con CPU può essere molto lento.",
+      "es": "Los pesos grandes requieren mucha memoria; la CPU puede ser muy lenta.",
+      "fr": "Les poids importants nécessitent beaucoup de mémoire ; le CPU peut être très lent."
+    },
+    "Small models are less reliable on complex multi-step tasks.": {
+      "it": "I modelli piccoli sono meno affidabili nei compiti complessi con più passaggi.",
+      "es": "Los modelos pequeños son menos fiables en tareas complejas de varios pasos.",
+      "fr": "Les petits modèles sont moins fiables pour les tâches complexes en plusieurs étapes."
+    },
+    "No catalog native tool support: choose a tool-capable model for autonomous actions.": {
+      "it": "Il catalogo non indica strumenti nativi: scegli un modello compatibile per le azioni autonome.",
+      "es": "El catálogo no indica herramientas nativas: elige un modelo compatible para acciones autónomas.",
+      "fr": "Le catalogue n'indique pas d'outils natifs : choisissez un modèle compatible pour les actions autonomes."
+    },
+    "Native tool support depends on the installed variant; check engine metadata.": {
+      "it": "Gli strumenti nativi dipendono dalla variante installata; verifica i dati del motore.",
+      "es": "Las herramientas nativas dependen de la variante instalada; consulta los datos del motor.",
+      "fr": "Les outils natifs dépendent de la variante installée ; vérifiez les données du moteur."
+    },
+    "Unverified model: task suitability and native tool support are unknown.": {
+      "it": "Modello non verificato: ambiti consigliati e strumenti nativi non sono noti.",
+      "es": "Modelo sin verificar: se desconocen sus usos y herramientas nativas.",
+      "fr": "Modèle non vérifié : usages adaptés et outils natifs inconnus."
+    },
+    "Hardware estimates include weight storage and basic overhead, not a benchmark. Long context needs extra memory. CPU-only use is supported but slower; GPU offloading is optional. Maximum context is the model limit, not this app's configured context.": {
+      "it": "Le stime hardware includono pesi e memoria di base, non misurano la qualità. Un contesto lungo richiede più memoria. L'uso con sola CPU è supportato ma più lento; la GPU è facoltativa. Il contesto massimo è il limite del modello, non quello configurato nell'app.",
+      "es": "Las estimaciones incluyen pesos y memoria básica, no miden la calidad. Un contexto largo necesita más memoria. Solo CPU funciona pero es más lento; la GPU es opcional. El contexto máximo es el límite del modelo, no el configurado en la app.",
+      "fr": "Les estimations comprennent les poids et la mémoire de base, sans mesurer la qualité. Un contexte long nécessite plus de mémoire. Le CPU seul fonctionne mais plus lentement ; le GPU est facultatif. Le contexte maximal est la limite du modèle, pas celle configurée dans l'app."
     }
   },
   "legacy": {
@@ -1448,7 +1698,7 @@
     "Da un’idea": "From an idea",
     "a": "to",
     "qualcosa che funziona.": "something that works.",
-    "Veyq legge il progetto, pianifica il lavoro e usa strumenti reali. Puoi seguire ogni azione e scegliere quanto controllo mantenere.": "Veyq reads your project, plans the work and uses real tools. Follow each action and choose how much control to keep.",
+    "Veynuq legge il progetto, pianifica il lavoro e usa strumenti reali. Puoi seguire ogni azione e scegliere quanto controllo mantenere.": "Veynuq reads your project, plans the work and uses real tools. Follow each action and choose how much control to keep.",
     "↗ Esplora un progetto": "↗ Explore a project",
     "Comprendi codice, file e dipendenze": "Understand code, files and dependencies",
     "⌘ Scrivi e verifica codice": "⌘ Write and test code",
@@ -1526,7 +1776,7 @@
     "Esplora i file del progetto": "Explore project files",
     "Allega testo": "Attach files",
     "Descrivi quello che vuoi realizzare…": "Describe what you want to build…",
-    "Messaggio per Veyq": "Message for Veyq",
+    "Messaggio per Veynuq": "Message for Veynuq",
     "Chiudi esplora file": "Close file explorer",
     "File e cartelle": "Files and folders",
     "Impostazioni salvate": "Settings saved",
@@ -1613,12 +1863,12 @@
     "Attività": "Activity",
     "Mostra attività": "Toggle activity",
     "Memoria salvata": "Memory saved",
-    "Benvenuto in Veyq": "Welcome to Veyq",
+    "Benvenuto in Veynuq": "Welcome to Veynuq",
     "Scegli un modello locale o configura un’API remota nelle Impostazioni. I download partono dopo la tua scelta.": "Choose a local model or configure a remote API in Settings. Downloads start only after your choice.",
     "Configura motore locale": "Set up local engine",
     "Apri account del provider": "Open provider account",
     "Il motore locale non è disponibile. Avvialo, installalo con il pulsante di configurazione o scegli un’API remota.": "The local engine is unavailable. Start it, install it with the setup button, or choose a remote API.",
-    "Il controllo del desktop usa il tuo account Windows. Le credenziali protette e i permessi di Veyq sono esclusi. I modelli visivi possono usare screenshot; gli altri usano gli elementi accessibili delle finestre.": "Desktop control uses your Windows account. Protected credentials and Veyq permission controls are excluded. Vision models can use screenshots; other models use accessible window elements.",
+    "Il controllo del desktop usa il tuo account Windows. Le credenziali protette e i permessi di Veynuq sono esclusi. I modelli visivi possono usare screenshot; gli altri usano gli elementi accessibili delle finestre.": "Desktop control uses your Windows account. Protected credentials and Veynuq permission controls are excluded. Vision models can use screenshots; other models use accessible window elements.",
     "Primo avvio": "First run",
     "Modello installato. Selezionalo nelle Impostazioni per usarlo.": "Model installed. Select it in Settings to use it.",
     "La ricerca include il contenuto dei messaggi.": "Chat search includes message contents.",
@@ -1718,8 +1968,8 @@
     "à": "to",
     "algo que funciona.": "something that works.",
     "quelque chose qui fonctionne.": "something that works.",
-    "Veyq lee tu proyecto, planifica el trabajo y utiliza herramientas reales. Sigue cada acción y elige cuánto control mantener.": "Veyq reads your project, plans the work and uses real tools. Follow each action and choose how much control to keep.",
-    "Veyq lit votre projet, planifie le travail et utilise de vrais outils. Suivez chaque action et choisissez le contrôle à conserver.": "Veyq reads your project, plans the work and uses real tools. Follow each action and choose how much control to keep.",
+    "Veynuq lee tu proyecto, planifica el trabajo y utiliza herramientas reales. Sigue cada acción y elige cuánto control mantener.": "Veynuq reads your project, plans the work and uses real tools. Follow each action and choose how much control to keep.",
+    "Veynuq lit votre projet, planifie le travail et utilise de vrais outils. Suivez chaque action et choisissez le contrôle à conserver.": "Veynuq reads your project, plans the work and uses real tools. Follow each action and choose how much control to keep.",
     "↗ Explorar un proyecto": "↗ Explore a project",
     "↗ Explorer un projet": "↗ Explore a project",
     "Comprende código, archivos y dependencias": "Understand code, files and dependencies",
@@ -1874,8 +2124,8 @@
     "Joindre des fichiers": "Attach files",
     "Describe lo que quieres crear…": "Describe what you want to build…",
     "Décrivez ce que vous voulez créer…": "Describe what you want to build…",
-    "Mensaje para Veyq": "Message for Veyq",
-    "Message pour Veyq": "Message for Veyq",
+    "Mensaje para Veynuq": "Message for Veynuq",
+    "Message pour Veynuq": "Message for Veynuq",
     "Cerrar explorador de archivos": "Close file explorer",
     "Fermer l’explorateur de fichiers": "Close file explorer",
     "Archivos y carpetas": "Files and folders",
@@ -2044,8 +2294,8 @@
     "Afficher l’activité": "Toggle activity",
     "Memoria guardada": "Memory saved",
     "Mémoire enregistrée": "Memory saved",
-    "Bienvenido a Veyq": "Welcome to Veyq",
-    "Bienvenue dans Veyq": "Welcome to Veyq",
+    "Bienvenido a Veynuq": "Welcome to Veynuq",
+    "Bienvenue dans Veynuq": "Welcome to Veynuq",
     "Elige un modelo local o configura una API remota en Ajustes. Las descargas empiezan tras tu elección.": "Choose a local model or configure a remote API in Settings. Downloads start only after your choice.",
     "Choisissez un modèle local ou configurez une API distante dans les Paramètres. Les téléchargements commencent après votre choix.": "Choose a local model or configure a remote API in Settings. Downloads start only after your choice.",
     "Configurar motor local": "Set up local engine",
@@ -2054,8 +2304,8 @@
     "Ouvrir le compte du fournisseur": "Open provider account",
     "El motor local no está disponible. Inícialo, instálalo con el botón de configuración o elige una API remota.": "The local engine is unavailable. Start it, install it with the setup button, or choose a remote API.",
     "Le moteur local est indisponible. Démarrez-le, installez-le avec le bouton de configuration ou choisissez une API distante.": "The local engine is unavailable. Start it, install it with the setup button, or choose a remote API.",
-    "El control del escritorio usa tu cuenta Windows. Se excluyen las credenciales protegidas y los permisos de Veyq. Los modelos visuales pueden usar capturas; los otros usan elementos accesibles.": "Desktop control uses your Windows account. Protected credentials and Veyq permission controls are excluded. Vision models can use screenshots; other models use accessible window elements.",
-    "Le contrôle du bureau utilise votre compte Windows. Les identifiants protégés et les autorisations de Veyq sont exclus. Les modèles visuels utilisent les captures ; les autres utilisent les éléments accessibles.": "Desktop control uses your Windows account. Protected credentials and Veyq permission controls are excluded. Vision models can use screenshots; other models use accessible window elements.",
+    "El control del escritorio usa tu cuenta Windows. Se excluyen las credenciales protegidas y los permisos de Veynuq. Los modelos visuales pueden usar capturas; los otros usan elementos accesibles.": "Desktop control uses your Windows account. Protected credentials and Veynuq permission controls are excluded. Vision models can use screenshots; other models use accessible window elements.",
+    "Le contrôle du bureau utilise votre compte Windows. Les identifiants protégés et les autorisations de Veynuq sont exclus. Les modèles visuels utilisent les captures ; les autres utilisent les éléments accessibles.": "Desktop control uses your Windows account. Protected credentials and Veynuq permission controls are excluded. Vision models can use screenshots; other models use accessible window elements.",
     "Primer inicio": "First run",
     "Premier démarrage": "First run",
     "Modelo instalado. Selecciónalo en Ajustes para usarlo.": "Model installed. Select it in Settings to use it.",
@@ -2222,9 +2472,9 @@
     "Repository GitHub predefinito (opzionale)": "Default GitHub repository (optional)",
     "Repositorio GitHub predeterminado (opcional)": "Default GitHub repository (optional)",
     "Dépôt GitHub par défaut (facultatif)": "Default GitHub repository (optional)",
-    "Veyq può usare qualsiasi repository richiesto. Questo campo è solo un valore predefinito.": "Veyq can use any repository you request. This field is only a default.",
-    "Veyq puede usar cualquier repositorio que solicites. Este campo solo es un valor predeterminado.": "Veyq can use any repository you request. This field is only a default.",
-    "Veyq peut utiliser tout dépôt demandé. Ce champ est uniquement une valeur par défaut.": "Veyq can use any repository you request. This field is only a default.",
+    "Veynuq può usare qualsiasi repository richiesto. Questo campo è solo un valore predefinito.": "Veynuq can use any repository you request. This field is only a default.",
+    "Veynuq puede usar cualquier repositorio que solicites. Este campo solo es un valor predeterminado.": "Veynuq can use any repository you request. This field is only a default.",
+    "Veynuq peut utiliser tout dépôt demandé. Ce champ est uniquement une valeur par défaut.": "Veynuq can use any repository you request. This field is only a default.",
     "Passi massimi (0 = illimitati)": "Maximum steps (0 = unlimited)",
     "Pasos máximos (0 = ilimitados)": "Maximum steps (0 = unlimited)",
     "Étapes maximales (0 = illimité)": "Maximum steps (0 = unlimited)",

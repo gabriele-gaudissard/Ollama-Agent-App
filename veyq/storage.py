@@ -96,8 +96,10 @@ def redact(text, secrets=()):
 
 class Store:
     def __init__(self, root=None, legacy=None):
-        self.root = Path(root or os.environ.get("VEYQ_DATA_DIR") or (
-            Path(os.environ.get("LOCALAPPDATA", str(Path.home() / ".local/share"))) / "Veyq"))
+        data_home = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / ".local/share")))
+        existing = data_home / "Veyq"
+        default_root = existing if (existing / "state.json").exists() else data_home / "Veynuq"
+        self.root = Path(root or os.environ.get("VEYNUQ_DATA_DIR") or os.environ.get("VEYQ_DATA_DIR") or default_root)
         self.root.mkdir(parents=True, exist_ok=True)
         self.path = self.root / "state.json"
         self.lock = threading.RLock()

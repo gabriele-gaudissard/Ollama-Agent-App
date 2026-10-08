@@ -1,4 +1,4 @@
-name: Test and publish Veyq
+name: Test and publish Veynuq
 on:
   push:
     branches: [main]
@@ -55,5 +55,5 @@ jobs:
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" release/veyq-update.zip release/veyq-update.json --clobber
           else
-            gh release create "$tag" release/veyq-update.zip release/veyq-update.json --target "$BUILD_SHA" --title "Veyq 4.0 · ${BUILD_SHA:0:7}" --notes "Automatic build after passing Windows tests. Download veyq-update.zip, extract it and run Installer.bat. Existing managed installations update automatically." --latest
+            gh release create "$tag" release/veyq-update.zip release/veyq-update.json --target "$BUILD_SHA" --title "Veynuq 4.0 · ${BUILD_SHA:0:7}" --notes "Automatic build after passing Windows tests. Download veyq-update.zip, extract it and run Installer.bat. Existing managed installations update automatically." --latest
           fi

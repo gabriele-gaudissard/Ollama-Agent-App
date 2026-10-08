@@ -44,8 +44,8 @@ class Computer:
             raise ValueError("Use a window_id returned by computer_windows.")
         window = self.desktop().window(handle=handle).wrapper_object()
         pid = window.process_id()
-        if pid == os.getpid() or window.window_text().startswith("Veyq") or process_name(pid) in BLOCKED:
-            raise PermissionError("This application's controls are protected. Use exec_cmd for terminal commands; Veyq cannot approve its own actions.")
+        if pid == os.getpid() or window.window_text().startswith("Veynuq") or process_name(pid) in BLOCKED:
+            raise PermissionError("This application's controls are protected. Use exec_cmd for terminal commands; Veynuq cannot approve its own actions.")
         if not window.is_visible():
             raise ValueError("Window is not visible. Inspect a currently open window.")
         return window

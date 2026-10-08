@@ -8,7 +8,7 @@
       content="default-src 'none'; script-src 'self' 'unsafe-eval'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
       http-equiv="Content-Security-Policy"
     />
-    <title>Veyq</title>
+    <title>Veynuq</title>
     <link href="app.css" rel="stylesheet" />
     <script defer="" src="i18n.js"></script>
     <script defer="True" src="assets/vendor/marked.js"></script>
@@ -27,7 +27,7 @@
             height="42"
             src="assets/brand/mark-dark.svg"
             width="42"
-          />Veyq
+          />Veynuq
         </div>
         <div class="sub">Your ideas. Real actions.</div>
         <button class="primary" id="newChat">+ New activity</button>
@@ -73,7 +73,7 @@
             <div class="eyebrow">Build with intent</div>
             <h1>From an idea<br />to <span>something that works.</span></h1>
             <p>
-              Veyq reads your project, plans the work and uses real tools.
+              Veynuq reads your project, plans the work and uses real tools.
               Follow each action and choose how much control to keep.
             </p>
             <div class="suggestions">
@@ -116,7 +116,7 @@
         <div class="composer-area">
           <div class="composer">
             <textarea
-              aria-label="Message for Veyq"
+              aria-label="Message for Veynuq"
               id="prompt"
               placeholder="Describe what you want to build…"
             ></textarea>
@@ -176,7 +176,7 @@
         </p>
         <p class="sub">
           Desktop control uses your Windows account. Protected credentials and
-          Veyq permission controls are excluded. Vision models can use
+          Veynuq permission controls are excluded. Vision models can use
           screenshots; other models use accessible window elements.
         </p>
         <div class="grid">
@@ -187,11 +187,60 @@
               <option value="es">Spanish</option>
               <option value="fr">French</option>
             </select></label
-          ><label class="field"
-            >Installed models<select id="installedModels">
-              <option value="">Choose a model</option>
-            </select></label
           >
+          <div class="field">
+            <label for="installedModels">Installed models</label>
+            <div class="model-picker">
+              <select id="installedModels">
+                <option value="">Choose a model</option></select
+              ><button
+                type="button"
+                id="installedModelInfo"
+                class="info-button"
+                title="Model details"
+                aria-label="Model details"
+              >
+                ⓘ
+              </button>
+            </div>
+          </div>
+          <div class="field full-width model-downloads">
+            <div class="explorer-heading">
+              <b>Download free local models</b
+              ><button id="openCatalog">Browse 10 popular models</button>
+            </div>
+            <label for="catalogChoice">Choose a popular model</label>
+            <div class="model-picker">
+              <select id="catalogChoice">
+                <option value="">Choose a model</option></select
+              ><button
+                id="catalogChoiceInfo"
+                class="info-button"
+                title="Model details"
+                aria-label="Model details"
+              >
+                ⓘ</button
+              ><button id="downloadPopular">Download</button>
+            </div>
+            <label for="customModel">Or enter a model name</label>
+            <div class="model-picker">
+              <input
+                id="customModel"
+                placeholder="e.g. qwen3:8b or publisher/model:tag"
+              /><button
+                id="customModelInfo"
+                class="info-button"
+                title="Model details"
+                aria-label="Model details"
+              >
+                ⓘ</button
+              ><button id="downloadCustom">Download</button>
+            </div>
+            <small
+              >Free local downloads, subject to each model's license. No API
+              subscription required.</small
+            >
+          </div>
           <label class="field"
             >Provider<select id="provider">
               <option value="local">Local engine</option>
@@ -204,11 +253,22 @@
               >Local: http://localhost:11434 · API: base URL including
               /v1</small
             ></label
-          ><label class="field"
-            >Model<input id="model" list="models" /><datalist
-              id="models"
-            ></datalist></label
-          ><label class="field"
+          >
+          <div class="field">
+            <label for="model">Model</label>
+            <div class="model-picker">
+              <input id="model" list="models" /><button
+                id="modelInfo"
+                class="info-button"
+                title="Model details"
+                aria-label="Model details"
+              >
+                ⓘ
+              </button>
+            </div>
+            <datalist id="models"></datalist>
+          </div>
+          <label class="field"
             >Provider token<input
               autocomplete="off"
               id="providerToken"
@@ -264,7 +324,7 @@
               id="githubRepo"
               placeholder="owner/repository"
             /><small
-              >Veyq can use any repository you request. This field is only a
+              >Veynuq can use any repository you request. This field is only a
               default.</small
             ></label
           ><label class="field"
@@ -289,8 +349,6 @@
         <div class="settings-bottom">
           <button id="refreshModels">Refresh installed models</button
           ><button id="downloadModel">Download model</button
-          ><button id="openCatalog">Model catalog</button
-          ><button id="modelInfo">ⓘ Details</button
           ><button id="setupEngine">Set up local engine</button
           ><button id="providerAccount">Open provider account</button
           ><button class="danger" id="deleteModel">Delete model</button
@@ -427,11 +485,13 @@ Contents will appear here. Credential files are excluded.</pre>
     </div>
     <div aria-modal="true" class="modal" id="modelInfoModal" role="dialog">
       <section class="dialog">
-        <h2 id="modelInfoTitle">Model details</h2>
+        <div class="explorer-heading">
+          <h2 id="modelInfoTitle">Model details</h2>
+          <button id="closeModelInfo">Close ×</button>
+        </div>
         <div id="modelInfoContent"></div>
         <div class="buttons">
-          <button id="modelSource">Source</button
-          ><button id="closeModelInfo">Close</button>
+          <button id="modelSource">Source</button>
         </div>
       </section>
     </div>
@@ -463,10 +523,21 @@ Contents will appear here. Credential files are excluded.</pre>
         </div>
       </section>
     </div>
+    <div aria-modal="true" class="modal" id="chatProjectModal" role="dialog">
+      <section class="dialog">
+        <h2>Add to project</h2>
+        <label class="field" for="chatProjectChoice">Choose a project</label
+        ><select id="chatProjectChoice"></select>
+        <div class="buttons">
+          <button id="closeChatProject">Close</button
+          ><button class="primary" id="saveChatProject">Save</button>
+        </div>
+      </section>
+    </div>
     <div aria-modal="true" class="modal" id="setupModal" role="dialog">
       <section class="dialog">
         <div class="eyebrow">First run</div>
-        <h2>Welcome to Veyq</h2>
+        <h2>Welcome to Veynuq</h2>
         <p class="intro">
           Choose a local model or configure a remote API in Settings. Downloads
           start only after your choice.

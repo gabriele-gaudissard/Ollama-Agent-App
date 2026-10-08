@@ -8,10 +8,10 @@ The uploaded 58-point list is implemented through the following features. “Equ
 | 2 | Detect existing local engine | Probe local API and locate installed executable |
 | 3 | Download official engine if missing | Confirmed model choice triggers signed silent installer; unnecessary reinstalls avoided |
 | 4 | 14B/7B/8B first-run choice | Native first-run UI replaces terminal menu |
-| 5 | Preconfigured empty configuration | Veyq state.json; legacy codex_data.json migration retains old data |
+| 5 | Preconfigured empty configuration | Veynuq state.json; legacy codex_data.json migration retains old data |
 | 6 | Silent Pythonw launcher | Desktop shortcut uses hidden bootstrap + visible pythonw GUI; direct .bat may briefly show shell |
 | 7 | Create Desktop shortcut | Windows COM replaces temporary VBScript while delivering the same shortcut |
-| 8 | Desktop icon | Custom dark Veyq icon supersedes generic shell32 icon, per later request |
+| 8 | Desktop icon | Custom dark Veynuq icon supersedes generic shell32 icon, per later request |
 | 9 | Shortcut-only recovery installer | Installer_only_shortcut.bat |
 | 10 | Real action loop | Backend model/tool/result cycle, structured validated actions |
 | 11 | Self-correct failed commands | Actual error/output returned, up-to-three correction guidance and identical-call guard |
@@ -65,7 +65,7 @@ The uploaded 58-point list is implemented through the following features. “Equ
 
 ## Additional chat requirements
 
-- User-selected Veyq branding, original dark/light logos, dark Desktop icon and renamed repository.
+- User-selected Veynuq branding, original dark/light logos, dark Desktop icon and renamed repository.
 - Native application launch fix and real-window visual QA; 3 illustrative README screenshots from a separate profile.
 - Windows observation/input tools, shell/file/web/GitHub tools and actual autonomous repository clone/configuration verification.
 - GitHub actions accept any repository; optional default only. Application update trust remains pinned to the publisher.
@@ -77,6 +77,6 @@ The uploaded 58-point list is implemented through the following features. “Equ
 
 ## Verification boundaries
 
-Automated backend/UI tests and a real local-model repository task have been performed. Native visual QA checks Veyq itself. The Windows input controller is tested against controlled doubles for observation/approval failures; it has not been exhaustively exercised against third-party applications. The missing-engine installer has not been run on the already configured development PC. These distinctions prevent illustrative screenshots and unit tests from being presented as stronger evidence than they provide.
+Automated backend/UI tests and a real local-model repository task have been performed. Native visual QA checks Veynuq itself. The Windows input controller is tested against controlled doubles for observation/approval failures; it has not been exhaustively exercised against third-party applications. The missing-engine installer has not been run on the already configured development PC. These distinctions prevent illustrative screenshots and unit tests from being presented as stronger evidence than they provide.
 
-The Veyq name has an unrelated existing software use at https://veyq.app/; exclusivity was not established. Mandatory upstream copyright and licenses are retained. Python is a prerequisite; dependencies are installed automatically, but Python itself is not silently installed.
+Veynuq replaced the previous name after checking public software/app/package/domain sources on 8 October 2026. No exact software brand was found; this is not a legal trademark clearance. Mandatory upstream copyright and licenses are retained. Python is a prerequisite; dependencies are installed automatically, but Python itself is not silently installed.

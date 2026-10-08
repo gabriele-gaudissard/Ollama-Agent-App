@@ -196,8 +196,24 @@ class FeatureTests(unittest.TestCase):
     def test_catalog_has_ten_families_and_unknown_estimates(self):
         self.assertEqual(len(catalog()),10)
         self.assertEqual(len({m['name'].split(':')[0] for m in catalog()}),10)
-        self.assertGreater(estimate('unknown:7b')['ram_recommended_gb'],estimate('unknown:7b')['download_gb'])
+        self.assertIsNone(estimate('unknown:7b')['download_gb'])
+        self.assertGreater(estimate('unknown:7b',4_000_000_000)['ram_recommended_gb'],4)
         self.assertIsNone(estimate('unknown')['ram_min_gb'])
+        self.assertEqual(estimate('qwen3:14b')['capability'],'General agent')
+
+    def test_live_model_metadata_overrides_catalog(self):
+        response=Mock(status_code=200)
+        response.json.return_value={'capabilities':['tools','vision'],'details':{'parameter_size':'15B','quantization_level':'Q8_0'},'model_info':{'qwen.context_length':65536}}
+        with patch('veyq.desktop.requests.Session') as http,patch.object(self.api,'get_models',return_value={'ok':True,'details':[{'name':'qwen3:14b','size':15_000_000_000}]}):
+            http.return_value.post.return_value=response
+            result=self.api.get_model_info('qwen3:14b')
+        self.assertTrue(result['installed']);self.assertTrue(result['vision']);self.assertEqual(result['context_tokens'],65536)
+        self.assertEqual(result['quantization'],'Q8_0');self.assertEqual(result['installed_size_gb'],15)
+
+    def test_remote_model_does_not_inherit_local_requirements(self):
+        self.store.data['settings']['provider']='compatible'
+        result=self.api.get_model_info('qwen3:14b')
+        self.assertIsNone(result['ram_min_gb']);self.assertIsNone(result['tools'])
 
     def test_unlimited_controls_persist_and_command_does_not_time_out(self):
         self.api.save_settings({'max_steps':0,'command_timeout':0,'confirm_full':True})
