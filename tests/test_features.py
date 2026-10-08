@@ -17,6 +17,25 @@ from veyq.models import catalog, estimate
 
 
 class FeatureTests(unittest.TestCase):
+    def test_window_close_handlers_are_hashable_and_cancel_all_work(self):
+        import types
+        from veyq.desktop import main
+        class Event:
+            def __init__(self): self.handlers = []
+            def __iadd__(self, handler):
+                self.handlers.append(handler)
+                return self
+        events = types.SimpleNamespace(loaded=Event(), closing=Event(), closed=Event())
+        window = types.SimpleNamespace(events=events)
+        def start(**kwargs):
+            for event in (events.closing, events.closed):
+                self.assertEqual({handler() for handler in event.handlers}, {None})
+        webview = types.SimpleNamespace(create_window=Mock(return_value=window), start=start)
+        with patch.dict('sys.modules', {'webview': webview}), patch('sys.argv', ['app.py']), patch('veyq.desktop.ROOT', self.root), patch('veyq.desktop.Store', return_value=self.store), patch('veyq.desktop.DesktopAPI', return_value=self.api), patch.object(self.agent, 'stop', return_value={'ok': True}) as stop, patch.object(self.api, 'cancel_model_action', return_value={'ok': True}) as cancel:
+            main()
+            self.assertEqual(stop.call_count, 2)
+            self.assertEqual(cancel.call_count, 2)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)

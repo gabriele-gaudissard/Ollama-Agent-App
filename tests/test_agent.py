@@ -452,6 +452,9 @@ class UpdateTests(unittest.TestCase):
             with patch("veyq.update_worker.subprocess.Popen") as launch:
                 with self.assertRaises(ValueError): apply(plan, restart=True)
                 launch.assert_called_once()
+                if os.name == "nt":
+                    command = launch.call_args.args[0]
+                    self.assertEqual(command[command.index("-ExecutionPolicy") + 1], "Bypass")
             self.assertEqual((root / "app.py").read_bytes(), b"pass\n")
             (root / "app.py").write_bytes(b"tampered")
             with patch("veyq.update_worker.subprocess.Popen") as launch:

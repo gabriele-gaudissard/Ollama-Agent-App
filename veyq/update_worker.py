@@ -143,7 +143,7 @@ def restart_verified_installation(root, data):
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **flags)
                 except (OSError, subprocess.SubprocessError):
                     pass  # A read-only Desktop must not prevent the app reopening.
-            subprocess.Popen(["powershell", "-NoProfile", "-File", str(root / "Launcher.ps1")], cwd=root, **flags)
+            subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(root / "Launcher.ps1")], cwd=root, **flags)
         else:
             subprocess.Popen([sys.executable, str(root / "app.py")], cwd=root, **flags)
         return True

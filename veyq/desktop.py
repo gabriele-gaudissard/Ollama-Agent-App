@@ -548,8 +548,12 @@ def main():
     api._window = window
     import faulthandler
     window.events.loaded += faulthandler.cancel_dump_traceback_later
-    window.events.closed += api._agent.stop
-    window.events.closing += api._agent.stop
-    window.events.closed += api.cancel_model_action
+    def shutdown():
+        # pywebview puts callback returns in a set: API dictionaries cannot
+        # be returned from an event handler. Closing must also stop downloads.
+        api._agent.stop()
+        api.cancel_model_action()
+    window.events.closing += shutdown
+    window.events.closed += shutdown
     webview.start(debug=False, icon=str(ROOT / "assets" / "brand" / "veynuq-dark.ico"))
     instance.close()
