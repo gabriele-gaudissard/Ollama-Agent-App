@@ -1187,3 +1187,7 @@ action("toggleActivity", () =>
 );
 
 action("stopQuestion", () => call("stop_run"));
+
+action("closeActivity", () =>
+  document.querySelector(".shell").classList.remove("activity-mobile-open"),
+);

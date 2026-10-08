@@ -10,7 +10,7 @@ const w=dom.window,document=w.document;
 const dispose=w.close.bind(w);
 const calls=[];
 const settings={lang:"en",model:"qwen3:14b",provider:"local",permission:"auto",network:true,auto_update:false,workspace:"C:\\Demo",setup_completed:true,max_steps:0,command_timeout:0,github_repo:"",data_dir:"C:\\Demo",has_provider_token:false,has_github_token:false};
-w.confirm=()=>true;w.prompt=()=>"Renamed";
+w.matchMedia=()=>({matches:true});w.confirm=()=>true;w.prompt=()=>"Renamed";
 Object.defineProperty(w.navigator,"clipboard",{value:{writeText:async text=>calls.push(["clipboard",text])}});
 const api={
  get_settings:async()=>({...settings}),get_sessions:async()=>[{id:"demo",title:"Example",project_id:""}],get_projects:async()=>[],
@@ -55,6 +55,8 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,30));
  document.getElementById("prompt").value="Continue with a test";document.getElementById("prompt").dispatchEvent(new w.Event("input"));
  assert.match(document.getElementById("send").textContent,/follow-up/);await w.send();assert.ok(calls.some(c=>c[0]==="followup"));
  await w.send();assert.ok(calls.some(c=>c[0]==="stop"));w.setBusy(false);
+ document.getElementById("toggleActivity").click();await tick();assert.ok(document.querySelector(".shell").classList.contains("activity-mobile-open"));
+ document.getElementById("closeActivity").click();await tick();assert.equal(document.querySelector(".shell").classList.contains("activity-mobile-open"),false);
  await w.showCatalog();assert.equal(document.querySelectorAll(".model-card").length,1);
  w.showQuestion({id:"q1",question:"Which project?",options:["One","Two"]});document.querySelector("#questionOptions button").click();document.getElementById("submitAnswer").click();await tick();
  assert.deepEqual(calls.find(c=>c[0]==="answer"),["answer","q1","One"]);
