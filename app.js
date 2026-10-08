@@ -301,7 +301,7 @@ function renderSessions() {
       btn.className = "session" + (s.id === sessionId ? " active" : "");
       btn.disabled = busy;
       const title = document.createElement("span");
-      title.textContent = s.title;
+      title.textContent = s.untitled ? ui("New activity") : s.title;
       btn.addEventListener("mouseenter", () => {
         const distance = title.scrollWidth - title.clientWidth;
         btn.classList.toggle("marquee", distance > 0);
@@ -311,7 +311,7 @@ function renderSessions() {
         );
       });
       btn.append(title);
-      btn.title = s.title;
+      btn.title = title.textContent;
       btn.addEventListener("click", () =>
         loadSession(s.id).catch((e) => toast(e.message)),
       );

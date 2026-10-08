@@ -81,7 +81,8 @@ class DesktopAPI:
 
     def get_sessions(self, query=""):
         query = str(query).lower()[:500]
-        return [{k: s.get(k) for k in ("id", "title", "workspace", "project_id")} for s in self._store.snapshot()["sessions"]
+        return [{**{k: s.get(k) for k in ("id", "title", "workspace", "project_id")},
+                 "untitled": s.get("title") == "New activity" and not s.get("history")} for s in self._store.snapshot()["sessions"]
                 if not query or query in (s["title"] + " " + " ".join(str(m.get("content", "")) for m in s.get("history", []))).lower()]
 
     def get_projects(self):

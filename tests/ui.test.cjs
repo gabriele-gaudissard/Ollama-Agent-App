@@ -13,7 +13,7 @@ const settings={lang:"en",model:"qwen3:14b",provider:"local",permission:"auto",n
 w.matchMedia=()=>({matches:true});w.confirm=()=>true;w.prompt=()=>"Renamed";
 Object.defineProperty(w.navigator,"clipboard",{value:{writeText:async text=>calls.push(["clipboard",text])}});
 const api={
- get_settings:async()=>({...settings}),get_sessions:async()=>[{id:"demo",title:"Example",project_id:""}],get_projects:async()=>[],
+ get_settings:async()=>({...settings}),get_sessions:async()=>[{id:"demo",title:"New activity",untitled:true,project_id:""}],get_projects:async()=>[],
  get_session:async()=>({id:"demo",workspace:"C:\\Demo",history:[],plan:[]}),get_events:async()=>({events:[],busy:false,state:"idle"}),
  get_model_catalog:async()=>({models:[{name:"sample:7b",weight:"Light",download_gb:4,uses:"General writing, analysis and lightweight tool tasks"}],hardware:{ram_gb:16,disk_free_gb:100}}),
  get_models:async()=>({ok:true,models:["qwen3:14b","llama3.2:3b"]}),set_language:async lang=>{settings.lang=lang;calls.push(["language",lang]);},
@@ -60,7 +60,7 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,30));
  await w.showCatalog();assert.equal(document.querySelectorAll(".model-card").length,1);
  w.showQuestion({id:"q1",question:"Which project?",options:["One","Two"]});document.querySelector("#questionOptions button").click();document.getElementById("submitAnswer").click();await tick();
  assert.deepEqual(calls.find(c=>c[0]==="answer"),["answer","q1","One"]);
- document.getElementById("language").value="it";document.getElementById("language").dispatchEvent(new w.Event("change"));await tick();assert.equal(settings.lang,"it");
+ document.getElementById("language").value="it";document.getElementById("language").dispatchEvent(new w.Event("change"));await tick();assert.equal(settings.lang,"it");assert.equal(document.querySelector(".session span").textContent,"Nuova attività");
  const dictionaries=w.VeyqI18N.dictionaries;
  for(const [key,value] of Object.entries(dictionaries.strings))for(const lang of ["it","es","fr"])assert.ok(value[lang],key+":"+lang);
  assert.equal(new Set([...document.querySelectorAll("[id]")].map(e=>e.id)).size,document.querySelectorAll("[id]").length);
