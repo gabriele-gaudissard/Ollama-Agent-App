@@ -41,7 +41,7 @@ def wait_parent(pid):
         raise RuntimeError("L'app non si e' chiusa: aggiornamento annullato.")
 
 
-def apply(plan_file, parent_pid=0, restart=True):
+def _apply(plan_file, parent_pid=0):
     plan_file = Path(plan_file)
     plan = json.loads(plan_file.read_text(encoding="utf-8"))
     root, stage, data = (Path(plan[k]).resolve() for k in ("root", "stage", "data_root"))
@@ -119,13 +119,38 @@ def apply(plan_file, parent_pid=0, restart=True):
             runtime_path.write_bytes(old_runtime)
         write_json(data / "installation.json", previous)
         raise
+
+
+def restart_verified_installation(root, data):
+    """Only reopen the intact installation after success or early rejection."""
+    try:
+        installation = json.loads((data / "installation.json").read_text(encoding="utf-8"))
+        if root == Path(root.anchor) or (root / ".git").exists() or Path(installation["root"]).resolve() != root:
+            return False
+        if not {"app.py", "Launcher.ps1"}.issubset(installation["files"]):
+            return False
+        for name, digest in installation["files"].items():
+            path = root / name
+            if path.is_symlink() or not path.resolve().is_relative_to(root) or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+                return False
+        flags = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {"start_new_session": True}
+        if os.name == "nt":
+            subprocess.Popen(["powershell", "-NoProfile", "-File", str(root / "Launcher.ps1")], cwd=root, **flags)
+        else:
+            subprocess.Popen([sys.executable, str(root / "app.py")], cwd=root, **flags)
+        return True
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
+
+
+def apply(plan_file, parent_pid=0, restart=True):
+    plan = json.loads(Path(plan_file).read_text(encoding="utf-8"))
+    root, data = (Path(plan[k]).resolve() for k in ("root", "data_root"))
+    try:
+        return _apply(plan_file, parent_pid)
     finally:
         if restart:
-            flags = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {"start_new_session": True}
-            if os.name == "nt":
-                subprocess.Popen(["powershell", "-NoProfile", "-File", str(root / "Launcher.ps1")], cwd=root, **flags)
-            else:
-                subprocess.Popen([sys.executable, str(root / "app.py")], cwd=root, **flags)
+            restart_verified_installation(root, data)
 
 
 if __name__ == "__main__":

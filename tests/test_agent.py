@@ -437,6 +437,27 @@ class UpdateTests(unittest.TestCase):
                 apply(plan, restart=False)
             self.assertEqual((root / "app.py").read_bytes(), original)
 
+    def test_early_update_rejection_reopens_only_intact_installation(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = (Path(temp) / "app").resolve(); data = (Path(temp) / "data").resolve()
+            root.mkdir(); data.mkdir()
+            (root / "app.py").write_bytes(b"pass\n")
+            (root / "Launcher.ps1").write_bytes(b"# launcher\n")
+            previous = {"root": str(root), "commit": "old", "sequence": 0,
+                        "files": {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in ("app.py", "Launcher.ps1")}}
+            (data / "installation.json").write_text(json.dumps(previous))
+            _, manifest = self.bundle()
+            plan = data / "pending-update.json"
+            plan.write_text(json.dumps({"root": str(root), "stage": str(Path(temp) / "outside"), "data_root": str(data), "manifest": manifest, "previous": previous}))
+            with patch("veyq.update_worker.subprocess.Popen") as launch:
+                with self.assertRaises(ValueError): apply(plan, restart=True)
+                launch.assert_called_once()
+            self.assertEqual((root / "app.py").read_bytes(), b"pass\n")
+            (root / "app.py").write_bytes(b"tampered")
+            with patch("veyq.update_worker.subprocess.Popen") as launch:
+                with self.assertRaises(ValueError): apply(plan, restart=True)
+                launch.assert_not_called()
+
     def test_developer_checkout_is_never_overwritten(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp) / "app"; root.mkdir(); (root / ".git").mkdir()
