@@ -18,7 +18,19 @@ DEFAULTS = {
     "workspace": "", "max_steps": 0, "command_timeout": 0,
     "github_repo": "", "context_chars": 60000, "auto_update": True, "vision": False,
     "execution_environment": "host",
+    "desktop_scope": "all", "background_schedules": False,
+    "image_provider": "disabled", "image_url": "http://127.0.0.1:7860", "image_model": "",
+    "context_tokens": 16384, "response_tokens": 4096,
+    "collapsed_projects": [],
 }
+
+
+def activity_title(text):
+    line=text.strip().splitlines()[0] if text.strip() else 'New activity'
+    if len(line)<=100: return line
+    prefix=line[:99]
+    if ' ' in prefix: prefix=prefix.rsplit(' ',1)[0]
+    return prefix.rstrip()+'…'
 
 
 def atomic_json(path, value):

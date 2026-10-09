@@ -13,7 +13,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import requests
-from .storage import redact
+from .storage import redact, activity_title
 from .tools import TOOLS, ToolRunner
 
 
@@ -25,6 +25,10 @@ class Cancelled(Exception):
 
 class Steered(Cancelled):
     """A follow-up interrupts generation without cancelling the task."""
+
+
+class TransientModelError(RuntimeError):
+    """Transport/backend interruption before a complete response was accepted."""
 
 
 def action_intent(text):
@@ -61,6 +65,8 @@ def interrupt_response(response):
 
 
 def validate_endpoint(url, network, token=""):
+    if not isinstance(url,str) or len(url)>4000:
+        raise ValueError("Endpoint modello non valido.")
     p = urlsplit(url)
     if p.scheme not in {"http", "https"} or not p.hostname or p.username or p.password or p.query or p.fragment:
         raise ValueError("Endpoint modello non valido.")
@@ -83,6 +89,19 @@ class ModelClient:
         self.response = None
         self.steer = steer or threading.Event()
         self.base = validate_endpoint(settings["url"], settings["network"], token)
+        self.metadata = None
+
+    def local_metadata(self):
+        if self.metadata is not None: return self.metadata
+        try:
+            response=self.session.post(self.base+'/api/show',json={'model':self.settings['model']},
+                headers={'Authorization':'Bearer '+self.token} if self.token else {},timeout=(5,10),allow_redirects=False)
+            try:
+                response.raise_for_status(); self.metadata=response.json()
+            finally: response.close()
+        except (requests.RequestException,ValueError): self.metadata={}
+        if not isinstance(self.metadata,dict): self.metadata={}
+        return self.metadata
 
     def close(self):
         if self.response is not None:
@@ -90,6 +109,19 @@ class ModelClient:
         self.session.close()
 
     def chat(self, messages):
+        # No tools execute here. Retrying this response never replays a tool
+        # from an earlier accepted response; its results remain in messages.
+        for attempt in range(3):
+            try: return self._chat(messages)
+            except (requests.ConnectionError,requests.Timeout,requests.exceptions.ChunkedEncodingError,TransientModelError):
+                if self.cancel.is_set(): raise Cancelled()
+                if self.steer.is_set(): raise Steered()
+                if attempt==2: raise
+                self.emit('notice',{'text':'Model connection interrupted. Retrying the current response; completed actions will not be repeated.'})
+                if self.cancel.wait(attempt+1): raise Cancelled()
+                if self.steer.is_set(): raise Steered()
+
+    def _chat(self, messages):
         if self.cancel.is_set(): raise Cancelled()
         if self.steer.is_set(): raise Steered()
         local = self.settings["provider"] == "local"
@@ -104,7 +136,13 @@ class ModelClient:
                 elif not local and isinstance(args, dict):
                     call["function"]["arguments"] = json.dumps(args)
         from .models import estimate
-        tool_support = estimate(self.settings["model"]).get("tools") is not False if local else True
+        metadata=self.local_metadata() if local else {}
+        if self.cancel.is_set(): raise Cancelled()
+        if self.steer.is_set(): raise Steered()
+        capabilities=metadata.get('capabilities')
+        tool_support = ('tools' in capabilities if isinstance(capabilities,list) else estimate(self.settings["model"]).get("tools") is not False) if local else True
+        if not tool_support and getattr(self,'require_action',False):
+            raise RuntimeError('The selected model does not support native tools. Select an installed tool-capable model for autonomous actions.')
         payload = {"model": self.settings["model"], "messages": messages, "stream": True}
         if tool_support:
             payload["tools"] = getattr(self, 'tools', TOOLS)
@@ -113,14 +151,20 @@ class ModelClient:
         else:
             self.emit("notice", {"text": "This model is configured for chat. Choose a model with native tool calls for autonomous actions."})
         if local:
-            payload["options"] = {"temperature": .15, "num_ctx": 16384, "num_predict": 4096}
+            context=self.settings.get('context_tokens',16384)
+            lengths=[v for k,v in metadata.get('model_info',{}).items() if k.endswith('.context_length') and type(v) is int and v>0]
+            if lengths: context=min(context,min(lengths))
+            payload["options"] = {"temperature": .15, "num_ctx": context, "num_predict": self.settings.get('response_tokens',4096)}
             payload["think"] = False
         headers = {"Authorization": "Bearer " + self.token} if self.token else {}
         endpoint = "/api/chat" if local else "/chat/completions"
         self.response = self.session.post(self.base + endpoint, headers=headers, json=payload,
                                           stream=True, timeout=(10, 90), allow_redirects=False)
         if self.response.status_code != 200:
-            raise RuntimeError(f"Provider HTTP {self.response.status_code}: {self.response.text[:1000]}")
+            status=self.response.status_code; detail=self.response.text[:1000]
+            self.response.close(); self.response=None
+            error=TransientModelError if status in {502,503,504} else RuntimeError
+            raise error(f"Provider HTTP {status}: {detail}")
         message = {"role": "assistant", "content": ""}
         calls = {}
         received = 0
@@ -142,7 +186,9 @@ class ModelClient:
                         break
                 chunk = json.loads(line)
                 if chunk.get("error"):
-                    raise RuntimeError(str(chunk["error"]))
+                    detail=str(chunk['error'])
+                    error=TransientModelError if any(s in detail.lower() for s in ('error reading llama-server response','connection reset','connection closed','temporarily unavailable')) else RuntimeError
+                    raise error(detail)
                 choices = chunk.get("choices", [])
                 delta = chunk.get("message", {}) if local else (choices[0].get("delta", {}) if choices else {})
                 text = delta.get("content") or ""
@@ -350,11 +396,11 @@ class Agent:
                 settings["workspace"] = session.get("workspace") or settings["workspace"]
                 if not settings["workspace"] or not Path(settings["workspace"]).is_dir():
                     raise ValueError("Scegli una cartella di progetto prima di avviare l'agente.")
-                self.secrets = [self.store.vault.get("provider"), self.store.vault.get("github")]
+                self.secrets = [self.store.vault.get("provider"), self.store.vault.get("github"), self.store.vault.get('image')]
                 text = redact(text, self.secrets)
                 session["history"].append({"role": "user", "content": text})
                 if len(session["history"]) == 1:
-                    session["title"] = text.strip().splitlines()[0][:100]
+                    session["title"] = activity_title(text)
                     session["auto_title"] = True
                 from .durability import checkpoint
                 run_id = uuid.uuid4().hex
@@ -369,6 +415,7 @@ class Agent:
             self.run_id, self.current_session = run_id, session_id
             self.runner = ToolRunner(self.store, settings, self.run_id, self.cancel, self.emit, self.approve, self.app_root, session, self.ask)
             worker = threading.Thread(target=self._run, args=(session, settings), daemon=True)
+            self.worker = worker
             worker.start()
             return {"ok": True, "run_id": self.run_id}
 
@@ -385,7 +432,7 @@ class Agent:
                 raise ValueError("Chat non trovata.")
             settings = state["settings"]
             settings["workspace"] = session.get("workspace") or settings["workspace"]
-            self.secrets = [self.store.vault.get("provider"), self.store.vault.get("github")]
+            self.secrets = [self.store.vault.get("provider"), self.store.vault.get("github"), self.store.vault.get("image")]
             self.cancel.clear()
             self.busy, self.state = True, "running"
             self.current_session, self.run_id = session_id, uuid.uuid4().hex
@@ -420,6 +467,9 @@ class Agent:
                 "Requests phrased as 'can you', 'I want', 'help me', 'impostami', 'modificami' or 'fallo tu' authorize performing the task with tools. Only give a tutorial when the user asks how to do something. "
                 "For Windows keyboard layout changes, use keyboard_layout to inspect and set the input method; do not search unrelated Program Manager or BIOS windows. "
                 "For desktop work, inspect the window, select an editable Edit/Document for typing, and use computer_pointer for mouse click/scroll/drag. Re-inspect after each successful input. "
+                "Use computer_wait for delayed UI changes, not repeated blind clicks. Desktop scope may restrict you to the Windows Sandbox client; never use host commands or unrelated windows as a workaround. In Sandbox-only scope, a vision model may use computer_sandbox_type after observing and focusing a guest field. It cannot type in host canvases. "
+                "Use windows_sandbox for a disposable Windows desktop when requested. It cannot access network/clipboard or write host files; inputs are copied read-only. Missing Windows features are limitations, not permission to run the task on the host. "
+                "Use generate_image for requested AI-generated PNGs. If an image engine is missing, explain the necessary Settings configuration; do not pretend code or a placeholder is a generated image. Credentials go only in the vault. "
                 "Use browser_open/state/action to navigate public websites with real DOM controls. These tools use an isolated browser and do not require a plugin. Use download_file for actual file downloads. "
                 "Use view_image for images and read_document for PDF/DOCX. For document/spreadsheet/chart creation use project Python code, install necessary libraries in a project virtual environment, and inspect the generated result. "
                 "Only ask for account access if the specific requested service actually requires it. Never ask for credentials in chat; direct the user to the app's vault settings or personal sign-in in a visible browser. Public websites and local PC tools do not require accounts. "
@@ -457,6 +507,8 @@ class Agent:
             observations = []
             action_performed = False
             action_blocked = False
+            verification_pending = False
+            verification_attempts = 0
             repair_attempts = 0
             repair_note = ""
             for step in (range(settings["max_steps"]) if settings["max_steps"] else count()):
@@ -468,6 +520,8 @@ class Agent:
                     self.steer.clear()
                     if self._drain_followups(session):
                         action_performed = action_blocked = False
+                        verification_pending = False
+                        verification_attempts = 0
                         repair_attempts = 0
                         repair_note = ""
                 history = [m for m in session["history"] if m.get("role") in {"user", "assistant", "tool"}]
@@ -504,6 +558,13 @@ class Agent:
                         continue
                     text = {"it": "Non sono riuscito a completare e verificare questa richiesta con il modello selezionato. Controlla i risultati degli strumenti e prova un modello con supporto agli strumenti.", "es": "No pude completar y verificar la solicitud con el modelo seleccionado. Revisa los resultados y prueba un modelo compatible con herramientas.", "fr": "Je n’ai pas pu terminer et vérifier cette demande avec le modèle sélectionné. Consultez les résultats et essayez un modèle compatible avec les outils."}.get(settings["lang"], "I could not complete and verify this request with the selected model. Check the tool results and try a tool-capable model.")
                     message = {"role": "assistant", "content": text}
+                if not message.get('tool_calls') and verification_pending and not action_blocked:
+                    if verification_attempts<2:
+                        verification_attempts+=1
+                        repair_note='You performed a mutation but have not inspected its result. Use an appropriate read/inspection tool to verify the requested state before claiming completion. Command exit codes alone do not verify the final user-visible result. If verification is unavailable, state that clearly.'
+                        self.emit('notice',{'text':'Checking the result before completing the activity.'})
+                        continue
+                    message={'role':'assistant','content':{'it':'Sono state eseguite azioni, ma la verifica finale non è stata completata. Controlla i risultati prima di considerare concluso il lavoro.','es':'Se realizaron acciones, pero la verificación final no se completó. Revisa los resultados antes de considerar terminado el trabajo.','fr':'Des actions ont été effectuées, mais la vérification finale reste incomplète. Vérifiez les résultats avant de considérer le travail terminé.'}.get(settings['lang'],'Actions were performed, but final verification was not completed. Review the results before considering the task finished.')}
                 self._record(session, message)
                 self.emit("message", {"message": message, "history_index": len(session["history"]) - 1})
                 calls = message.get("tool_calls", [])
@@ -511,28 +572,30 @@ class Agent:
                     with self.lock:
                         if self._drain_followups(session):
                             action_performed = action_blocked = False
+                            verification_pending = False
+                            verification_attempts = 0
                             repair_attempts = 0
                             repair_note = ""
                             continue
                         self.accept_followups = False
-                        self.state = "completed"
+                        self.state = 'blocked' if action_blocked else 'unverified' if verification_pending or client.require_action else 'completed'
                         return
                 # Store a result for every call, even when it is rejected, so
                 # persisted sessions always have valid protocol pairing.
                 for call in calls:
                     function = call.get("function", {})
+                    key = None
                     try:
                         args = function.get("arguments", {})
                         if isinstance(args, str):
                             args = json.loads(args)
                         key = json.dumps([function.get("name"), args], sort_keys=True)
-                        repeats[key] += 1
                         calls_used += 1
                         if self.cancel.is_set():
                             result = {"ok": False, "error": "Operazione interrotta: azione non eseguita."}
                         elif settings["max_steps"] and calls_used > settings["max_steps"] * 3:
                             result = {"ok": False, "error": "Budget azioni esaurito."}
-                        elif repeats[key] > 3:
+                        elif repeats[key] >= 3:
                             result = {"ok": False, "error": "Azione identica ripetuta: cambia approccio o termina."}
                         elif self.followups:
                             result = {"ok": False, "error": "Skipped because a new user instruction is pending. Replan using the follow-up."}
@@ -546,13 +609,17 @@ class Agent:
                                 checkpoint(session, 'running', pending_tool=None, last_tool={'name': function.get('name', ''), 'ok': result.get('ok'), 'time': time.time()})
                                 self.store.save()
                             name = function.get("name", "")
+                            if result.get('ok') and (name in {'read_file','read_document','search_files','list_dir','git_status','computer_inspect','computer_wait','browser_state','view_image','sandbox_changes','keyboard_layout'} or name=='github' and args.get('method')=='GET'):
+                                verification_pending=False
                             if name == 'keyboard_layout' and args.get('action') == 'get' and result.get('ok'):
                                 from .system_settings import requested_layout, LAYOUTS
                                 desired = requested_layout(next((m.get('content', '') for m in reversed(session['history']) if m.get('role') == 'user'), ''))
                                 if desired and str(result.get('result', {}).get('default_tip', '')).lower() == LAYOUTS[desired][1].lower():
                                     action_performed = True  # The requested state is already verified.
-                            if result.get("ok") and (name in {"write_file", "edit_file", "make_dir", "move_file", "delete_file", "exec_cmd", "clone_repository", "save_memory", "computer_action", "computer_pointer", "download_file", "restore_backup", "browser_action"} or name in {'git_worktree','sandbox_changes'} and args.get('action') in {'create','apply'} or name == "keyboard_layout" and args.get("action") == "set" or name == "github" and args.get("method") != "GET"):
+                            if result.get("ok") and (name in {"write_file", "edit_file", "make_dir", "move_file", "delete_file", "exec_cmd", "clone_repository", "save_memory", "computer_action", "computer_pointer", 'computer_sandbox_type', "download_file", "restore_backup", "browser_action", "generate_image", "windows_sandbox"} or name in {'git_worktree','sandbox_changes'} and args.get('action') in {'create','apply'} or name == "keyboard_layout" and args.get("action") == "set" or name == "github" and args.get("method") != "GET"):
                                 action_performed = True
+                                verification_pending=name not in {'keyboard_layout','browser_action','generate_image','save_memory'}
+                                verification_attempts=0
                                 repair_note = ""
                             if not result.get("ok") and any(s in result.get("error", "") for s in ("ha negato", "disabilitato", "disattivato")):
                                 action_blocked = True
@@ -564,6 +631,7 @@ class Agent:
                                     image_path.unlink()
                     except Exception as e:
                         result = {"ok": False, "error": str(e)[:2000]}
+                    if key is not None: repeats[key] = 0 if result.get('ok') else repeats[key]+1
                     tool_message = {"role": "tool", "tool_call_id": call["id"],
                                     "name": function.get("name", ""), "content": json.dumps(result, ensure_ascii=False)}
                     self._record(session, tool_message)

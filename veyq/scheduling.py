@@ -1,4 +1,4 @@
-"""Local read-only schedules; no hidden OS startup, cloud jobs or automatic writes."""
+"""Read-only schedules in the app or its explicitly enabled Windows worker."""
 import threading
 import time
 import uuid
@@ -21,7 +21,7 @@ class Scheduler:
             try: self.tick()
             except Exception: pass  # A failed background check must never crash the UI.
 
-    def tick(self, now=None):
+    def tick(self, now=None, finish_only=False):
         now = now or time.time()
         store, agent = self.api._store, self.api._agent
         with agent.lock:
@@ -34,6 +34,7 @@ class Scheduler:
                         if agent.state != 'completed': job['enabled'] = False
                         store.save()
                     self.active = None
+                if finish_only: return
                 for job in store.data['automations']:
                     if not job['enabled'] or job['next_run'] > now: continue
                     session = next((s for s in store.data['sessions'] if s['id'] == job['session_id']), None)

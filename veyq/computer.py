@@ -15,6 +15,10 @@ BLOCKED = {"lsass.exe", "logonui.exe", "lockapp.exe", "credentialuibroker.exe", 
 
 
 def process_name(pid):
+    return process_path(pid).name.lower()
+
+
+def process_path(pid):
     kernel = ctypes.windll.kernel32
     kernel.OpenProcess.restype = ctypes.c_void_p
     handle = kernel.OpenProcess(0x1000, False, pid)
@@ -25,7 +29,7 @@ def process_name(pid):
         buffer = ctypes.create_unicode_buffer(size.value)
         if not kernel.QueryFullProcessImageNameW(ctypes.c_void_p(handle), 0, buffer, ctypes.byref(size)):
             raise PermissionError("Cannot identify the target application.")
-        return Path(buffer.value).name.lower()
+        return Path(buffer.value)
     finally:
         kernel.CloseHandle(ctypes.c_void_p(handle))
 
@@ -35,6 +39,7 @@ class Computer:
         self.data_root = Path(data_root)
         self.snapshots = {}
         self._com_thread = None
+        self.sandbox_only = False
 
     def desktop(self):
         if os.name != "nt":
@@ -64,6 +69,11 @@ class Computer:
             raise ValueError("Use a window_id returned by computer_windows.")
         window = self.desktop().window(handle=handle).wrapper_object()
         pid = window.process_id()
+        if self.sandbox_only:
+            path = process_path(pid).resolve()
+            system = Path(os.environ.get('SystemRoot', r'C:\Windows'))/'System32'
+            if path.name.lower() not in {'windowssandbox.exe','windowssandboxclient.exe','windowssandboxremotesession.exe'} or not path.is_relative_to(system.resolve()):
+                raise PermissionError('Desktop scope is Windows Sandbox only. Host windows are blocked.')
         if pid == os.getpid() or window.window_text().startswith("Veynuq") or process_name(pid) in BLOCKED:
             raise PermissionError("This application's controls are protected. Use exec_cmd for terminal commands; Veynuq cannot approve its own actions.")
         if not window.is_visible():
@@ -148,7 +158,7 @@ class Computer:
         token = uuid.uuid4().hex
         rect = window.rectangle()
         self.snapshots = {token: {"window_id": window_id, "pid": window.process_id(), "time": time.monotonic(), "elements": saved,
-                                  "rect": [rect.left, rect.top, rect.right, rect.bottom]}}
+                                  "rect": [rect.left, rect.top, rect.right, rect.bottom], 'visual':screenshot}}
         result = {"window_id": window_id, "snapshot_id": token, "elements": elements,
                   "window_rect": [rect.left, rect.top, rect.right, rect.bottom],
                   "editable_indexes": [i for i, (e, _) in enumerate(saved) if e.is_enabled() and self.editable(e)],
@@ -223,6 +233,19 @@ class Computer:
         else:
             raise ValueError("Allowed desktop actions: click, type, key.")
         return {"performed": action, "window_id": snapshot["window_id"], "snapshot_refreshed": refreshed, "note": "Re-inspect the window to verify the result."}
+
+    def sandbox_type(self,snapshot_id,index,text):
+        if not self.sandbox_only: raise PermissionError('Canvas typing is restricted to Windows Sandbox desktop scope.')
+        snapshot,window,element,refreshed=self.checked_element(snapshot_id,index)
+        if not snapshot.get('visual') or refreshed: raise ValueError('Capture a fresh Windows Sandbox screenshot before canvas typing.')
+        if not text or len(text)>20000: raise ValueError('Supply 1–20000 literal characters.')
+        window.set_focus(); element.set_focus()
+        self.verify_focus(getattr(element.element_info,'process_id',None) or window.process_id())
+        from pywinauto.keyboard import send_keys
+        literal=''.join('{'+c+'}' if c in '+^%~(){}' else c for c in text)
+        self.snapshots.pop(snapshot_id,None)
+        send_keys(literal,with_spaces=True,with_tabs=True,with_newlines=True,vk_packet=True)
+        return {'performed':'type','window_id':snapshot['window_id'],'note':'Re-inspect the isolated desktop to verify the result.'}
 
     def pointer(self, snapshot_id, index, action, x=None, y=None, end_x=None, end_y=None, delta=0):
         snapshot, window, element, refreshed = self.checked_element(snapshot_id, index)

@@ -150,6 +150,7 @@ class Updater:
         helper = self.store.root / "updates" / "update_worker.py"
         shutil.copy2(self.root / "veyq" / "update_worker.py", helper)
         shutil.copy2(self.root / "veyq" / "signing.py", helper.with_name("signing.py"))
+        shutil.copy2(self.root / 'veyq' / 'runtime.py',helper.with_name('runtime.py'))
         # Use the active runtime: signature verification must be available before
         # creating a separate environment for a dependency update.
         python = sys.executable

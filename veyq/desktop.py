@@ -10,7 +10,7 @@ from pathlib import Path
 
 import requests
 from .engine import Agent, validate_endpoint
-from .storage import Store, DEFAULTS, redact
+from .storage import Store, DEFAULTS, redact, activity_title
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -44,7 +44,8 @@ class DesktopAPI:
         s["has_provider_token"] = bool(self._store.vault.get("provider"))
         s["has_github_token"] = bool(self._store.vault.get("github"))
         s["data_dir"] = str(self._store.root)
-        s["version"] = "4.1.0"
+        s["version"] = "4.2.0"
+        s['has_image_token'] = bool(self._store.vault.get('image'))
         s["recovery_notice"] = self._store.recovery_notice
         return s
 
@@ -53,10 +54,10 @@ class DesktopAPI:
         names = {tool['function']['name'] for tool in TOOLS}
         groups = [
             ('Files and coding', 'Read, search, edit, run commands and tests, manage Git, clone repositories and restore backups.', {'list_dir','read_file','search_files','write_file','edit_file','make_dir','move_file','delete_file','exec_cmd','git_status','clone_repository','restore_backup','git_worktree','sandbox_changes'}),
-            ('Mouse and keyboard', 'Inspect Windows applications, click, double-click, right-click, drag, scroll, type and change keyboard layouts.', {'computer_windows','computer_inspect','computer_action','computer_pointer','keyboard_layout'}),
+            ('Mouse and keyboard', 'Inspect Windows applications, click, double-click, right-click, drag, scroll, type and change keyboard layouts.', {'computer_windows','computer_inspect','computer_action','computer_pointer','computer_wait','windows_sandbox','computer_sandbox_type','keyboard_layout'}),
             ('Web and browser', 'Search, read websites, download files and operate an isolated browser with observed page elements.', {'web_search','read_url','download_file','browser_open','browser_state','browser_action'}),
             ('GitHub', 'Read and update repositories, issues, pull requests, branches and releases.', {'github'}),
-            ('Images and documents', 'Inspect image files and read PDF/DOCX documents. Create documents, spreadsheets and charts with project code.', {'view_image','read_document'}),
+            ('Images and documents', 'Inspect image files, generate PNGs with a configured image engine and read PDF/DOCX documents. Create documents, spreadsheets and charts with project code.', {'view_image','read_document','generate_image'}),
             ('Memory and task control', 'Maintain local memory, plan work, ask essential questions and use context from related project chats.', {'save_memory','update_plan','ask_user','read_project_context','checkpoint_task','load_procedure','delegate_tasks'}),
         ]
         return {'total': len(names), 'groups': [{'name': title,'description': description,'count': len(tools & names)} for title, description, tools in groups]}
@@ -67,7 +68,7 @@ class DesktopAPI:
             if not isinstance(values, dict):
                 raise ValueError("Impostazioni non valide.")
             s = self._store.snapshot()["settings"]
-            for key in ("lang", "provider", "url", "model", "permission", "network", "max_steps", "command_timeout", "github_repo", "auto_update", "vision", "execution_environment"):
+            for key in ("lang", "provider", "url", "model", "permission", "network", "max_steps", "command_timeout", "github_repo", "auto_update", "vision", "execution_environment", "desktop_scope", "background_schedules", "image_provider", "image_url", "image_model", "context_tokens", "response_tokens"):
                 if key in values:
                     s[key] = values[key]
             if s["provider"] not in {"local", "compatible"} or s["permission"] not in {"always", "auto", "full"}:
@@ -76,6 +77,18 @@ class DesktopAPI:
                 raise ValueError("Supported languages: English, Italian, Spanish, French.")
             if s['execution_environment'] not in {'host', 'sandbox'}:
                 raise ValueError('Unknown execution environment.')
+            if s['desktop_scope'] not in {'all','sandbox'}: raise ValueError('Unknown desktop scope.')
+            if type(s['background_schedules']) is not bool: raise ValueError('Invalid background setting.')
+            if type(s['context_tokens']) is not int or not 8192<=s['context_tokens']<=65536: raise ValueError('Context tokens must be between 8192 and 65536.')
+            if type(s['response_tokens']) is not int or not 512<=s['response_tokens']<=8192: raise ValueError('Response tokens must be between 512 and 8192.')
+            if s['image_provider'] not in {'disabled','local_sd','compatible'}: raise ValueError('Unknown image engine.')
+            if not isinstance(s['image_model'],str) or len(s['image_model'])>200: raise ValueError('Invalid image model name.')
+            if s['image_provider']!='disabled':
+                validate_endpoint(s['image_url'],s['network'])
+                if s['image_provider']=='local_sd':
+                    from urllib.parse import urlsplit
+                    if urlsplit(s['image_url']).hostname not in {'localhost','127.0.0.1','::1'}: raise ValueError('Local image engines must use a loopback endpoint.')
+                elif not s['image_model'].strip(): raise ValueError('Configure the image model name.')
             if s["permission"] == "full" and values.get("confirm_full") is not True:
                 raise ValueError("Conferma esplicita richiesta per accesso completo.")
             if not isinstance(s["network"], bool) or not isinstance(s.get("auto_update", False), bool):
@@ -89,7 +102,14 @@ class DesktopAPI:
             if not isinstance(s["model"], str) or not s["model"].strip() or len(s["model"]) > 200:
                 raise ValueError("Nome modello non valido.")
             validate_endpoint(s["url"], s["network"])
-            for name, field in (("provider", "provider_token"), ("github", "github_token")):
+            for field in ('provider_token','github_token','image_token'):
+                if field in values and (not isinstance(values[field],str) or len(values[field])>8000): raise ValueError('Invalid credential value.')
+                if 'clear_'+field in values and type(values['clear_'+field]) is not bool: raise ValueError('Invalid credential removal setting.')
+            # Register only after validation, and only when the user changes this option.
+            if s['background_schedules'] != self._store.data['settings'].get('background_schedules',False):
+                from .background import configure
+                configure(ROOT,self._store,s['background_schedules'])
+            for name, field in (("provider", "provider_token"), ("github", "github_token"), ('image','image_token')):
                 if values.get("clear_" + field):
                     self._store.vault.set(name, "")
                 elif values.get(field):
@@ -108,14 +128,27 @@ class DesktopAPI:
                 continue
             title = s["title"]
             first = next((m.get("content", "").strip() for m in history if m.get("role") == "user"), "")
-            if s.get("auto_title", True) and first and title == first[:25]:
-                title = first.splitlines()[0][:100]
+            if s.get("auto_title", True) and first and title in {first[:25],first.splitlines()[0][:100]}:
+                title = activity_title(first)
             rows.append({**{k: s.get(k) for k in ("id", "workspace", "project_id")}, "title": title,
                          "untitled": s.get("title") == "New activity" and not history})
         return rows
 
     def get_projects(self):
         return self._store.snapshot()["projects"]
+
+    def set_project_group_open(self,project_id,opened):
+        if not isinstance(project_id,str) or type(opened) is not bool:
+            raise ValueError('Invalid project group state.')
+        with self._store.lock:
+            valid={p['id'] for p in self._store.data['projects']}|{''}
+            if project_id not in valid: raise ValueError('Project not found.')
+            collapsed=set(self._store.data['settings'].get('collapsed_projects',[]))&valid
+            if opened: collapsed.discard(project_id)
+            else: collapsed.add(project_id)
+            self._store.data['settings']['collapsed_projects']=sorted(collapsed)
+            self._store.save()
+        return {'ok':True}
 
     def set_language(self, lang):
         if lang not in {"en", "it", "es", "fr"}:
@@ -164,16 +197,50 @@ class DesktopAPI:
 
     def resume_task(self, session_id):
         session = self.get_session(session_id)
-        if not session or session.get('task', {}).get('state') not in {'interrupted','failed','cancelled','limit'}:
+        if not session or session.get('task', {}).get('state') not in {'interrupted','failed','cancelled','limit','unverified','blocked'}:
             raise ValueError('No interrupted task to resume.')
         return self._agent.start(session_id, 'Resume the previous task: ' + session['task'].get('goal', '')[:15000] + '\nInspect the actual state and uncertain tool outcomes before retrying. Preserve completed work. Use the saved progress and next steps.', policy=session['task'].get('policy'))
 
     def get_task_overview(self, session_id):
         from .workflows import PROCEDURES
+        from .windows_sandbox import executable
+        session=self.get_session(session_id) or {}
         return {'task': (self.get_session(session_id) or {}).get('task', {}),
                 'procedures': [{'name': n, 'purpose': p[0]} for n, p in PROCEDURES.items()],
                 'automations': [j for j in self._store.snapshot()['automations'] if j['session_id'] == session_id],
-                'sandbox_available': bool(shutil.which('docker'))}
+                'sandbox_available': bool(shutil.which('docker')), 'windows_sandbox_available':bool(executable()),
+                'background_enabled':self._store.data['settings'].get('background_schedules',False),
+                'artifacts':[{'id':a['id'],'name':Path(a['path']).name} for a in session.get('artifacts',[])][-30:]}
+
+    def preview_generated_image(self,session_id,artifact_id):
+        self._idle()
+        session=self.get_session(session_id) or {}
+        artifact=next((a for a in session.get('artifacts',[]) if a['id']==artifact_id),None)
+        if not artifact: raise ValueError('Generated image not found in this chat.')
+        from .tools import ToolRunner
+        runner=ToolRunner(self._store,{**self._store.data['settings'],'workspace':session.get('workspace') or self._store.data['settings']['workspace']},'preview',threading.Event(),lambda *args:None,lambda *args:False,ROOT,session)
+        try:
+            import hashlib,base64,io
+            from PIL import Image
+            path=runner.path(artifact['path'])
+            with path.open('rb') as source: pixels=source.read(15_000_001)
+            if len(pixels)>15_000_000 or hashlib.sha256(pixels).hexdigest()!=artifact['sha256']:
+                raise ValueError('Generated image changed. Inspect the current file before previewing it.')
+            with Image.open(io.BytesIO(pixels)) as image:
+                if image.width*image.height>8_000_000: raise ValueError('Image dimensions exceed the limit.')
+                image.thumbnail((1600,1200)); buffer=io.BytesIO(); image.convert('RGB').save(buffer,format='PNG')
+            return {'path':str(path),'data_url':'data:image/png;base64,'+base64.b64encode(buffer.getvalue()).decode('ascii')}
+        finally: runner.close()
+
+    def prepare_windows_sandbox(self,session_id):
+        self._idle()
+        session=self.get_session(session_id)
+        if not session: raise ValueError('Choose a chat first.')
+        # A button is an explicit user request; this method only prepares a file.
+        # Opening/operating the VM is an agent tool governed by the permission gate.
+        from .windows_sandbox import prepare
+        workspace=session.get('workspace') or self._store.data['settings']['workspace']
+        return prepare(workspace,self._store.root,threading.Event())
 
     def review_changes(self, session_id):
         import difflib
@@ -200,7 +267,7 @@ class DesktopAPI:
                     except (OSError, ValueError, PermissionError, UnicodeError): continue
                 if runner.sandbox.root:
                     parts.extend(row['diff'] for row in runner.sandbox.changes())
-                return {'source': 'Git and sandbox', 'diff': redact('\n'.join(parts)[:60000], [self._store.vault.get('provider'), self._store.vault.get('github')])}
+                return {'source': 'Git and sandbox', 'diff': redact('\n'.join(parts)[:60000], [self._store.vault.get('provider'), self._store.vault.get('github'), self._store.vault.get('image')])}
             rows = []
             for item in self.get_backups()[:30]:
                 try:
@@ -211,7 +278,7 @@ class DesktopAPI:
                     rows.extend(difflib.unified_diff(before, after, fromfile=item['path']+' (backup)', tofile=item['path']))
                 except (OSError, ValueError, UnicodeError): continue
             if runner.sandbox.root: rows.extend(row['diff'] for row in runner.sandbox.changes())
-            return {'source':'Backups and sandbox', 'diff':redact('\n'.join(rows)[:30000], [self._store.vault.get('provider'), self._store.vault.get('github')])}
+            return {'source':'Backups and sandbox', 'diff':redact('\n'.join(rows)[:30000], [self._store.vault.get('provider'), self._store.vault.get('github'), self._store.vault.get('image')])}
         finally: runner.close()
 
     def save_automation(self, session_id, prompt, interval_hours=24):
@@ -223,7 +290,7 @@ class DesktopAPI:
             raise ValueError('Choose an interval between 1 and 168 hours.')
         with self._store.lock:
             if len(self._store.data['automations']) >= 20: raise ValueError('Maximum 20 local schedules.')
-            job = {'id':uuid.uuid4().hex,'session_id':session_id,'prompt':redact(prompt, [self._store.vault.get('provider'), self._store.vault.get('github')]), 'interval_hours':interval_hours,
+            job = {'id':uuid.uuid4().hex,'session_id':session_id,'prompt':redact(prompt, [self._store.vault.get('provider'), self._store.vault.get('github'), self._store.vault.get('image')]), 'interval_hours':interval_hours,
                    'next_run':time.time()+interval_hours*3600,'enabled':True,'last_state':'pending'}
             self._store.data['automations'].append(job)
             self._store.save()
@@ -389,7 +456,7 @@ class DesktopAPI:
     def voice_status(self):
         result=self._voice.snapshot()
         if result.get('text'):
-            result['text']=redact(result['text'],[self._store.vault.get('provider'),self._store.vault.get('github')])
+            result['text']=redact(result['text'],[self._store.vault.get('provider'),self._store.vault.get('github'),self._store.vault.get('image')])
         return result
 
     def prepare_voice(self, confirmed=False):
@@ -427,7 +494,7 @@ class DesktopAPI:
         self._idle()
         if not isinstance(text, str) or len(text) > 10000:
             raise ValueError("Memory limit: 10000 characters.")
-        if redact(text, [self._store.vault.get("provider"), self._store.vault.get("github")]) != text:
+        if redact(text, [self._store.vault.get("provider"), self._store.vault.get("github"), self._store.vault.get("image")]) != text:
             raise ValueError("Do not store credentials in memory.")
         with self._store.lock:
             self._store.data["memory"] = text
@@ -647,31 +714,31 @@ class DesktopAPI:
 
 
 def main():
-    profile = ROOT / "profile.json"
-    data_dir = None
-    if not (os.environ.get("VEYNUQ_DATA_DIR") or os.environ.get("VEYQ_DATA_DIR")) and profile.exists():
-        data_dir = Path(json.loads(profile.read_text(encoding="utf-8"))["data_dir"])
-        if not data_dir.is_absolute():
-            raise ValueError("The installed profile path must be absolute.")
+    from .runtime import ProfileLease,profile_root
+    if '--background' in sys.argv:
+        from .background import run
+        data_root=sys.argv[sys.argv.index('--background-profile')+1] if '--background-profile' in sys.argv else None
+        return run(ROOT,data_root)
+    # Acquire before Store loads, recovers or saves any shared state.
+    with ProfileLease(profile_root(ROOT)).acquire(foreground=True,timeout=30) as lease:
+        return foreground_main(lease.root)
+
+
+def foreground_main(data_dir):
     store = Store(root=data_dir, legacy=ROOT / "codex_data.json")
-    instance = (store.root / "instance.lock").open("a+b")
-    try:
-        if os.name == "nt":
-            import msvcrt
-            instance.seek(0)
-            if not instance.read(1):
-                instance.write(b"0")
-                instance.flush()
-            instance.seek(0)
-            msvcrt.locking(instance.fileno(), msvcrt.LK_NBLCK, 1)
-        else:
-            import fcntl
-            fcntl.flock(instance, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
-        raise RuntimeError("Veynuq e' gia' aperto.")
+    if store.data['settings'].get('background_schedules') and os.name=='nt' and '--self-check' not in sys.argv:
+        try:
+            marker=store.root/'background-task.json'
+            record=json.loads(marker.read_text(encoding='utf-8')) if marker.exists() else {}
+            if record.get('python')!=str(Path(sys.executable).with_name('pythonw.exe')):
+                from .background import configure
+                configure(ROOT,store,True)
+        except Exception:
+            from .storage import atomic_json
+            atomic_json(store.root/'background-status.json',{'state':'setup_failed'})
     if "--self-check" in sys.argv:
         api = DesktopAPI(store)
-        print(json.dumps({"version": "4.1.0", "models": api.get_models(), "data_dir": str(store.root)}))
+        print(json.dumps({"version": "4.2.0", "models": api.get_models(), "data_dir": str(store.root)}))
         return
     if "--install" in sys.argv:
         from .updater import enable_updates
@@ -680,8 +747,9 @@ def main():
         atomic_json(ROOT / "profile.json", {"data_dir": str(store.root)})
         return
     import webview
+    from .ui import document
     api = DesktopAPI(store)
-    window = webview.create_window("Veynuq", url=str(ROOT / "index.html"), js_api=api,
+    window = webview.create_window("Veynuq", html=document(ROOT), js_api=api,
                                   width=1440, height=940, min_size=(900, 650), resizable=True, text_select=True)
     api._window = window
     import faulthandler
@@ -697,4 +765,3 @@ def main():
     window.events.closing += shutdown
     window.events.closed += shutdown
     webview.start(debug=False, icon=str(ROOT / "assets" / "brand" / "veynuq-dark.ico"))
-    instance.close()

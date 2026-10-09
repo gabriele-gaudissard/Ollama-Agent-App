@@ -926,3 +926,11 @@ summary:focus-visible {
 .voice-status { font-size: 12px; color: var(--muted); padding: 8px 5px; }
 #voiceButton.recording { color: #ffb3b3; border-color: #c45151; background: #522a30; }
 .composer-actions .left { flex-wrap: wrap; }
+/* Controls stay inside the settings scroll surface. */
+.autonomy-settings { border-top: 1px solid var(--border, #29303b); padding-top: 18px; }
+.autonomy-settings summary { cursor: pointer; font-weight: 600; margin-bottom: 16px; }
+#artifactImage { display: block; max-width: 100%; max-height: 65vh; margin: 16px auto; object-fit: contain; }
+#generatedArtifacts { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+.clipboard-copy { position: fixed; left: -10000px; top: 0; }
+.autonomy-settings .check { align-items: flex-start; }
+.autonomy-settings .check small { display: block; margin-top: 6px; color: var(--muted); font-size: 11px; line-height: 1.6; }

@@ -21,8 +21,8 @@ def public_target(url):
 
 
 class PinnedHTTPS(http.client.HTTPSConnection):
-    def __init__(self, host, port, address):
-        super().__init__(host, port, timeout=15, context=ssl.create_default_context())
+    def __init__(self, host, port, address, timeout=15):
+        super().__init__(host, port, timeout=timeout, context=ssl.create_default_context())
         self.address = address
 
     def connect(self):
@@ -34,19 +34,19 @@ class PinnedHTTPS(http.client.HTTPSConnection):
             raise
 
 
-def public_request(url, method="GET", body=None, headers=None, limit=1_000_000, cancel=None):
+def public_request(url, method="GET", body=None, headers=None, limit=1_000_000, cancel=None, timeout=15, allow_redirects=True):
     for _ in range(6):
         if cancel and cancel.is_set():
             raise RuntimeError("Operazione interrotta.")
         parsed, port, address = public_target(url)
         if parsed.scheme == "https":
-            conn = PinnedHTTPS(parsed.hostname, port, address)
+            conn = PinnedHTTPS(parsed.hostname, port, address, timeout)
         else:
-            conn = http.client.HTTPConnection(address, port, timeout=15)
+            conn = http.client.HTTPConnection(address, port, timeout=timeout)
         path = parsed.path or "/"
         if parsed.query:
             path += "?" + parsed.query
-        request_headers = {"User-Agent": "Veynuq/4.1", "Host": parsed.hostname, **(headers or {})}
+        request_headers = {"User-Agent": "Veynuq/4.2", "Host": parsed.hostname, **(headers or {})}
         payload = json.dumps(body).encode() if body is not None else None
         if payload:
             request_headers["Content-Type"] = "application/json"
@@ -54,6 +54,7 @@ def public_request(url, method="GET", body=None, headers=None, limit=1_000_000, 
             conn.request(method, path, body=payload, headers=request_headers)
             r = conn.getresponse()
             if r.status in (301, 302, 303, 307, 308):
+                if not allow_redirects: raise ValueError('Redirects are disabled for this request.')
                 next_url = urljoin(url, r.getheader("Location", ""))
                 if headers and "Authorization" in headers:
                     # Never forward an authenticated request through redirects.

@@ -11,8 +11,10 @@ from pathlib import Path
 
 if __package__:
     from .signing import verify_manifest
+    from .runtime import ProfileLease
 else:
     from signing import verify_manifest
+    from runtime import ProfileLease
 
 
 def write_json(path, data):
@@ -155,7 +157,9 @@ def apply(plan_file, parent_pid=0, restart=True):
     plan = json.loads(Path(plan_file).read_text(encoding="utf-8"))
     root, data = (Path(plan[k]).resolve() for k in ("root", "data_root"))
     try:
-        return _apply(plan_file, parent_pid)
+        if parent_pid: wait_parent(parent_pid)
+        with ProfileLease(data).acquire(foreground=True,timeout=30):
+            return _apply(plan_file, 0)
     finally:
         if restart:
             restart_verified_installation(root, data)

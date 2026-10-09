@@ -48,7 +48,7 @@
           ><button id="memory">◇ Local memory</button
           ><button id="toolsButton">⌘ Tools</button
           ><button id="settingsButton">⚙ Settings</button>
-          <div class="sub">Desktop agent · v4.1<br />No telemetry</div>
+          <div class="sub">Desktop agent · v4.2<br />No telemetry</div>
         </div>
       </aside>
       <main>
@@ -186,11 +186,14 @@
         <h2>Task center</h2>
         <p class="intro">Saved progress, reviewed changes, reusable procedures and read-only schedules.</p>
         <pre id="taskProgress" class="task-progress"></pre>
+        <p id="isolationStatus" class="sub"></p>
+        <button id="prepareWindowsSandbox">Prepare isolated Windows desktop</button>
+        <div id="generatedArtifacts"></div>
         <div class="settings-bottom"><button id="resumeTask">Resume interrupted task</button><button id="reviewChanges">Review changes</button></div>
         <pre id="changesPreview" class="task-progress" hidden></pre>
         <h3>Reusable procedures</h3><div id="procedureList"></div>
         <h3>Read-only schedules</h3>
-        <p class="sub">Uses the selected model and local project reads only. No commands, file changes, desktop actions or online tools. Runs while the app is open; missed runs resume on the next launch.</p>
+        <p class="sub">Schedules can only read the project. Enable background schedules in Settings to run while the app is closed and you are signed in. No commands, file changes or desktop actions. A remote model still receives the required context.</p>
         <label class="field">Scheduled task<textarea id="automationPrompt" maxlength="3000" placeholder="Review the project and report meaningful changes."></textarea></label>
         <label class="field">Repeat every (hours)<input id="automationHours" type="number" min="1" max="168" value="24" /></label>
         <button id="createAutomation">Create schedule</button><div id="automationList"></div>
@@ -392,6 +395,20 @@
               ></span
             ></label
           >
+          <details class="full-width autonomy-settings">
+            <summary>Autonomy and creative tools</summary>
+            <div class="grid">
+              <label class="field">Desktop target<select id="desktopScope"><option value="all">Available Windows applications</option><option value="sandbox">Windows Sandbox only</option></select><small>This restricts mouse and keyboard targets. File tools and commands keep their own workspace and execution permissions.</small></label>
+              <label class="field">Context capacity (tokens)<input id="contextTokens" type="number" min="8192" max="65536" step="1024" value="16384" /><small>Higher context uses more memory. The installed model limit is respected.</small></label>
+              <label class="field">Maximum response tokens<input id="responseTokens" type="number" min="512" max="8192" step="512" value="4096" /></label>
+              <label class="check full-width"><input id="backgroundSchedules" type="checkbox" /><span>Run read-only schedules while the app is closed<small>Creates a visible Windows scheduled task for this signed-in user, without administrator rights. Checks every five minutes; opening Veynuq stops the worker. Nothing runs while signed out.</small></span></label>
+              <label class="field">Image engine<select id="imageProvider"><option value="disabled">Disabled</option><option value="local_sd">Local Stable Diffusion API</option><option value="compatible">Compatible image API</option></select></label>
+              <label class="field">Image endpoint<input id="imageEndpoint" type="url" placeholder="http://127.0.0.1:7860" /><small>Local: an already running Stable Diffusion API. Remote: HTTPS API base URL including /v1, when required.</small></label>
+              <label class="field">Image model<input id="imageModel" maxlength="200" placeholder="Model name for the compatible API" /></label>
+              <label class="field">Image provider token<input id="imageToken" type="password" autocomplete="off" /><small>Optional for a local engine. Stored separately in the vault; never put credentials in chat.</small></label>
+              <button id="clearImageToken">Remove image token</button>
+            </div>
+          </details>
         </div>
         <div class="settings-bottom">
           <button id="refreshModels">Refresh installed models</button
@@ -416,6 +433,9 @@
           ><button class="primary" id="saveSettings">Save settings</button>
         </div>
       </section>
+    </div>
+    <div aria-modal="true" class="modal" id="artifactModal" role="dialog">
+      <section class="dialog"><h2>Generated image</h2><p id="artifactPath"></p><img id="artifactImage" alt="Generated image" /><div class="buttons"><button id="closeArtifact">Close</button></div></section>
     </div>
     <div
       aria-modal="true"

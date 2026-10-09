@@ -61,6 +61,12 @@ coverage/
 /backups/
 /sandboxes/
 /voice-models/
+/windows-sandboxes/
+background-task.json
+background-task.xml
+background-status.json
+background-stop
+profile-owner.json
 *.gguf
 *.safetensors
 __pycache__/

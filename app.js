@@ -1,6 +1,19 @@
 "use strict";
 const $ = (id) => document.getElementById(id);
 const ui = (text) => window.VeyqI18N.text(text);
+async function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    try { await navigator.clipboard.writeText(text); return; } catch {}
+  }
+  // Native HTML documents may have no secure browser origin. Copy still runs
+  // only from a user's click; no clipboard content is read by this fallback.
+  const previous=document.activeElement, field=document.createElement('textarea');
+  field.className='clipboard-copy'; field.value=text; field.readOnly=true;
+  document.body.append(field); field.select();
+  try {
+    if (!document.execCommand('copy')) throw Error(ui('Select the text and press Ctrl+C'));
+  } finally { field.remove(); previous?.focus(); }
+}
 let projects = [],
   assignmentSession = "",
   activeSession = "",
@@ -105,8 +118,7 @@ function codeBlock(parent, text, language) {
   btn.className = "copy";
   btn.textContent = "Copia " + (language || "");
   btn.addEventListener("click", () =>
-    navigator.clipboard
-      .writeText(text)
+    copyText(text)
       .then(() => toast("Copiato"))
       .catch(() => toast("Seleziona il testo e usa Ctrl+C")),
   );
@@ -177,8 +189,7 @@ function renderText(parent, text) {
     button.className = "copy";
     button.textContent = ui("Copy");
     button.addEventListener("click", () =>
-      navigator.clipboard
-        .writeText(raw)
+      copyText(raw)
         .then(() => toast("Copied"))
         .catch((e) => toast(e.message)),
     );
@@ -203,8 +214,7 @@ function message(role, text, historyIndex = null) {
   const copy = document.createElement("button");
   copy.textContent = ui("Copy Markdown");
   copy.addEventListener("click", () =>
-    navigator.clipboard
-      .writeText(box.dataset.raw)
+    copyText(box.dataset.raw)
       .then(() => {
         copy.textContent = ui("Copied!");
         setTimeout(() => (copy.textContent = ui("Copy Markdown")), 2000);
@@ -307,13 +317,15 @@ function renderSessions() {
     details.className = "project-group";
     details.open =
       !!$("search").value ||
-      localStorage.getItem("group-" + group.id) !== "closed";
-    details.addEventListener("toggle", () =>
-      localStorage.setItem(
-        "group-" + group.id,
-        details.open ? "open" : "closed",
-      ),
-    );
+      !(settings.collapsed_projects || []).includes(group.id);
+    details.addEventListener("toggle", () => {
+      if ($('search').value) return;
+      const collapsed = new Set(settings.collapsed_projects || []);
+      if (details.open === !collapsed.has(group.id)) return;
+      if (details.open) collapsed.delete(group.id); else collapsed.add(group.id);
+      settings.collapsed_projects = [...collapsed];
+      call('set_project_group_open', group.id, details.open).catch(e => toast(e.message));
+    });
     const summary = document.createElement("summary");
     summary.textContent = group.name + " · " + items.length;
     details.append(summary);
@@ -676,7 +688,23 @@ async function showTaskCenter() {
   const overview = await call('get_task_overview', sessionId);
   const task = overview.task;
   $('taskProgress').textContent = task.state ? [ui('Task state') + ': ' + ui(task.state), task.goal, task.progress, task.next_steps].filter(Boolean).join('\n\n') : ui('No saved task progress yet.');
-  $('resumeTask').disabled = busy || !['interrupted','failed','cancelled','limit'].includes(task.state);
+  $('resumeTask').disabled = busy || !['interrupted','failed','cancelled','limit','unverified','blocked'].includes(task.state);
+  $('prepareWindowsSandbox').disabled = busy;
+  $('isolationStatus').textContent = ui(overview.windows_sandbox_available ? 'Windows Sandbox launcher is available; Windows feature and virtualization requirements still apply.' : 'Windows Sandbox is unavailable on this installation. Preparation does not enable Windows features.') + ' ' + ui(overview.background_enabled ? 'Background schedules are enabled for this user.' : 'Background schedules are disabled.');
+  $('generatedArtifacts').replaceChildren();
+  for (const artifact of overview.artifacts || []) {
+    const button = document.createElement('button');
+    button.textContent = ui('Preview generated image') + ' · ' + artifact.name;
+    button.addEventListener('click',async () => {
+      try {
+        const preview=await call('preview_generated_image',sessionId,artifact.id);
+        $('artifactPath').textContent=preview.path;
+        $('artifactImage').src=preview.data_url;
+        open('artifactModal');
+      } catch(error) { toast(error.message); }
+    });
+    $('generatedArtifacts').append(button);
+  }
   $('reviewChanges').disabled = busy;
   $('createAutomation').disabled = busy;
   $('changesPreview').hidden = true;
@@ -778,6 +806,12 @@ action('reviewChanges', async () => {
   $('changesPreview').hidden = false;
 });
 action('createAutomation', async () => { await call('save_automation', sessionId, $('automationPrompt').value, Number($('automationHours').value)); $('automationPrompt').value = ''; await showTaskCenter(); });
+action('prepareWindowsSandbox',async () => {
+  const result=await call('prepare_windows_sandbox',sessionId);
+  $('changesPreview').hidden=false;
+  $('changesPreview').textContent=ui('Isolated desktop configuration prepared')+'\n'+result.configuration+'\n'+ui('The project copy is read-only. Network, clipboard, microphone, camera and printer sharing are disabled. Opening the desktop requires the existing Windows Sandbox feature.');
+});
+action('closeArtifact',() => { $('artifactImage').removeAttribute('src'); close('artifactModal'); });
 
 async function showSettings() {
   settings = await call("get_settings");
@@ -793,11 +827,16 @@ async function showSettings() {
     ["timeout", "command_timeout"],
     ["githubRepo", "github_repo"],
     ["executionEnvironment", "execution_environment"],
+    ['desktopScope','desktop_scope'],['contextTokens','context_tokens'],['responseTokens','response_tokens'],
+    ['imageProvider','image_provider'],['imageEndpoint','image_url'],['imageModel','image_model'],
   ])
     $(id).value = settings[key];
   $("network").checked = settings.network;
   $("vision").checked = !!settings.vision;
   $("autoUpdate").checked = !!settings.auto_update;
+  $('backgroundSchedules').checked=!!settings.background_schedules;
+  $('imageToken').value='';
+  $('imageToken').placeholder=ui(settings.has_image_token ? 'Saved in vault; leave blank to keep it' : 'Optional image provider token');
   $("providerToken").value = "";
   $("githubToken").value = "";
   $("providerToken").placeholder = settings.has_provider_token
@@ -846,6 +885,10 @@ async function saveSettings() {
     command_timeout: Number($("timeout").value),
     github_repo: $("githubRepo").value.trim(),
     execution_environment: $("executionEnvironment").value || 'host',
+    desktop_scope:$('desktopScope').value || 'all',
+    context_tokens:Number($('contextTokens').value),response_tokens:Number($('responseTokens').value),
+    background_schedules:$('backgroundSchedules').checked,
+    image_provider:$('imageProvider').value,image_url:$('imageEndpoint').value.trim(),image_model:$('imageModel').value.trim(),image_token:$('imageToken').value,
     provider_token: $("providerToken").value,
     github_token: $("githubToken").value,
     confirm_full: $("fullConsent").checked,
@@ -940,6 +983,12 @@ action("clearGithubToken", async () => {
   }
 });
 action("updates", () => checkUpdates(false));
+action('clearImageToken',async () => {
+  if(confirm(ui('Remove the image provider token?'))) {
+    await call('save_settings',{clear_image_token:true,confirm_full:settings.permission==='full'});
+    $('imageToken').value=''; toast('Token rimosso');
+  }
+});
 action("memory", async () => {
   $("memoryText").value = (await call("get_memory")) || "";
   open("memoryModal");

@@ -46,7 +46,8 @@ def ensure_dependencies(stream):
 if __name__ == '__main__':
     diagnostic_stream, diagnostic_path = startup_log()
     try:
-        ensure_dependencies(diagnostic_stream)
+        # A scheduled read-only worker must never install software in the background.
+        if '--background' not in sys.argv: ensure_dependencies(diagnostic_stream)
         from veyq.desktop import main
         main()
     except Exception as error:

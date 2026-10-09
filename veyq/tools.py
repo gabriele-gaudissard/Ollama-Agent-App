@@ -59,6 +59,10 @@ TOOLS = [
     schema("computer_inspect", "Inspect one returned window_id and its accessible elements. Optionally capture a screenshot for a vision-capable model. Do not invent window IDs or element indexes.", {"window_id": I, "screenshot": B}, ["window_id"]),
     schema("computer_action", "Click an inspected element, type literal text, or send a shortcut such as CTRL+S. Uses a snapshot_id and element index from computer_inspect; re-inspect after EVERY action. Runs with current Windows user privileges.", {"snapshot_id": S, "index": I, "action": {"type": "string", "enum": ["click", "type", "key"]}, "text": S}, ["snapshot_id", "index", "action"]),
     schema("computer_pointer", "Mouse click/double-click/right-click, move, scroll or drag in an inspected window. Select a safe element index. Coordinates are window-relative; omit x/y to use the element center. Drag requires end_x/end_y; scroll delta is wheel notches (-10 to 10). Re-inspect after the action.", {"snapshot_id": S, "index": I, "action": {"type": "string", "enum": ["click", "double_click", "right_click", "move", "scroll", "drag"]}, "x": I, "y": I, "end_x": I, "end_y": I, "delta": I}, ["snapshot_id", "index", "action"]),
+    schema('computer_wait','Wait up to 30 seconds for literal text/value in an already observed window, then return a fresh observation. Does not click, type or guess new windows.',{'window_id':I,'text':S,'timeout':I},['window_id','text']),
+    schema('windows_sandbox','Open a disposable Windows desktop using the already enabled Windows Sandbox feature. Networking, clipboard, microphone, camera and printers are disabled. Only a filtered read-only project copy is mapped. Never falls back to host execution.',{},[]),
+    schema('computer_sandbox_type','Type literal text into the observed Windows Sandbox viewport after focusing its guest field. Requires Windows Sandbox desktop scope and a fresh screenshot from a vision-capable model. Cannot target host applications.',{'snapshot_id':S,'index':I,'text':S},['snapshot_id','index','text']),
+    schema('generate_image','Generate a real PNG using the configured image engine and save it in the workspace. Local engines need no account; a remote provider may need a token entered personally in Settings. Never invent generated images.',{'prompt':S,'path':S,'width':I,'height':I},['prompt','path']),
     schema("keyboard_layout", "Read or change the current user's Windows keyboard layout directly. Use get to inspect, set with us/uk/it/fr/de/es to set the default and verify. Preserves existing languages and Windows display language. Does not pretend to modify the BIOS or every already-open window.", {"action": {"type": "string", "enum": ["get", "set"]}, "layout": {"type": "string", "enum": ["us", "uk", "it", "fr", "de", "es"]}}, ["action"]),
     schema("read_document", "Extract bounded text from a PDF or DOCX file; other files use read_file. Never execute document macros.", {"path": S}, ["path"]),
     schema("download_file", "Download a public HTTP(S) file into the workspace, with a 50 MB limit, optional SHA-256 verification and backup before overwrite. Download does not execute the file.", {"url": S, "path": S, "sha256": S}, ["url", "path"]),
@@ -69,7 +73,7 @@ TOOLS = [
     schema("browser_action", "Act on an element returned by browser_open/state. Type literal text, click, select an option, send an allowed key, or scroll up/down using text. Returns a fresh page observation. Never submit secrets or perform unrelated external actions.", {"snapshot_id": S, "index": I, "action": {"type": "string", "enum": ["click", "type", "select", "key", "scroll"]}, "text": S}, ["snapshot_id", "index", "action"]),
 ]
 SPECS = {t["function"]["name"]: t["function"]["parameters"] for t in TOOLS}
-WRITE = {"write_file", "edit_file", "make_dir", "move_file", "delete_file", "download_file"}
+WRITE = {"write_file", "edit_file", "make_dir", "move_file", "delete_file", "download_file", "generate_image"}
 SKIP = {".git", "node_modules", ".venv", "venv", "__pycache__", ".ssh", ".aws", ".azure", ".codex", ".veyq", "dist", "build"}
 
 
@@ -124,6 +128,7 @@ class ToolRunner:
             self.cwd = self.workspace
         from .computer import Computer
         self.computer = Computer(store.root)
+        self.computer.sandbox_only = settings.get('desktop_scope') == 'sandbox'
         from .browser import Browser
         self.browser = Browser(store.root, cancel)
         from .sandbox import Sandbox
@@ -162,7 +167,7 @@ class ToolRunner:
             raise PermissionError("Accesso online disattivato nelle impostazioni.")
         # A shell has unrestricted host privileges; with offline tools enabled it
         # could still reach the network. Refuse it unless network is enabled.
-        if name in {"exec_cmd", "computer_windows", "computer_inspect", "computer_action", "computer_pointer"} and not self.settings["network"] and not (name == 'exec_cmd' and self.settings.get('execution_environment') == 'sandbox'):
+        if name in {"exec_cmd", "computer_windows", "computer_inspect", "computer_action", "computer_pointer", "computer_wait", 'computer_sandbox_type'} and not self.settings["network"] and not (name == 'exec_cmd' and self.settings.get('execution_environment') == 'sandbox' or name.startswith('computer_') and self.settings.get('desktop_scope') == 'sandbox'):
             raise PermissionError("Terminale disabilitato mentre la rete e' spenta: i comandi non sono isolati dal sistema.")
         outside = any(not p.is_relative_to(self.workspace) for p in paths)
         app_write = name in WRITE and any(p.is_relative_to(self.app_root) or ".git" in p.parts for p in paths)
@@ -180,7 +185,7 @@ class ToolRunner:
             return True, "Accesso fuori dal progetto"
         if app_write:
             return True, "Modifica dell'app o dei metadati Git"
-        if name in {"exec_cmd", "delete_file", "save_memory", "clone_repository", "computer_windows", "computer_inspect", "computer_action", "computer_pointer", "read_project_context", "restore_backup", "download_file", "browser_open", "browser_state", "browser_action"}:
+        if name in {"exec_cmd", "delete_file", "save_memory", "clone_repository", "computer_windows", "computer_inspect", "computer_action", "computer_pointer", "computer_wait", 'computer_sandbox_type', "windows_sandbox", "generate_image", "read_project_context", "restore_backup", "download_file", "browser_open", "browser_state", "browser_action"}:
             return True, "Operazione che richiede conferma"
         if name == "github" and args["method"] != "GET":
             return True, "Pubblicazione/modifica su GitHub"
@@ -263,6 +268,49 @@ class ToolRunner:
 
     def tool_computer_windows(self):
         return self.computer.windows()
+
+    def tool_computer_wait(self, window_id, text, timeout=10):
+        if not text or len(text)>500 or type(timeout) is not int or not 1<=timeout<=30:
+            raise ValueError('Wait needs 1–500 literal characters and a timeout from 1 to 30 seconds.')
+        if not any(s['window_id']==window_id for s in self.computer.snapshots.values()):
+            raise ValueError('Inspect this window before waiting for its state.')
+        deadline=time.monotonic()+timeout
+        while True:
+            if self.cancel.is_set(): raise RuntimeError('Desktop wait stopped.')
+            result=self.computer.inspect(window_id)
+            if any(text.lower() in (e.get('name','')+' '+e.get('value','')).lower() for e in result['elements']):
+                return {**result,'matched':True}
+            if time.monotonic()>=deadline: raise TimeoutError('Expected desktop text was not observed. Inspect the actual state before retrying.')
+            self.cancel.wait(.5)
+
+    def tool_windows_sandbox(self):
+        from .windows_sandbox import open_desktop
+        return open_desktop(self.workspace,self.store.root,self.cancel)
+
+    def tool_generate_image(self,prompt,path,width=1024,height=1024):
+        target=self.path(path)
+        if target.suffix.lower()!='.png': raise ValueError('Generated images must use a .png filename.')
+        if target.exists() and target.stat().st_size>5_000_000: raise ValueError('Existing image exceeds the backup limit; choose a new filename.')
+        before=hashlib.sha256(target.read_bytes()).hexdigest() if target.is_file() else None
+        from .image_generation import generate
+        pixels,actual_width,actual_height=generate(self.settings,self.store.vault.get('image'),prompt,width,height,self.cancel)
+        if self.cancel.is_set(): raise RuntimeError('Image generation stopped. No output file was written.')
+        if self.path(path)!=target or (hashlib.sha256(target.read_bytes()).hexdigest() if target.is_file() else None)!=before:
+            raise PermissionError('Destination changed during generation. No file was written.')
+        backup=self.backup(target) if target.exists() else None
+        target.parent.mkdir(parents=True,exist_ok=True)
+        from .storage import atomic_bytes
+        atomic_bytes(target,pixels)
+        artifact={'id':uuid.uuid4().hex,'path':str(target),'sha256':hashlib.sha256(pixels).hexdigest()}
+        with self.store.lock:
+            self.session.setdefault('artifacts',[]).append(artifact)
+            self.session['artifacts']=self.session['artifacts'][-100:]
+            self.store.save()
+        return {**artifact,'width':actual_width,'height':actual_height,'bytes':len(pixels),'backup':backup,'note':'Preview this image in Task center.'}
+
+    def tool_computer_sandbox_type(self,snapshot_id,index,text):
+        if not self.vision_available(): raise PermissionError('A vision-capable model is required for isolated desktop canvas typing.')
+        return self.computer.sandbox_type(snapshot_id,index,text)
 
     def tool_computer_inspect(self, window_id, screenshot=False):
         if screenshot:
@@ -587,7 +635,7 @@ class ToolRunner:
         from .storage import redact
         if len(progress) > 5000 or len(next_steps) > 3000:
             raise ValueError('Keep progress and next steps concise.')
-        secrets = [self.store.vault.get('provider'), self.store.vault.get('github')]
+        secrets = [self.store.vault.get('provider'), self.store.vault.get('github'), self.store.vault.get('image')]
         with self.store.lock:
             checkpoint(self.session, 'running', progress=redact(progress, secrets), next_steps=redact(next_steps, secrets))
             self.store.save()
@@ -691,7 +739,7 @@ class ToolRunner:
 
     def tool_save_memory(self, text):
         from .storage import redact
-        if redact(text, [self.store.vault.get("provider"), self.store.vault.get("github")]) != text:
+        if redact(text, [self.store.vault.get("provider"), self.store.vault.get("github"), self.store.vault.get("image")]) != text:
             raise ValueError("Non salvare credenziali in memoria.")
         with self.store.lock:
             self.store.data["memory"] = (self.store.data.get("memory", "") + "\n" + text)[-10000:]
