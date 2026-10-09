@@ -77,6 +77,15 @@ class ControlTests(unittest.TestCase):
         controls[0].process_id.return_value=123
         with patch.object(computer,'target',return_value=controls[0]),patch.object(computer,'password',return_value=False):result=computer.inspect(42)
         self.assertIn(22,result['editable_indexes']);self.assertFalse(result['truncated'])
+    def test_native_control_initializes_each_worker_and_balances_own_com_reference(self):
+        computer=Computer(self.store.root);desktop=Mock()
+        with patch.object(sys,'coinit_flags',0,create=True),patch('veyq.computer.ctypes.windll.ole32.CoInitializeEx',return_value=0) as initialize,patch('veyq.computer.ctypes.windll.ole32.CoUninitialize') as finish,patch.dict(sys.modules,{'pywinauto':types.SimpleNamespace(Desktop=desktop)}):
+            computer.desktop();computer.desktop();initialize.assert_called_once_with(None,0)
+            computer.snapshots['s']={};computer.close();computer.close();finish.assert_called_once();self.assertFalse(computer.snapshots)
+            def another_activity():
+                other=Computer(self.store.root);other.desktop();other.close()
+            worker=threading.Thread(target=another_activity);worker.start();worker.join(timeout=2)
+            self.assertFalse(worker.is_alive());self.assertEqual(initialize.call_count,2);self.assertEqual(finish.call_count,2)
     def test_changed_control_identity_rejects_stale_click(self):
         computer=Computer(self.store.root);element=Mock();element.element_info.runtime_id=[2];element.element_info.control_type='Button';element.element_info.name='Different'
         window=Mock();window.process_id.return_value=123
