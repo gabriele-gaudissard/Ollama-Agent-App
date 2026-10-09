@@ -17,7 +17,7 @@ Use the release ZIP for installation. GitHub's **Source code** archives and **Co
 
 ## See Veynuq
 
-Three screenshots of the running Windows application in Italian with an isolated demo profile. The illustrative conversation contains no personal chat or credentials and is not a benchmark. New profiles start in English.
+Three screenshots of the running Windows application in English with an isolated demo profile. The illustrative conversation contains no personal chat or credentials and is not a benchmark. New profiles start in English.
 
 **Workspace and conversation** — both user and agent messages are aligned left; the composer stays visible while history scrolls.
 
