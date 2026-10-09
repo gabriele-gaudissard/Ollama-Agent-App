@@ -1,8 +1,0 @@
-pywebview>=5.4,<7
-requests>=2.32.4,<3
-beautifulsoup4>=4.13,<5
-keyring>=25.6,<26
-cryptography>=46,<49
-pywinauto>=0.6.9,<0.7; sys_platform == 'win32'
-pypdf>=6,<7
-Pillow>=11,<13

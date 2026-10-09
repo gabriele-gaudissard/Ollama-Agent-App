@@ -1679,6 +1679,16 @@
       "it": "Le stime hardware includono pesi e memoria di base, non misurano la qualità. Un contesto lungo richiede più memoria. L'uso con sola CPU è supportato ma più lento; la GPU è facoltativa. Il contesto massimo è il limite del modello, non quello configurato nell'app.",
       "es": "Las estimaciones incluyen pesos y memoria básica, no miden la calidad. Un contexto largo necesita más memoria. Solo CPU funciona pero es más lento; la GPU es opcional. El contexto máximo es el límite del modelo, no el configurado en la app.",
       "fr": "Les estimations comprennent les poids et la mémoire de base, sans mesurer la qualité. Un contexte long nécessite plus de mémoire. Le CPU seul fonctionne mais plus lentement ; le GPU est facultatif. Le contexte maximal est la limite du modèle, pas celle configurée dans l'app."
+    },
+    "Follow-up received. Updating the current activity.": {
+      "it": "Follow-up ricevuto. Aggiorno l’attività in corso.",
+      "es": "Seguimiento recibido. Actualizando la actividad actual.",
+      "fr": "Suivi reçu. Mise à jour de l’activité en cours."
+    },
+    "Execution requested. Retrying with tools.": {
+      "it": "Richiesta di esecuzione ricevuta. Riprovo con gli strumenti.",
+      "es": "Solicitud de ejecución recibida. Reintentando con herramientas.",
+      "fr": "Exécution demandée. Nouvel essai avec les outils."
     }
   },
   "legacy": {

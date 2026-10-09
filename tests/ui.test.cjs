@@ -15,6 +15,8 @@ const settings={lang:"en",model:"qwen3:14b",provider:"local",permission:"auto",n
 w.matchMedia=()=>({matches:true});w.confirm=()=>true;w.prompt=()=>"Renamed";
 Object.defineProperty(w.navigator,"clipboard",{value:{writeText:async text=>calls.push(["clipboard",text])}});
 const api={
+ delete_session:async id=>{calls.push(["delete",id]);const i=chatRows.findIndex(s=>s.id===id);if(i>=0)chatRows.splice(i,1);},
+ create_session:async()=>{calls.push(["create"]);const id="created";chatRows.push({id,title:"New activity",untitled:true,project_id:""});return id;},
  get_settings:async()=>({...settings}),get_sessions:async()=>chatRows,get_projects:async()=>[{id:"project-one",name:"Project one"}],
  get_session:async id=>({id,workspace:"C:\\Demo",history:id==="other"?[{role:"user",content:"Other conversation"}]:[],plan:[]}),get_events:async()=>eventState,
  assign_project:async(id,project)=>{calls.push(["assign",id,project]);chatRows.find(s=>s.id===id).project_id=project;},
@@ -88,6 +90,14 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,30));
  const dictionaries=w.VeyqI18N.dictionaries;
  for(const [key,value] of Object.entries(dictionaries.strings))for(const lang of ["it","es","fr"])assert.ok(value[lang],key+":"+lang);
  assert.equal(new Set([...document.querySelectorAll("[id]")].map(e=>e.id)).size,document.querySelectorAll("[id]").length);
- console.log("UI checks passed: sanitized Markdown, highlighting, translations, copy, streaming, follow-up/stop, catalog, questions, language persistence and unique IDs.");
+ await w.loadSession("other");const beforeDelete=chatRows.length;
+ document.getElementById("deleteChat").click();await tick();
+ assert.equal(chatRows.length,beforeDelete-1);assert.ok(!chatRows.some(s=>s.id==="other"));
+ assert.equal(calls.filter(c=>c[0]==="create").length,0);assert.ok(document.querySelector(".session.active"));
+ document.getElementById("deleteChat").click();await tick();
+ assert.equal(chatRows.length,0);assert.equal(document.querySelectorAll(".session").length,0);assert.equal(document.querySelectorAll(".message").length,0);
+ assert.equal(document.getElementById("welcome").hidden,false);assert.equal(calls.filter(c=>c[0]==="create").length,0);
+ w.dispatchEvent(new w.Event("pywebviewready"));await tick();assert.equal(chatRows.length,0);assert.equal(calls.filter(c=>c[0]==="create").length,0);
+ console.log("UI checks passed, including actual removal of chats and no replacement empty chat after deletion/restart.");
  dispose();
 })().catch(error=>{console.error(error);dispose();process.exitCode=1;});
