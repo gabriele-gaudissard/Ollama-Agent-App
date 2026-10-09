@@ -6,15 +6,15 @@ Veynuq (pronounced “VAY-nook”) is an independent Windows desktop AI agent. I
 
 ## See Veynuq
 
-Three screenshots of the running Windows application with an isolated demo profile. The illustrative conversation contains no personal chat or credentials and is not a benchmark.
+Three screenshots of the running Windows application in Italian with an isolated demo profile. The illustrative conversation contains no personal chat or credentials and is not a benchmark. New profiles start in English.
 
 **Workspace and conversation** — both user and agent messages are aligned left; the composer stays visible while history scrolls.
 
 ![Workspace and conversation](docs/screenshots/workspace.png)
 
-**Project explorer** — browse folders, read real files and refer to them in chat.
+**Integrated tools** — file and coding actions, mouse and keyboard, browser, GitHub, documents and memory.
 
-![Project explorer](docs/screenshots/explorer.png)
+![Integrated tools](docs/screenshots/explorer.png)
 
 **Models and settings** — installed models, the ten-model download selector, custom names and information beside each model. Permissions and provider credentials are further down the same panel.
 
