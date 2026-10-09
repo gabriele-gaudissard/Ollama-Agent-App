@@ -44,7 +44,7 @@ class DesktopAPI:
         s["has_provider_token"] = bool(self._store.vault.get("provider"))
         s["has_github_token"] = bool(self._store.vault.get("github"))
         s["data_dir"] = str(self._store.root)
-        s["version"] = "4.2.0"
+        s["version"] = "4.3.0"
         s['has_image_token'] = bool(self._store.vault.get('image'))
         s["recovery_notice"] = self._store.recovery_notice
         return s
@@ -53,7 +53,7 @@ class DesktopAPI:
         from .tools import TOOLS
         names = {tool['function']['name'] for tool in TOOLS}
         groups = [
-            ('Files and coding', 'Read, search, edit, run commands and tests, manage Git, clone repositories and restore backups.', {'list_dir','read_file','search_files','write_file','edit_file','make_dir','move_file','delete_file','exec_cmd','git_status','clone_repository','restore_backup','git_worktree','sandbox_changes'}),
+            ('Files and coding', 'Read, search, edit, run commands and tests, manage Git, clone repositories and restore backups.', {'list_dir','read_file','search_files','write_file','edit_file','make_dir','move_file','delete_file','exec_cmd','git_status','clone_repository','restore_backup','git_worktree','sandbox_changes','delegate_coding','proposal_changes'}),
             ('Mouse and keyboard', 'Inspect Windows applications, click, double-click, right-click, drag, scroll, type and change keyboard layouts.', {'computer_windows','computer_inspect','computer_action','computer_pointer','computer_wait','windows_sandbox','computer_sandbox_type','keyboard_layout'}),
             ('Web and browser', 'Search, read websites, download files and operate an isolated browser with observed page elements.', {'web_search','read_url','download_file','browser_open','browser_state','browser_action'}),
             ('GitHub', 'Read and update repositories, issues, pull requests, branches and releases.', {'github'}),
@@ -210,7 +210,20 @@ class DesktopAPI:
                 'automations': [j for j in self._store.snapshot()['automations'] if j['session_id'] == session_id],
                 'sandbox_available': bool(shutil.which('docker')), 'windows_sandbox_available':bool(executable()),
                 'background_enabled':self._store.data['settings'].get('background_schedules',False),
-                'artifacts':[{'id':a['id'],'name':Path(a['path']).name} for a in session.get('artifacts',[])][-30:]}
+                'artifacts':[{'id':a['id'],'name':Path(a['path']).name} for a in session.get('artifacts',[])][-30:],
+                'proposals':[{'id':p['id'],'goal':p['goal'],'state':p['state']} for p in session.get('proposals', [])]}
+
+    def review_proposal(self, session_id, proposal_id):
+        self._idle()
+        session = self.get_session(session_id)
+        if not session: raise ValueError('Choose a chat first.')
+        from .tools import ToolRunner
+        settings = {**self._store.snapshot()['settings'], 'workspace':session.get('workspace') or self._store.data['settings']['workspace']}
+        runner = ToolRunner(self._store, settings, 'proposal-review', threading.Event(), lambda *a:None, lambda *a:False, ROOT, session)
+        try:
+            changes = runner.tool_proposal_changes('review', proposal_id)
+            return {'diff':redact('\n\n'.join(c['diff'] for c in changes)[:60000], [self._store.vault.get(n) for n in ('provider','github','image')])}
+        finally: runner.close()
 
     def preview_generated_image(self,session_id,artifact_id):
         self._idle()
@@ -738,7 +751,7 @@ def foreground_main(data_dir):
             atomic_json(store.root/'background-status.json',{'state':'setup_failed'})
     if "--self-check" in sys.argv:
         api = DesktopAPI(store)
-        print(json.dumps({"version": "4.2.0", "models": api.get_models(), "data_dir": str(store.root)}))
+        print(json.dumps({"version": "4.3.0", "models": api.get_models(), "data_dir": str(store.root)}))
         return
     if "--install" in sys.argv:
         from .updater import enable_updates

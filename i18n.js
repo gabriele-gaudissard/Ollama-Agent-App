@@ -1,7 +1,7 @@
 "use strict";
 window.VeyqI18N = (() => {
   const dictionaries = {
-    strings: {
+    strings: {"Pending observations: {count}": {"it": "Osservazioni da completare: {count}", "es": "Observaciones pendientes: {count}", "fr": "Observations en attente : {count}"},"Parallel coding started on separate project copies.": {"it": "Coding parallelo avviato su copie separate del progetto.", "es": "Programación paralela iniciada en copias separadas del proyecto.", "fr": "Programmation parallèle démarrée sur des copies séparées du projet."}, "Review coding proposal": {"it": "Rivedi proposta di codice", "es": "Revisar propuesta de código", "fr": "Examiner la proposition de code"}, "applied": {"it": "applicata", "es": "aplicada", "fr": "appliquée"},
       "+ New activity": {
         it: "+ Nuova attività",
         es: "+ Nueva actividad",
@@ -1005,10 +1005,10 @@ window.VeyqI18N = (() => {
         es: "Copiar",
         fr: "Copier",
       },
-      "Desktop agent · v4.2": {
-        it: "Agente desktop · v4.2",
-        es: "Agente de escritorio · v4.2",
-        fr: "Agent de bureau · v4.2",
+      "Desktop agent · v4.3": {
+        it: "Agente desktop · v4.3",
+        es: "Agente de escritorio · v4.3",
+        fr: "Agent de bureau · v4.3",
       },
       "Your ideas. Real actions.": {
         it: "Le tue idee. Azioni concrete.",
@@ -2057,7 +2057,7 @@ window.VeyqI18N = (() => {
       "Token GitHub": "GitHub token",
       "Cartella di lavoro": "Workspace",
       Copia: "Copy",
-      "Agente desktop · v4.2": "Desktop agent · v4.2",
+      "Agente desktop · v4.3": "Desktop agent · v4.3",
       "Le tue idee. Azioni concrete.": "Your ideas. Real actions.",
       "+ File": "+ File",
       "ⓘ Dettagli": "ⓘ Details",
@@ -2604,8 +2604,8 @@ window.VeyqI18N = (() => {
       "Dossier de travail": "Workspace",
       Copiar: "Copy",
       Copier: "Copy",
-      "Agente de escritorio · v4.2": "Desktop agent · v4.2",
-      "Agent de bureau · v4.2": "Desktop agent · v4.2",
+      "Agente de escritorio · v4.3": "Desktop agent · v4.3",
+      "Agent de bureau · v4.3": "Desktop agent · v4.3",
       "Tus ideas. Acciones reales.": "Your ideas. Real actions.",
       "Vos idées. Des actions réelles.": "Your ideas. Real actions.",
       "+ Archivo": "+ File",

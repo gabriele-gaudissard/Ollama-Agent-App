@@ -688,10 +688,29 @@ async function showTaskCenter() {
   const overview = await call('get_task_overview', sessionId);
   const task = overview.task;
   $('taskProgress').textContent = task.state ? [ui('Task state') + ': ' + ui(task.state), task.goal, task.progress, task.next_steps].filter(Boolean).join('\n\n') : ui('No saved task progress yet.');
+  if (task.verification?.length) $('taskProgress').textContent += '\n\n' + ui('Pending observations: {count}').replace('{count}', task.verification.length);
   $('resumeTask').disabled = busy || !['interrupted','failed','cancelled','limit','unverified','blocked'].includes(task.state);
   $('prepareWindowsSandbox').disabled = busy;
   $('isolationStatus').textContent = ui(overview.windows_sandbox_available ? 'Windows Sandbox launcher is available; Windows feature and virtualization requirements still apply.' : 'Windows Sandbox is unavailable on this installation. Preparation does not enable Windows features.') + ' ' + ui(overview.background_enabled ? 'Background schedules are enabled for this user.' : 'Background schedules are disabled.');
   $('generatedArtifacts').replaceChildren();
+  $('codingProposals').replaceChildren();
+  for (const proposal of overview.proposals || []) {
+    const row = document.createElement('div');
+    const label = document.createElement('p');
+    label.textContent = proposal.goal + ' · ' + ui(proposal.state);
+    const review = document.createElement('button');
+    review.textContent = ui('Review coding proposal');
+    review.disabled = busy || proposal.state === 'running';
+    review.addEventListener('click', async () => {
+      try {
+        const result = await call('review_proposal', sessionId, proposal.id);
+        $('changesPreview').textContent = result.diff;
+        $('changesPreview').hidden = false;
+      } catch (error) { toast(error.message); }
+    });
+    row.append(label, review);
+    $('codingProposals').append(row);
+  }
   for (const artifact of overview.artifacts || []) {
     const button = document.createElement('button');
     button.textContent = ui('Preview generated image') + ' · ' + artifact.name;

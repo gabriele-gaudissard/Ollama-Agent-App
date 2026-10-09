@@ -44,6 +44,8 @@ TOOLS = [
     schema('checkpoint_task', 'Save concise progress, decisions, verification evidence and next steps for resuming a long task. Never store credentials.', {'progress': S, 'next_steps': S}, ['progress','next_steps']),
     schema('load_procedure', 'List built-in reusable workflows or load one by name: coding, desktop, repository, review, documents.', {'name': S}),
     schema('delegate_tasks', 'Investigate up to three independent questions in parallel. Subagents can only read/search the selected project; they cannot edit, execute commands, use the desktop or ask for accounts.', {'tasks': {'type':'array','items': S}}, ['tasks']),
+    schema('delegate_coding', 'Run up to three independent coding tasks on separate filtered project copies. Workers can edit their copy and test only in offline Docker when available. Host files remain unchanged. Review/apply proposals afterwards; workers cannot browse, use accounts, control the PC or delegate.', {'tasks': {'type':'array','items': S}}, ['tasks']),
+    schema('proposal_changes', 'List coding proposals, review one diff, or apply reviewed changes with unchanged-host checks and backups. Conflicting proposals are refused rather than overwriting work.', {'action': {'type':'string','enum':['list','review','apply']}, 'proposal_id': S}, ['action']),
     schema('git_worktree', 'List worktrees or create an isolated branch inside a generated sibling folder. Does not merge or delete worktrees. Requires a clean committed repository for creation.', {'action': {'type':'string','enum':['list','create']}}, ['action']),
     schema('sandbox_changes', 'Review changes made in the offline sandbox, or apply them after checking unchanged host hashes and making backups.', {'action': {'type':'string','enum':['review','apply']}}, ['action']),
     schema("git_status", "Read status/diff/log through fixed Git arguments; no arbitrary Git flags.", {"view": {"type": "string", "enum": ["status", "diff", "log"]}}, ["view"]),
@@ -134,6 +136,7 @@ class ToolRunner:
         from .sandbox import Sandbox
         self.sandbox = Sandbox(self)
         self.child_clients = []
+        self.child_agents = []
 
     def path(self, value):
         raw = Path(value)
@@ -145,6 +148,8 @@ class ToolRunner:
         target = (raw if raw.is_absolute() else self.workspace / raw).resolve()
         if sensitive(target) or target.is_relative_to(self.store.root.resolve()):
             raise PermissionError("File di credenziali/dati privati protetto. Usa un file di esempio senza segreti.")
+        if self.settings.get('_worker_tools') and not target.is_relative_to(self.workspace):
+            raise PermissionError('Coding workers cannot leave their isolated project copy.')
         return target
 
     def backup(self, path):
@@ -179,8 +184,12 @@ class ToolRunner:
             return True, "Modifica delle impostazioni di tastiera Windows"
         if name == 'git_worktree' and args.get('action') == 'create' or name == 'sandbox_changes' and args.get('action') == 'apply':
             return True, 'Apply reviewed changes or create an isolated coding branch'
+        if name == 'delegate_coding':
+            return True, 'Parallel coding on filtered copies with offline tests'
         if name == 'delegate_tasks':
             return True, 'Parallel read-only investigations using the selected model'
+        if name == 'proposal_changes' and args.get('action') == 'apply':
+            return True, 'Apply reviewed coding changes with backups'
         if outside:
             return True, "Accesso fuori dal progetto"
         if app_write:
@@ -197,6 +206,8 @@ class ToolRunner:
         result = {"tool": name, "arguments": args, "workspace": str(self.workspace)}
         if name == 'sandbox_changes' and args.get('action') == 'apply':
             result['changes'] = self.sandbox.changes()
+        if name == 'proposal_changes' and args.get('action') == 'apply':
+            result['changes'] = self.tool_proposal_changes('review', args.get('proposal_id', ''))
         if name in {"write_file", "edit_file"} and paths:
             if paths[0].exists() and paths[0].stat().st_size > 500000:
                 raise ValueError("File troppo grande per l'anteprima (500 KB).")
@@ -208,6 +219,8 @@ class ToolRunner:
     def execute(self, name, args):
         digest = ""
         try:
+            if self.settings.get('_worker_tools') and name not in self.settings['_worker_tools']:
+                raise PermissionError('Tool unavailable to isolated coding workers.')
             if self.settings.get('_read_only') and name not in READ_ONLY:
                 raise PermissionError('This activity is read-only. Commands, mutations, online tools and desktop input are disabled.')
             if name not in SPECS:
@@ -229,6 +242,8 @@ class ToolRunner:
                     return {"ok": False, "error": "L'utente ha negato l'azione. Non riproporla tramite altri strumenti."}
                 if name == 'sandbox_changes' and args.get('action') == 'apply' and self.sandbox.changes() != preview['changes']:
                     raise PermissionError('Sandbox changes changed during approval; application cancelled.')
+                if name == 'proposal_changes' and args.get('action') == 'apply' and self.tool_proposal_changes('review', args.get('proposal_id', '')) != preview['changes']:
+                    raise PermissionError('Coding proposal changed during approval; application cancelled.')
                 if name in WRITE and paths:
                     after_hash = hashlib.sha256(paths[0].read_bytes()).hexdigest() if paths[0].is_file() else None
                     if before_hash != after_hash:
@@ -561,6 +576,7 @@ class ToolRunner:
         self.sandbox.stop()
         from .engine import interrupt_response
         for client in list(self.child_clients): interrupt_response(client.response)
+        for agent in list(self.child_agents): agent.stop()
         self.browser.stop()
         self.computer.close()
 
@@ -650,6 +666,16 @@ class ToolRunner:
     def tool_delegate_tasks(self, tasks):
         from .workflows import investigate
         return investigate(self, tasks)
+
+    def tool_delegate_coding(self, tasks):
+        from .proposals import delegate
+        return delegate(self, tasks)
+
+    def tool_proposal_changes(self, action, proposal_id=''):
+        from .proposals import changes
+        if action == 'list':
+            return [{'id':r['id'], 'goal':r['goal'], 'state':r['state']} for r in self.session.get('proposals', []) if r['workspace'] == str(self.workspace)]
+        return changes(self, proposal_id, apply=action == 'apply')
 
     def tool_git_worktree(self, action):
         from .workflows import worktree

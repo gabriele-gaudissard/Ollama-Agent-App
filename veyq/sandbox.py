@@ -147,7 +147,9 @@ class Sandbox:
         result = []
         for rel in sorted(set(files) | set(self.baseline)):
             if files.get(rel) == self.baseline.get(rel): continue
-            before = self.runner.workspace / rel
+            before = self.runner.path(rel)
+            if not before.is_relative_to(self.runner.workspace):
+                raise PermissionError('Host review path left the selected project.')
             after = self.root / rel
             try:
                 a = before.read_text(encoding='utf-8').splitlines() if before.exists() else []
@@ -184,4 +186,5 @@ class Sandbox:
             if row['new_hash'] is None: self.baseline.pop(row['path'], None)
             else: self.baseline[row['path']] = row['new_hash']
         self.save()
-        return {'applied': len(changes), 'backups_created': True}
+        return {'applied': len(changes), 'backups_created': True,
+                'changed_files': [{'path': row['path'], 'deleted': row['new_hash'] is None} for row in changes]}

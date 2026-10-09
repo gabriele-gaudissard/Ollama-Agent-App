@@ -52,6 +52,8 @@ def checkpoint(session, state, **values):
 
 
 def recover(session):
+    for proposal in session.get('proposals', []):
+        if proposal.get('state') == 'running': proposal['state'] = 'interrupted'
     task = session.get('task', {})
     if task.get('state') in {'running', 'approval', 'question'}:
         checkpoint(session, 'interrupted')

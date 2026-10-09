@@ -46,7 +46,7 @@ def public_request(url, method="GET", body=None, headers=None, limit=1_000_000, 
         path = parsed.path or "/"
         if parsed.query:
             path += "?" + parsed.query
-        request_headers = {"User-Agent": "Veynuq/4.2", "Host": parsed.hostname, **(headers or {})}
+        request_headers = {"User-Agent": "Veynuq/4.3", "Host": parsed.hostname, **(headers or {})}
         payload = json.dumps(body).encode() if body is not None else None
         if payload:
             request_headers["Content-Type"] = "application/json"
