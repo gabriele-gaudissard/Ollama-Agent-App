@@ -127,6 +127,22 @@ class ControlTests(unittest.TestCase):
     def test_tool_catalog_covers_actual_available_tools(self):
         from veyq.tools import TOOLS
         catalog=self.api.get_tool_catalog();self.assertEqual(catalog['total'],len(TOOLS));self.assertEqual(sum(g['count'] for g in catalog['groups']),len(TOOLS))
+    def test_inspection_reports_literal_value_and_checkbox_state(self):
+        computer=Computer(self.store.root)
+        window=Mock();window.handle=42;window.process_id.return_value=123
+        field=Mock();field.element_info.control_type='Edit';field.iface_value.CurrentValue='Typed test value'
+        check=Mock();check.element_info.control_type='CheckBox';check.get_toggle_state.return_value=1
+        password=Mock();password.element_info.control_type='Edit';password.iface_value.CurrentValue='SECRET'
+        for i,element in enumerate([window,field,check,password]):
+            element.element_info.runtime_id=[i];element.element_info.name=str(i);element.children.return_value=[]
+            element.rectangle.return_value=types.SimpleNamespace(left=0,top=0,right=100,bottom=100)
+            element.window_text.return_value=str(i);element.is_visible.return_value=True;element.is_enabled.return_value=True
+        window.element_info.control_type='Window';window.children.return_value=[field,check,password]
+        with patch.object(computer,'target',return_value=window),patch.object(computer,'password',side_effect=lambda e:e is password),patch.object(computer,'editable',side_effect=lambda e:e is field):
+            state=computer.inspect(42)
+        self.assertEqual(next(e for e in state['elements'] if e['type']=='Edit')['value'],'Typed test value')
+        self.assertEqual(next(e for e in state['elements'] if e['type']=='CheckBox')['toggle_state'],1)
+        self.assertNotIn('SECRET',json.dumps(state))
     def test_real_isolated_browser_acts_and_rejects_old_snapshot(self):
         candidates=[Path(os.environ.get('PROGRAMFILES(X86)','C:/Program Files (x86)'))/'Microsoft/Edge/Application/msedge.exe',Path(os.environ.get('PROGRAMFILES','C:/Program Files'))/'Microsoft/Edge/Application/msedge.exe']
         if not any(p.exists() for p in candidates): self.skipTest('Microsoft Edge is not available on this host')

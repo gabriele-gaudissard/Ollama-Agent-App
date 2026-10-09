@@ -10,11 +10,17 @@ const w=dom.window,document=w.document;
 const dispose=w.close.bind(w);
 const calls=[];
 let eventState={events:[],busy:false,state:"idle"};
+let voiceState={state:'idle',ready:true};
 const chatRows=[{id:"demo",title:"New activity",untitled:true,project_id:""},{id:"other",title:"Second chat",project_id:""}];
 const settings={lang:"en",model:"qwen3:14b",provider:"local",permission:"auto",network:true,auto_update:false,workspace:"C:\\Demo",setup_completed:true,max_steps:0,command_timeout:0,github_repo:"",data_dir:"C:\\Demo",has_provider_token:false,has_github_token:false};
 w.matchMedia=()=>({matches:true});w.confirm=()=>true;w.prompt=()=>"Renamed";
 Object.defineProperty(w.navigator,"clipboard",{value:{writeText:async text=>calls.push(["clipboard",text])}});
 const api={
+ voice_status:async()=>voiceState,start_voice:async()=>{calls.push(['startVoice']);voiceState={state:'recording',ready:true,started_at:Date.now()/1000};},stop_voice:async()=>{calls.push(['stopVoice']);voiceState={state:'completed',ready:true,text:'Dictated message'};},cancel_voice:async()=>{calls.push(['cancelVoice']);voiceState={state:'idle',ready:true};},prepare_voice:async()=>calls.push(['prepareVoice']),
+ get_task_overview:async()=>({task:{state:'interrupted',goal:'<img src=x onerror=alert(1)>',progress:'Verified a file',next_steps:'Read it again'},procedures:[{name:'coding',purpose:'Implement and verify code'}],automations:[{id:'job',prompt:'<script>unsafe</script>',interval_hours:24,enabled:true,last_state:'pending'}]}),
+ review_changes:async()=>({diff:'-old\n+<img src=x onerror=alert(1)>\n'}),
+ resume_task:async id=>calls.push(['resume',id]),save_automation:async(...args)=>calls.push(['schedule',...args]),
+ toggle_automation:async id=>calls.push(['toggleSchedule',id]),remove_automation:async id=>calls.push(['removeSchedule',id]),
  get_tool_catalog:async()=>({total:30,groups:[{name:'Mouse and keyboard',description:'Inspect Windows applications, click, double-click, right-click, drag, scroll, type and change keyboard layouts.',count:5}]}),
  delete_session:async id=>{calls.push(["delete",id]);const i=chatRows.findIndex(s=>s.id===id);if(i>=0)chatRows.splice(i,1);},
  create_session:async()=>{calls.push(["create"]);const id="created";chatRows.push({id,title:"New activity",untitled:true,project_id:""});return id;},
@@ -51,6 +57,26 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,30));
  assert.equal(document.getElementById("timeout").value,"0");
  assert.equal(document.getElementById("githubRepo").value,"");
  assert.equal(document.getElementById("providerToken").placeholder,"Token (optional for the local engine)");
+ await w.showTaskCenter();await tick();
+ assert.equal(document.getElementById('resumeTask').disabled,false);
+ assert.match(document.getElementById('taskProgress').textContent,/<img/);
+ assert.equal(document.querySelector('#taskProgress img'),null);
+ document.getElementById('reviewChanges').click();await tick();
+ assert.equal(document.querySelectorAll('#changesPreview .diff-add').length,1);
+ assert.equal(document.querySelector('#changesPreview img'),null);
+ for(const lang of ['it','es','fr']){w.VeyqI18N.setLanguage(lang);await tick();assert.notEqual(document.querySelector('#taskModal h2').textContent,'Task center');assert.notEqual(document.querySelector('#executionEnvironment option[value=sandbox]').textContent,'Offline sandbox — disposable project copy');}
+ w.VeyqI18N.setLanguage('en');await tick();
+ document.getElementById('automationPrompt').value='Read source';document.getElementById('automationHours').value='2';document.getElementById('createAutomation').click();await tick();
+ assert.deepEqual(calls.find(c=>c[0]==='schedule'),['schedule','demo','Read source',2]);
+ document.querySelector('#procedureList button').click();await tick();assert.match(document.getElementById('prompt').value,/coding/);document.getElementById('prompt').value='';
+ w.close('taskModal');
+ document.getElementById('voiceButton').click();await tick();await w.pollVoice();
+ assert.match(document.getElementById('voiceStatus').textContent,/Recording locally/);
+ document.getElementById('voiceButton').click();await tick();await w.pollVoice();
+ assert.match(document.getElementById('prompt').value,/Dictated message/);
+ assert.ok(calls.some(c=>c[0]==='cancelVoice'));document.getElementById('prompt').value='';
+ document.getElementById('voiceButton').click();await tick();await w.loadSession('other');
+ assert.equal(voiceState.state,'idle');assert.equal(document.getElementById('cancelVoice').hidden,true);await w.loadSession('demo');
  assert.equal(document.getElementById("githubToken").placeholder,"Token with access to the repositories you need");
  for(const lang of ["it","es","fr"]){w.VeyqI18N.setLanguage(lang);await tick();assert.notEqual(document.getElementById("providerToken").placeholder,"Token (optional for the local engine)");}
  w.VeyqI18N.setLanguage("en");await tick();
