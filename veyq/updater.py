@@ -28,6 +28,11 @@ ASSET_FILES = {"assets/brand/mark-dark.svg", "assets/brand/mark-light.svg", "ass
                "assets/vendor/atom-one-dark.css", "assets/vendor/marked-LICENSE.md",
                "assets/vendor/DOMPurify-LICENSE", "assets/vendor/highlight-LICENSE", "docs/REQUIREMENTS.md"}
 
+# Keep legacy names in the accepted update paths so older installations can
+# be verified and migrated. They are no longer shipped in new packages.
+DISTRIBUTION_ROOT_FILES = ROOT_FILES - {"ui-translations.json", "Veyq.bat"}
+DISTRIBUTION_ASSET_FILES = ASSET_FILES - {"docs/REQUIREMENTS.md", "assets/brand/veyq-dark.ico"}
+
 
 def program_path(name):
     path = PurePosixPath(name)

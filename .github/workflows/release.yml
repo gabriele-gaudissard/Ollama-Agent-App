@@ -23,6 +23,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Restore pinned verification tools from repository history
+        # Development-only files stay out of the user's main tree and ZIP.
+        # This is the immutable baseline that passed the 64 backend/UI checks.
+        run: |
+          git fetch --depth=1 origin 36a95d9defd4186c030894a2701cf348bfda6deb
+          git restore --source=36a95d9defd4186c030894a2701cf348bfda6deb --worktree -- tests package.json package-lock.json ui-translations.json
       - run: python -m pip install -r requirements.txt
       - run: python -m unittest discover -s tests -v
       - run: python -m compileall -q app.py veyq
@@ -42,7 +48,7 @@ jobs:
         with:
           python-version: "3.13"
       - run: python -m pip install 'cryptography>=46,<49'
-      - run: python scripts/build_release.py release
+      - run: python .github/build_release.py release
         env:
           VEYQ_RELEASE_SIGNING_KEY: ${{ secrets.VEYQ_RELEASE_SIGNING_KEY }}
       - name: Publish verified app update

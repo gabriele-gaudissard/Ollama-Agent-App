@@ -35,7 +35,7 @@ The backend owns the model → tool → result loop. Markdown code fences never 
 - **Models:** installed-model dropdown, a ten-family catalog, custom-name download, progress/cancellation, deletion, source links and approximate RAM/VRAM/size/use-case details.
 - **Distribution:** tested main-branch pushes create signed GitHub Releases; managed installations download and apply updates automatically when idle.
 
-All 58 requirements supplied for this project are mapped to implementations or modern equivalents in [the requirement matrix](docs/REQUIREMENTS.md). Later requirements override the original generic icon and legacy branding/configuration names.
+The main repository contains the application, user documentation, brand assets, third-party licenses and the GitHub publishing workflow. Tests, Node test dependencies, brand-generation scripts and temporary/private files are excluded by `.gitignore`. The installer package includes only the application and user-facing assets; Python is the only runtime prerequisite, and Node/npm are not needed by users.
 
 ## Install and launch
 
@@ -100,7 +100,11 @@ Corrupt JSON is preserved under a separate filename. The app restores the previo
 
 ## Development and validation
 
+The verification suite is retained in repository history at the immutable commit `36a95d9defd4186c030894a2701cf348bfda6deb`. CI restores this baseline to ignored working files before checking the current application. Local maintenance files are preserved but are not tracked in the main tree or included in the installer. To restore the same checks in a fresh source checkout:
+
 ```powershell
+git fetch --depth=1 origin 36a95d9defd4186c030894a2701cf348bfda6deb
+git restore --source=36a95d9defd4186c030894a2701cf348bfda6deb --worktree -- tests package.json package-lock.json ui-translations.json
 python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
 python -m compileall -q app.py veyq
@@ -114,7 +118,7 @@ Tests cover approval denial, process cancellation/timeouts, persistent cwd, memo
 
 The agent’s ability to finish a particular task still depends on the model, available tools, hardware, permissions and service responses. It does not guarantee frontier-model quality or successful control of every Windows application. There is no generic MCP/plugin manager, voice/video generator or unattended scheduler in this release.
 
-Publisher builds use `scripts/build_release.py`, the Actions signing secret and the workflow run number. Keep the private key out of source, arguments and ordinary JSON. Startup diagnostics are in the profile’s `startup.log`.
+Publisher builds use `.github/build_release.py`, the Actions signing secret and the workflow run number. The publisher explicitly selects distribution files, independently of `.gitignore`; build-time validation rejects accidental development files or private data in the package. Keep the private key out of source, arguments and ordinary JSON. Startup diagnostics are in the profile’s `startup.log`.
 
 ## Name and licenses
 

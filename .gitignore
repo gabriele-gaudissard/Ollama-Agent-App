@@ -1,16 +1,36 @@
 # Private state and secrets
 codex_data.json
 veyq_data.json
+veynuq_data.json
 state.json
+state.previous.json
+state.corrupt-*.json
 credentials.dpapi
 runtime.json
 profile.json
 build.json
+installation.json
+pending-update.json
+failed-update.json
+update-status.json
+instance.lock
+startup*.log
+audit.jsonl
 *.lnk
 *.vbs
 .env*
 *.pem
 *.key
+# Local maintenance files; CI restores its pinned verification baseline.
+/tests/
+/scripts/
+/package.json
+/package-lock.json
+/ui-translations.json
+/docs/REQUIREMENTS.md
+# Retired compatibility aliases, accepted only when updating old installations.
+/Veyq.bat
+/assets/brand/veyq-dark.ico
 # Local builds and runtime
 .venv/
 .veyq-runtime/
@@ -18,6 +38,23 @@ venv/
 env/
 release/
 node_modules/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage/
+*.log
+*.tmp
+*.update-tmp
+/work/
+/tmp/
+/app-backups/
+/updates/
+*.gguf
+*.safetensors
 __pycache__/
 *.py[cod]
 .vscode/
