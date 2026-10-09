@@ -22,7 +22,7 @@ class ProposalTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.workspace = self.root / 'project'
         self.workspace.mkdir()
         (self.workspace / 'a.py').write_text('original')
