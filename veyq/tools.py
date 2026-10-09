@@ -491,6 +491,7 @@ class ToolRunner:
     def close(self):
         self.stop_process()
         self.browser.stop()
+        self.computer.close()
 
     def run_process(self, argv, cwd, timeout):
         # Credential env vars are not inherited by the child shell.

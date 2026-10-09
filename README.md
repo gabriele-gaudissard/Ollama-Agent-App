@@ -106,11 +106,11 @@ Corrupt JSON is preserved under a separate filename. The app restores the previo
 
 ## Development and validation
 
-The verification suite is retained on the separate `verification` branch at the immutable commit `eb52194d568b3d2330a65bb7704ec2ac763b4b82`. CI restores this baseline to ignored working files before checking the current application. Local maintenance files are preserved but are not tracked in the main tree or included in the installer. To restore the same checks in a fresh source checkout:
+The verification suite is retained on the separate `verification` branch at the immutable commit `e3dd561b0e02a8842291f306a54717b3e4246ad9`. CI restores this baseline to ignored working files before checking the current application. Local maintenance files are preserved but are not tracked in the main tree or included in the installer. To restore the same checks in a fresh source checkout:
 
 ```powershell
-git fetch --depth=1 origin eb52194d568b3d2330a65bb7704ec2ac763b4b82
-git restore --source=eb52194d568b3d2330a65bb7704ec2ac763b4b82 --worktree -- tests package.json package-lock.json ui-translations.json
+git fetch --depth=1 origin e3dd561b0e02a8842291f306a54717b3e4246ad9
+git restore --source=e3dd561b0e02a8842291f306a54717b3e4246ad9 --worktree -- tests package.json package-lock.json ui-translations.json
 python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
 python -m compileall -q app.py veyq
@@ -120,7 +120,7 @@ node --check app.js
 python app.py --self-check
 ```
 
-The 90 backend tests and UI suite cover approval denial, process cancellation/timeouts, persistent cwd, memory/project scoping, immediate follow-ups, actual chat removal, action-intent repair, questions, partial HTTP cancellation, recovery, credential paths, literal keyboard input, mouse targeting/drag cleanup, deep Windows accessibility trees, stale control identity, read-only fields, download integrity, backup restoration, Markdown sanitation, four-language switching, signed updates and rollback. An isolated real Edge test filled an input, clicked a button and rejected reuse of the previous observation. A live `qwen3:14b` run received a follow-up during generation, changed and reread an actual file, then inspected the Windows keyboard without changing it. Earlier live runs cloned `octocat/Hello-World`, wrote a validation script and ran it successfully with Python. Windows mouse/key dispatch and keyboard-setting writes are checked with controlled doubles; visual QA covers the real Veynuq app. This does not verify every third-party Windows application's accessibility behavior. The missing-engine installer path is checked structurally and with mocks because the development PC already has the engine; no unnecessary reinstall or multi-GB model download was performed.
+The 91 backend tests and UI suite cover approval denial, process cancellation/timeouts, persistent cwd, memory/project scoping, immediate follow-ups, actual chat removal, action-intent repair, questions, partial HTTP cancellation, recovery, credential paths, literal keyboard input, mouse targeting/drag cleanup, deep Windows accessibility trees, stale control identity, read-only fields, download integrity, backup restoration, Markdown sanitation, four-language switching, signed updates and rollback. An isolated real Edge test filled an input, clicked a button and rejected reuse of the previous observation. A live `qwen3:14b` run received a follow-up during generation, changed and reread an actual file, then inspected the Windows keyboard without changing it. Earlier live runs cloned `octocat/Hello-World`, wrote a validation script and ran it successfully with Python. Windows mouse/key dispatch and keyboard-setting writes are checked with controlled doubles; visual QA covers the real Veynuq app. This does not verify every third-party Windows application's accessibility behavior. The missing-engine installer path is checked structurally and with mocks because the development PC already has the engine; no unnecessary reinstall or multi-GB model download was performed.
 
 The agent’s ability to finish a particular task still depends on the model, available tools, hardware, permissions and service responses. It does not guarantee frontier-model quality or successful control of every Windows application. There is no generic MCP/plugin manager, voice/video generator or unattended scheduler in this release.
 

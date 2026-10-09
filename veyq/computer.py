@@ -2,6 +2,8 @@
 import ctypes
 import os
 import re
+import sys
+import threading
 import time
 import uuid
 from collections import deque
@@ -32,12 +34,30 @@ class Computer:
     def __init__(self, data_root):
         self.data_root = Path(data_root)
         self.snapshots = {}
+        self._com_thread = None
 
     def desktop(self):
         if os.name != "nt":
             raise RuntimeError("Desktop control is available on Windows only.")
+        owner = threading.get_ident()
+        if self._com_thread is None:
+            # UI Automation requires COM on every worker thread, including
+            # later conversations after pywinauto has already been imported.
+            result = ctypes.windll.ole32.CoInitializeEx(None, 0)
+            if result not in (0, 1):
+                raise RuntimeError('Cannot initialize Windows desktop control on this worker thread.')
+            self._com_thread = owner
+            sys.coinit_flags = 0
+        elif self._com_thread != owner:
+            raise RuntimeError('Desktop observations belong to a different worker. Inspect again in the current activity.')
         from pywinauto import Desktop
         return Desktop(backend="uia")
+
+    def close(self):
+        if self._com_thread == threading.get_ident():
+            self.snapshots.clear()
+            ctypes.windll.ole32.CoUninitialize()
+            self._com_thread = None
 
     def target(self, handle):
         if type(handle) is not int or handle <= 0:
