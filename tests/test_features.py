@@ -31,7 +31,7 @@ class FeatureTests(unittest.TestCase):
             for event in (events.closing, events.closed):
                 self.assertEqual({handler() for handler in event.handlers}, {None})
         webview = types.SimpleNamespace(create_window=Mock(return_value=window), start=start)
-        with patch.dict('sys.modules', {'webview': webview}), patch('sys.argv', ['app.py']), patch('veyq.desktop.ROOT', self.root), patch('veyq.desktop.Store', return_value=self.store), patch('veyq.desktop.DesktopAPI', return_value=self.api), patch.object(self.agent, 'stop', return_value={'ok': True}) as stop, patch.object(self.api, 'cancel_model_action', return_value={'ok': True}) as cancel:
+        with patch.dict('sys.modules', {'webview': webview}), patch('sys.argv', ['app.py']), patch('veyq.ui.document',return_value='<html></html>'), patch('veyq.runtime.profile_root',return_value=self.store.root), patch('veyq.desktop.ROOT', self.root), patch('veyq.desktop.Store', return_value=self.store), patch('veyq.desktop.DesktopAPI', return_value=self.api), patch.object(self.agent, 'stop', return_value={'ok': True}) as stop, patch.object(self.api, 'cancel_model_action', return_value={'ok': True}) as cancel:
             main()
             self.assertEqual(stop.call_count, 2)
             self.assertEqual(cancel.call_count, 2)
@@ -169,6 +169,9 @@ class FeatureTests(unittest.TestCase):
         from http.server import ThreadingHTTPServer,BaseHTTPRequestHandler
         class Handler(BaseHTTPRequestHandler):
             def do_POST(self):
+                if self.path=='/api/show':
+                    body=b'{"capabilities":["tools"]}'
+                    self.send_response(200);self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body);return
                 self.send_response(200);self.send_header('Content-Type','application/x-ndjson');self.end_headers()
                 self.wfile.write(b'{"message":{"content":"Partial from HTTP"},"done":false}\n');self.wfile.flush()
                 time.sleep(3)

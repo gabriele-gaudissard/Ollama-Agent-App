@@ -263,6 +263,7 @@ class AgentTests(unittest.TestCase):
         api.set_workspace(sid, str(self.workspace))
         responses = [
             {"role": "assistant", "content": "Creo il file.", "tool_calls": [{"id": "a", "type": "function", "function": {"name": "write_file", "arguments": {"path": "proof.txt", "content": "verified"}}}]},
+            {"role": "assistant", "content": "", "tool_calls": [{"id":"b", "function":{"name":"read_file", "arguments":{"path":"proof.txt"}}}]},
             {"role": "assistant", "content": "Completato."},
         ]
         with patch.object(ModelClient, "chat", side_effect=responses):
@@ -270,7 +271,7 @@ class AgentTests(unittest.TestCase):
             self.wait_idle(api)
         self.assertEqual((self.workspace / "proof.txt").read_text(), "verified")
         history = api.get_session(sid)["history"]
-        self.assertEqual([m["role"] for m in history], ["user", "assistant", "tool", "assistant"])
+        self.assertEqual([m["role"] for m in history], ["user", "assistant", "tool", "assistant", "tool", "assistant"])
         self.assertTrue(json.loads(history[2]["content"])["ok"])
 
     def test_markdown_is_never_executed(self):
@@ -313,6 +314,7 @@ class AgentTests(unittest.TestCase):
             def close(self):
                 pass
         client = ModelClient(self.settings, "", self.cancel, lambda *a: None)
+        client.metadata = {}
         with patch.object(client.session, "post", return_value=Response()):
             result = client.chat([])
         self.assertEqual([c["function"]["name"] for c in result["tool_calls"]], ["list_dir", "read_file"])

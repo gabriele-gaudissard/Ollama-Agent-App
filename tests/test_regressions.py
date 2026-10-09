@@ -49,11 +49,11 @@ class Regressions(unittest.TestCase):
         for text in ['Come posso impostare la tastiera?','Puoi spiegarmi come cambiare il layout?','Do not change my settings','How do I create a file?']:
             self.assertFalse(action_intent(text),text)
     def test_instruction_only_reply_is_retried_until_actual_action(self):
-        messages=[{'role':'assistant','content':'You can create the file yourself.'}, {'role':'assistant','content':'','tool_calls':[{'id':'a','function':{'name':'write_file','arguments':{'path':'proof.txt','content':'actual'}}}]}, {'role':'assistant','content':'Done.'}]
+        messages=[{'role':'assistant','content':'You can create the file yourself.'}, {'role':'assistant','content':'','tool_calls':[{'id':'a','function':{'name':'write_file','arguments':{'path':'proof.txt','content':'actual'}}}]}, {'role':'assistant','content':'','tool_calls':[{'id':'verify','function':{'name':'read_file','arguments':{'path':'proof.txt'}}}]}, {'role':'assistant','content':'Done.'}]
         with patch.object(ModelClient,'chat',side_effect=messages) as chat:
             self.agent.start(self.sid,'Create proof.txt for me');self.wait()
         self.assertEqual((self.workspace/'proof.txt').read_text(),'actual')
-        self.assertEqual(chat.call_count,3)
+        self.assertEqual(chat.call_count,4)
         self.assertFalse(any('yourself' in m.get('content','') for m in self.api.get_session(self.sid)['history']))
     def test_incapable_model_is_not_reported_as_successful_execution(self):
         with patch.object(ModelClient,'chat',return_value={'role':'assistant','content':'Follow these instructions.'}) as chat:

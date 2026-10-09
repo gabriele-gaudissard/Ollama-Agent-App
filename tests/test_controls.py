@@ -95,7 +95,7 @@ class ControlTests(unittest.TestCase):
         element.click_input.assert_not_called()
     def test_followup_after_action_still_requires_new_requested_action(self):
         contexts=[]
-        replies=[{'role':'assistant','content':'','tool_calls':[{'id':'a','function':{'name':'write_file','arguments':{'path':'first.txt','content':'first'}}}]},{'role':'assistant','content':'First done.'},{'role':'assistant','content':'You can write second.txt yourself.'},{'role':'assistant','content':'','tool_calls':[{'id':'b','function':{'name':'write_file','arguments':{'path':'second.txt','content':'second'}}}]},{'role':'assistant','content':'Both written.'}]
+        replies=[{'role':'assistant','content':'','tool_calls':[{'id':'a','function':{'name':'write_file','arguments':{'path':'first.txt','content':'first'}}}]},{'role':'assistant','content':'First done.'},{'role':'assistant','content':'You can write second.txt yourself.'},{'role':'assistant','content':'','tool_calls':[{'id':'b','function':{'name':'write_file','arguments':{'path':'second.txt','content':'second'}}}]},{'role':'assistant','content':'','tool_calls':[{'id':'verify','function':{'name':'read_file','arguments':{'path':'second.txt'}}}]},{'role':'assistant','content':'Both written.'}]
         original=self.agent._drain_followups;injected=[]
         def drain(session):
             if len(contexts)==2 and not injected:
@@ -106,7 +106,7 @@ class ControlTests(unittest.TestCase):
             self.agent.start(self.sid,'Create first.txt')
             deadline=time.monotonic()+5
             while self.agent.busy and time.monotonic()<deadline:time.sleep(.01)
-        self.assertFalse(self.agent.busy);self.assertEqual((self.workspace/'second.txt').read_text(),'second');self.assertEqual(len(contexts),5)
+        self.assertFalse(self.agent.busy);self.assertEqual((self.workspace/'second.txt').read_text(),'second');self.assertEqual(len(contexts),6)
     def test_mixed_execute_and_explain_request_still_requires_execution(self):
         self.assertTrue(action_intent('Scrivi il file e spiegami cosa contiene'))
         self.assertTrue(action_intent('Impostami la tastiera senza istruzioni'))

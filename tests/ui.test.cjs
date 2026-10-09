@@ -12,12 +12,15 @@ const calls=[];
 let eventState={events:[],busy:false,state:"idle"};
 let voiceState={state:'idle',ready:true};
 const chatRows=[{id:"demo",title:"New activity",untitled:true,project_id:""},{id:"other",title:"Second chat",project_id:""}];
-const settings={lang:"en",model:"qwen3:14b",provider:"local",permission:"auto",network:true,auto_update:false,workspace:"C:\\Demo",setup_completed:true,max_steps:0,command_timeout:0,github_repo:"",data_dir:"C:\\Demo",has_provider_token:false,has_github_token:false};
+const settings={desktop_scope:"all",background_schedules:false,image_provider:"disabled",image_url:"http://127.0.0.1:7860",image_model:"",context_tokens:16384,response_tokens:4096,has_image_token:false,lang:"en",model:"qwen3:14b",provider:"local",permission:"auto",network:true,auto_update:false,workspace:"C:\\Demo",setup_completed:true,max_steps:0,command_timeout:0,github_repo:"",data_dir:"C:\\Demo",has_provider_token:false,has_github_token:false};
 w.matchMedia=()=>({matches:true});w.confirm=()=>true;w.prompt=()=>"Renamed";
 Object.defineProperty(w.navigator,"clipboard",{value:{writeText:async text=>calls.push(["clipboard",text])}});
 const api={
+ set_project_group_open:async(id,opened)=>calls.push(['groupState',id,opened]),
+ prepare_windows_sandbox:async id=>{calls.push(['prepareSandbox',id]);return {configuration:'C:\\Demo\\Veynuq.wsb'};},
+ preview_generated_image:async(id,artifact)=>{calls.push(['previewArtifact',id,artifact]);return {path:'C:\\Demo\\proof.png',data_url:'data:image/png;base64,iVBORw0KGgo='};},
  voice_status:async()=>voiceState,start_voice:async()=>{calls.push(['startVoice']);voiceState={state:'recording',ready:true,started_at:Date.now()/1000};},stop_voice:async()=>{calls.push(['stopVoice']);voiceState={state:'completed',ready:true,text:'Dictated message'};},cancel_voice:async()=>{calls.push(['cancelVoice']);voiceState={state:'idle',ready:true};},prepare_voice:async()=>calls.push(['prepareVoice']),
- get_task_overview:async()=>({task:{state:'interrupted',goal:'<img src=x onerror=alert(1)>',progress:'Verified a file',next_steps:'Read it again'},procedures:[{name:'coding',purpose:'Implement and verify code'}],automations:[{id:'job',prompt:'<script>unsafe</script>',interval_hours:24,enabled:true,last_state:'pending'}]}),
+ get_task_overview:async()=>({windows_sandbox_available:false,background_enabled:false,artifacts:[{id:'artifact-one',name:'<img src=x onerror=alert(1)>.png'}],task:{state:'unverified',goal:'<img src=x onerror=alert(1)>',progress:'Verified a file',next_steps:'Read it again'},procedures:[{name:'coding',purpose:'Implement and verify code'}],automations:[{id:'job',prompt:'<script>unsafe</script>',interval_hours:24,enabled:true,last_state:'pending'}]}),
  review_changes:async()=>({diff:'-old\n+<img src=x onerror=alert(1)>\n'}),
  resume_task:async id=>calls.push(['resume',id]),save_automation:async(...args)=>calls.push(['schedule',...args]),
  toggle_automation:async id=>calls.push(['toggleSchedule',id]),remove_automation:async id=>calls.push(['removeSchedule',id]),
@@ -42,12 +45,21 @@ for(const file of ["i18n.js","assets/vendor/marked.js","assets/vendor/purify.js"
 const tick=()=>new Promise(resolve=>setTimeout(resolve,30));
 (async()=>{
  w.dispatchEvent(new w.Event("pywebviewready"));await tick();
+ const group=document.querySelector('.project-group');group.open=false;group.dispatchEvent(new w.Event('toggle'));await tick();
+ assert.deepEqual(calls.find(c=>c[0]==='groupState'),['groupState','',false]);
+ await w.refreshSessions();await tick();assert.equal(document.querySelector('.project-group').open,false);
+ document.querySelector('.project-group').open=true;document.querySelector('.project-group').dispatchEvent(new w.Event('toggle'));await tick();
  const body=w.message("assistant",'# Heading\n\n**Bold**\n\n|A|B|\n|-|-|\n|1|2|\n\n```python\nprint("ok")\n```\n\n<script>alert(1)</script><img src="x" onerror="alert(1)"><form><input></form>\n\n[bad](javascript:alert(1))');
  assert.equal(body.querySelector("h1").textContent,"Heading");assert.ok(body.querySelector("strong"));assert.ok(body.querySelector("table"));assert.ok(body.querySelector(".hljs"));
  assert.equal(body.querySelectorAll("script,img,form,input,iframe").length,0);
  assert.equal(body.querySelector("a").hasAttribute("href"),false);
  body.closest("article").querySelector(".message-actions button").click();await tick();
  assert.match(calls.find(c=>c[0]==="clipboard")[1],/\*\*Bold\*\*/);
+ const browserCopy=w.navigator.clipboard.writeText;w.navigator.clipboard.writeText=undefined;
+ document.execCommand=command=>{assert.equal(command,'copy');assert.equal(document.querySelector('.clipboard-copy').value,'fallback copy');return true;};
+ await w.copyText('fallback copy');assert.equal(document.querySelector('.clipboard-copy'),null);
+ document.execCommand=()=>false;await assert.rejects(w.copyText('fallback copy'));assert.equal(document.querySelector('.clipboard-copy'),null);
+ w.navigator.clipboard.writeText=browserCopy;
  w.renderText(body,"Updated streaming text");assert.equal(body.closest("article").dataset.raw,"Updated streaming text");
  const original=body.textContent;
  for(const lang of ["it","es","fr","en"]){w.VeyqI18N.setLanguage(lang);await tick();assert.equal(document.documentElement.lang,lang);assert.equal(body.textContent,original);}
@@ -57,10 +69,22 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,30));
  assert.equal(document.getElementById("timeout").value,"0");
  assert.equal(document.getElementById("githubRepo").value,"");
  assert.equal(document.getElementById("providerToken").placeholder,"Token (optional for the local engine)");
+ assert.equal(document.getElementById('contextTokens').value,'16384');
+ assert.equal(document.getElementById('responseTokens').value,'4096');
+ assert.equal(document.getElementById('imageToken').value,'');
+ assert.equal(document.getElementById('backgroundSchedules').checked,false);
  await w.showTaskCenter();await tick();
  assert.equal(document.getElementById('resumeTask').disabled,false);
  assert.match(document.getElementById('taskProgress').textContent,/<img/);
  assert.equal(document.querySelector('#taskProgress img'),null);
+ assert.equal(document.querySelector('#generatedArtifacts img'),null);
+ document.querySelector('#generatedArtifacts button').click();await tick();
+ assert.deepEqual(calls.find(c=>c[0]==='previewArtifact'),['previewArtifact','demo','artifact-one']);
+ assert.match(document.getElementById('artifactImage').src,/^data:image\/png/);
+ document.getElementById('closeArtifact').click();await tick();
+ assert.equal(document.getElementById('artifactImage').hasAttribute('src'),false);
+ document.getElementById('prepareWindowsSandbox').click();await tick();
+ assert.deepEqual(calls.find(c=>c[0]==='prepareSandbox'),['prepareSandbox','demo']);
  document.getElementById('reviewChanges').click();await tick();
  assert.equal(document.querySelectorAll('#changesPreview .diff-add').length,1);
  assert.equal(document.querySelector('#changesPreview img'),null);
