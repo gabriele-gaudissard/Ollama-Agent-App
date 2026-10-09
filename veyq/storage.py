@@ -7,6 +7,7 @@ import os
 import re
 import threading
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -28,6 +29,20 @@ def atomic_json(path, value):
         f.flush()
         os.fsync(f.fileno())
     os.replace(temp, path)
+
+
+def atomic_bytes(path, value):
+    """Write a complete file before replacing its destination."""
+    path = Path(path)
+    temp = path.with_name(path.name + '.' + uuid.uuid4().hex + '.tmp')
+    try:
+        with temp.open('wb') as stream:
+            stream.write(value)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temp, path)
+    finally:
+        temp.unlink(missing_ok=True)
 
 
 class Vault:

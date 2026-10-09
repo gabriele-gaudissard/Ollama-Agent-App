@@ -43,6 +43,19 @@ class DesktopAPI:
         s["recovery_notice"] = self._store.recovery_notice
         return s
 
+    def get_tool_catalog(self):
+        from .tools import TOOLS
+        names = {tool['function']['name'] for tool in TOOLS}
+        groups = [
+            ('Files and coding', 'Read, search, edit, run commands and tests, manage Git, clone repositories and restore backups.', {'list_dir','read_file','search_files','write_file','edit_file','make_dir','move_file','delete_file','exec_cmd','git_status','clone_repository','restore_backup'}),
+            ('Mouse and keyboard', 'Inspect Windows applications, click, double-click, right-click, drag, scroll, type and change keyboard layouts.', {'computer_windows','computer_inspect','computer_action','computer_pointer','keyboard_layout'}),
+            ('Web and browser', 'Search, read websites, download files and operate an isolated browser with observed page elements.', {'web_search','read_url','download_file','browser_open','browser_state','browser_action'}),
+            ('GitHub', 'Read and update repositories, issues, pull requests, branches and releases.', {'github'}),
+            ('Images and documents', 'Inspect image files and read PDF/DOCX documents. Create documents, spreadsheets and charts with project code.', {'view_image','read_document'}),
+            ('Memory and task control', 'Maintain local memory, plan work, ask essential questions and use context from related project chats.', {'save_memory','update_plan','ask_user','read_project_context'}),
+        ]
+        return {'total': len(names), 'groups': [{'name': title,'description': description,'count': len(tools & names)} for title, description, tools in groups]}
+
     def save_settings(self, values):
         with self._agent.lock:
             self._idle()
@@ -81,9 +94,18 @@ class DesktopAPI:
 
     def get_sessions(self, query=""):
         query = str(query).lower()[:500]
-        return [{**{k: s.get(k) for k in ("id", "title", "workspace", "project_id")},
-                 "untitled": s.get("title") == "New activity" and not s.get("history")} for s in self._store.snapshot()["sessions"]
-                if not query or query in (s["title"] + " " + " ".join(str(m.get("content", "")) for m in s.get("history", []))).lower()]
+        rows = []
+        for s in self._store.snapshot()["sessions"]:
+            history = s.get("history", [])
+            if query and query not in (s["title"] + " " + " ".join(str(m.get("content", "")) for m in history)).lower():
+                continue
+            title = s["title"]
+            first = next((m.get("content", "").strip() for m in history if m.get("role") == "user"), "")
+            if s.get("auto_title", True) and first and title == first[:25]:
+                title = first.splitlines()[0][:100]
+            rows.append({**{k: s.get(k) for k in ("id", "workspace", "project_id")}, "title": title,
+                         "untitled": s.get("title") == "New activity" and not history})
+        return rows
 
     def get_projects(self):
         return self._store.snapshot()["projects"]
@@ -138,7 +160,7 @@ class DesktopAPI:
             self._idle()
             with self._store.lock:
                 session = {"id": uuid.uuid4().hex, "title": "New activity", "history": [], "plan": [],
-                           "workspace": self._store.data["settings"]["workspace"], "project_id": ""}
+                           "workspace": self._store.data["settings"]["workspace"], "project_id": "", "auto_title": True}
                 self._store.data["sessions"].insert(0, session)
                 self._store.save()
             return session["id"]
@@ -149,6 +171,7 @@ class DesktopAPI:
             with self._store.lock:
                 s = next(s for s in self._store.data["sessions"] if s["id"] == session_id)
                 s["title"] = str(title).strip()[:100] or "Attivita'"
+                s["auto_title"] = False
                 self._store.save()
             return {"ok": True}
 
@@ -158,6 +181,9 @@ class DesktopAPI:
             with self._store.lock:
                 self._store.data["sessions"] = [s for s in self._store.data["sessions"] if s["id"] != session_id]
                 self._store.save()
+            if self._agent.current_session == session_id:
+                self._agent.current_session = ""
+                self._agent.events = type(self._agent.events)((e for e in self._agent.events if e.get("session_id") != session_id), maxlen=2000)
             return {"ok": True}
 
     def choose_workspace(self, session_id):

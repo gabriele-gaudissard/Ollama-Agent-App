@@ -46,6 +46,7 @@
         <div class="sidebar-footer">
           <button id="backups">↶ File backups</button
           ><button id="memory">◇ Local memory</button
+          ><button id="toolsButton">⌘ Tools</button
           ><button id="settingsButton">⚙ Settings</button>
           <div class="sub">Desktop agent · v4.0<br />No telemetry</div>
         </div>
@@ -166,6 +167,22 @@
           ><button class="danger" id="deleteChat">Delete chat</button>
         </div>
       </aside>
+    </div>
+    <div aria-modal="true" class="modal" id="toolsModal" role="dialog">
+      <section class="dialog">
+        <div class="eyebrow">Built-in tools</div>
+        <h2>Tools for real actions</h2>
+        <p class="intro">
+          Available directly in Veynuq. No plugins or accounts are needed for
+          local work and public websites.
+        </p>
+        <p class="sub">
+          Approval modes apply to every action. Accounts are only needed for
+          private services; vision requires a compatible model.
+        </p>
+        <div id="toolCatalog"></div>
+        <div class="buttons"><button id="closeTools">Close</button></div>
+      </section>
     </div>
     <div aria-modal="true" class="modal" id="settingsModal" role="dialog">
       <section class="dialog">

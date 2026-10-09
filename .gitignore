@@ -53,6 +53,9 @@ coverage/
 /tmp/
 /app-backups/
 /updates/
+/browser-profile/
+/computer-observations/
+/backups/
 *.gguf
 *.safetensors
 __pycache__/

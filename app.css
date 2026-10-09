@@ -121,9 +121,8 @@ select:focus {
   text-align: left;
   background: transparent;
   border-color: transparent;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  white-space: normal;
   padding: 12px;
 }
 .session.active {
@@ -135,7 +134,22 @@ select:focus {
   border-top: 1px solid var(--line);
   padding-top: 15px;
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+.sidebar-footer button {
+  padding: 8px 4px;
+  font-size: 12px;
+  white-space: normal;
+}
+.sidebar-footer .sub {
+  grid-column: 1 / -1;
+}
+@media (max-height: 750px) {
+  .sidebar {
+    padding: 18px 14px;
+    gap: 12px;
+  }
 }
 main {
   display: flex;
@@ -661,6 +675,7 @@ summary:focus-visible {
   display: flex;
   position: relative;
   min-width: 0;
+  align-items: flex-start;
 }
 .session-row .session {
   min-width: 0;
@@ -668,24 +683,16 @@ summary:focus-visible {
 }
 .session span {
   display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.session:hover span {
-  text-overflow: clip;
-  animation: title-pan 7s ease-in-out infinite alternate;
-}
-@keyframes title-pan {
-  70%,
-  100% {
-    transform: translateX(-20%);
-  }
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.45;
 }
 .session-more {
   opacity: 0;
   padding: 5px;
   background: transparent;
   border: 0;
+  flex-shrink: 0;
 }
 .session-row:hover .session-more,
 .session-more:focus {
@@ -866,18 +873,6 @@ summary:focus-visible {
   }
 }
 
-.session:hover span {
-  animation: none;
-}
-.session.marquee:hover span {
-  animation: title-pan 7s ease-in-out infinite alternate;
-}
-@keyframes title-pan {
-  70%,
-  100% {
-    transform: translateX(var(--title-overflow, 0));
-  }
-}
 .log-memory {
   border-left: 3px solid #e6d69d;
 }
@@ -909,4 +904,12 @@ summary:focus-visible {
   #closeActivity {
     display: inline-flex;
   }
+}
+.tool-category {
+  border-bottom: 1px solid var(--line);
+  padding: 8px 0;
+}
+.tool-category h3 {
+  font-size: 15px;
+  margin: 8px 0;
 }

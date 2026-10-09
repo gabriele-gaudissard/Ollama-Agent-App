@@ -6,3 +6,4 @@ cryptography>=46,<49
 pywinauto>=0.6.9,<0.7; sys_platform == 'win32'
 pypdf>=6,<7
 Pillow>=11,<13
+playwright>=1.58,<2

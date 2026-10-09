@@ -25,10 +25,10 @@ jobs:
           node-version: "22"
       - name: Restore pinned verification tools from repository history
         # Development-only files stay out of the user's main tree and ZIP.
-        # This is the immutable baseline that passed the 64 backend/UI checks.
+        # This is the immutable baseline that passed the 90 backend checks and the UI suite.
         run: |
-          git fetch --depth=1 origin 36a95d9defd4186c030894a2701cf348bfda6deb
-          git restore --source=36a95d9defd4186c030894a2701cf348bfda6deb --worktree -- tests package.json package-lock.json ui-translations.json
+          git fetch --depth=1 origin eb52194d568b3d2330a65bb7704ec2ac763b4b82
+          git restore --source=eb52194d568b3d2330a65bb7704ec2ac763b4b82 --worktree -- tests package.json package-lock.json ui-translations.json
       - run: python -m pip install -r requirements.txt
       - run: python -m unittest discover -s tests -v
       - run: python -m compileall -q app.py veyq

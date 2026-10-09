@@ -5,6 +5,7 @@ let projects = [],
   assignmentSession = "",
   activeSession = "",
   sessionLoad = 0,
+  sessionsRefresh = 0,
   liveDrafts = new Map(),
   questionId = "",
   infoModel = "",
@@ -55,7 +56,7 @@ function open(id) {
     id === "approvalModal"
       ? $("deny")
       : $(id).querySelector("input, select, button");
-  focus?.focus();
+  focus?.focus({ preventScroll: true });
 }
 function close(id) {
   $(id).classList.remove("open");
@@ -81,6 +82,7 @@ function setBusy(value, state) {
   $("prompt").disabled =
     value && !!activeSession && activeSession !== sessionId;
   if (changed) renderSessions();
+  updateChatActions();
 }
 function updateSendButton() {
   if (busy && activeSession && activeSession !== sessionId) {
@@ -284,8 +286,14 @@ function activity(title, data, kind = "info") {
   $("activity").scrollTop = $("activity").scrollHeight;
 }
 async function refreshSessions() {
-  sessions = await call("get_sessions", $("search").value);
-  projects = await call("get_projects");
+  const request = ++sessionsRefresh;
+  const [nextSessions, nextProjects] = await Promise.all([
+    call("get_sessions", $("search").value),
+    call("get_projects"),
+  ]);
+  if (request !== sessionsRefresh) return;
+  sessions = nextSessions;
+  projects = nextProjects;
   renderSessions();
 }
 function renderSessions() {
@@ -315,14 +323,6 @@ function renderSessions() {
       btn.className = "session" + (s.id === sessionId ? " active" : "");
       const title = document.createElement("span");
       title.textContent = s.untitled ? ui("New activity") : s.title;
-      btn.addEventListener("mouseenter", () => {
-        const distance = title.scrollWidth - title.clientWidth;
-        btn.classList.toggle("marquee", distance > 0);
-        title.style.setProperty(
-          "--title-overflow",
-          `-${Math.max(0, distance)}px`,
-        );
-      });
       btn.append(title);
       btn.title = title.textContent;
       btn.addEventListener("click", () =>
@@ -366,9 +366,7 @@ function renderSessions() {
           "Delete chat",
           async () => {
             if (confirm(ui("Delete this local chat?"))) {
-              await call("delete_session", s.id);
-              if (s.id === sessionId) await newChat();
-              else await refreshSessions();
+              await deleteChatById(s.id);
             }
           },
         ],
@@ -438,7 +436,46 @@ async function loadSession(id) {
   }
   $("prompt").disabled = busy && !!activeSession && activeSession !== id;
   updateSendButton();
+  updateChatActions();
   renderSessions();
+}
+function updateChatActions() {
+  for (const id of ["renameChat", "deleteChat"])
+    $(id).disabled = busy || !sessionId;
+  $("exportChat").disabled = !sessionId;
+}
+function emptyChat() {
+  ++sessionLoad;
+  sessionId = "";
+  streamNode = null;
+  streamText = "";
+  $("messages")
+    .querySelectorAll(".message")
+    .forEach((n) => n.remove());
+  $("welcome").hidden = false;
+  $("prompt").value = "";
+  $("projectAssignment").replaceChildren();
+  for (const p of [{ id: "", name: ui("No project") }, ...projects]) {
+    const option = document.createElement("option");
+    option.value = p.id;
+    option.textContent = p.name;
+    $("projectAssignment").append(option);
+  }
+  showWorkspace(settings.workspace);
+  renderPlan([]);
+  updateChatActions();
+  updateSendButton();
+  renderSessions();
+}
+async function deleteChatById(id) {
+  const selected = id === sessionId;
+  ++sessionsRefresh;
+  await call("delete_session", id);
+  liveDrafts.delete(id);
+  if (activeSession === id) activeSession = "";
+  if (selected) emptyChat();
+  await refreshSessions();
+  if (selected && sessions.length) await loadSession(sessions[0].id);
 }
 async function newChat() {
   sessionId = await call("create_session");
@@ -472,7 +509,7 @@ async function send() {
     message("user", text);
     $("prompt").value = "";
     updateSendButton();
-    toast("Follow-up queued. It will be applied after the current tool step.");
+    toast("Follow-up received. Updating the current activity.");
     return;
   }
   if (!sessionId) await newChat();
@@ -663,6 +700,26 @@ async function showSettings() {
   $("dataDir").textContent = settings.data_dir;
   open("settingsModal");
 }
+async function showTools() {
+  const catalog = await call("get_tool_catalog");
+  const host = $("toolCatalog");
+  host.replaceChildren();
+  for (const group of catalog.groups) {
+    const item = document.createElement("section");
+    item.className = "tool-category";
+    const title = document.createElement("h3");
+    title.textContent = ui(group.name) + " · " + group.count;
+    const description = document.createElement("p");
+    description.className = "sub";
+    description.textContent = ui(group.description);
+    item.append(title, description);
+    host.append(item);
+  }
+  open("toolsModal");
+  $("toolsModal").querySelector(".dialog").scrollTop = 0;
+}
+action("toolsButton", showTools);
+action("closeTools", () => close("toolsModal"));
 async function saveSettings() {
   await call("save_settings", {
     lang: $("language").value,
@@ -706,6 +763,7 @@ action("saveSettings", saveSettings);
 action("allow", () => decide(true));
 action("deny", () => decide(false));
 action("chooseFolder", async () => {
+  if (!sessionId) await newChat();
   const path = await call("choose_workspace", sessionId);
   if (path) showWorkspace(path);
 });
@@ -735,10 +793,8 @@ action("renameChat", async () => {
   }
 });
 action("deleteChat", async () => {
-  if (confirm(ui("Delete this local chat?"))) {
-    await call("delete_session", sessionId);
-    await newChat();
-  }
+  if (sessionId && confirm(ui("Delete this local chat?")))
+    await deleteChatById(sessionId);
 });
 action("exportChat", async () => {
   const p = await call("export_session", sessionId);
@@ -873,6 +929,7 @@ async function previewFile(path, line = 1) {
   $("askAboutFile").disabled = false;
 }
 action("exploreFiles", async () => {
+  if (!sessionId) await newChat();
   selectedFile = "";
   $("askAboutFile").disabled = true;
   $("filePreview").textContent = ui("Select a file to read its contents.");
@@ -985,7 +1042,7 @@ window.addEventListener("pywebviewready", async () => {
     header();
     await refreshSessions();
     if (sessions.length) await loadSession(sessions[0].id);
-    else await newChat();
+    else emptyChat();
     setInterval(poll, 350);
     if (!settings.setup_completed) {
       await call("finish_setup");
@@ -1331,18 +1388,24 @@ action("saveChatProject", async () => {
   close("chatProjectModal");
 });
 action("createProject", async () => {
+  if (!sessionId) await newChat();
   const p = await call("create_project", $("projectName").value);
   await call("assign_project", sessionId, p.id);
   await refreshSessions();
   await loadSession(sessionId);
   close("projectModal");
 });
-$("projectAssignment").addEventListener("change", () =>
-  call("assign_project", sessionId, $("projectAssignment").value)
-    .then(() => loadSession(sessionId))
-    .then(refreshSessions)
-    .catch((e) => toast(e.message)),
-);
+$("projectAssignment").addEventListener("change", async () => {
+  const selected = $("projectAssignment").value;
+  try {
+    if (!sessionId) await newChat();
+    await call("assign_project", sessionId, selected);
+    await loadSession(sessionId);
+    await refreshSessions();
+  } catch (e) {
+    toast(e.message);
+  }
+});
 $("language").addEventListener("change", async () => {
   try {
     const lang = $("language").value;

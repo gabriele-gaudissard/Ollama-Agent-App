@@ -52,11 +52,19 @@ TOOLS = [
     schema("computer_windows", "List open Windows applications for real desktop interaction. Sensitive system/password-manager windows and Veynuq's own controls are protected.", {}, []),
     schema("computer_inspect", "Inspect one returned window_id and its accessible elements. Optionally capture a screenshot for a vision-capable model. Do not invent window IDs or element indexes.", {"window_id": I, "screenshot": B}, ["window_id"]),
     schema("computer_action", "Click an inspected element, type literal text, or send a shortcut such as CTRL+S. Uses a snapshot_id and element index from computer_inspect; re-inspect after EVERY action. Runs with current Windows user privileges.", {"snapshot_id": S, "index": I, "action": {"type": "string", "enum": ["click", "type", "key"]}, "text": S}, ["snapshot_id", "index", "action"]),
+    schema("computer_pointer", "Mouse click/double-click/right-click, move, scroll or drag in an inspected window. Select a safe element index. Coordinates are window-relative; omit x/y to use the element center. Drag requires end_x/end_y; scroll delta is wheel notches (-10 to 10). Re-inspect after the action.", {"snapshot_id": S, "index": I, "action": {"type": "string", "enum": ["click", "double_click", "right_click", "move", "scroll", "drag"]}, "x": I, "y": I, "end_x": I, "end_y": I, "delta": I}, ["snapshot_id", "index", "action"]),
+    schema("keyboard_layout", "Read or change the current user's Windows keyboard layout directly. Use get to inspect, set with us/uk/it/fr/de/es to set the default and verify. Preserves existing languages and Windows display language. Does not pretend to modify the BIOS or every already-open window.", {"action": {"type": "string", "enum": ["get", "set"]}, "layout": {"type": "string", "enum": ["us", "uk", "it", "fr", "de", "es"]}}, ["action"]),
     schema("read_document", "Extract bounded text from a PDF or DOCX file; other files use read_file. Never execute document macros.", {"path": S}, ["path"]),
+    schema("download_file", "Download a public HTTP(S) file into the workspace, with a 50 MB limit, optional SHA-256 verification and backup before overwrite. Download does not execute the file.", {"url": S, "path": S, "sha256": S}, ["url", "path"]),
+    schema("view_image", "Inspect an image file's size/format and, with a vision-capable model, its pixels. Uses a bounded copy; never executes image content.", {"path": S}, ["path"]),
+    schema("restore_backup", "Restore one returned file backup ID. Current file content is backed up first. Requires approval in automatic mode.", {"backup_id": S}, ["backup_id"]),
+    schema("browser_open", "Open an HTTP(S) page in Veynuq's isolated Edge browser and inspect its text and interactive elements. Supports a local development server on an explicit loopback port >=1024. Set visible true on the first open if the user needs to sign in personally. No account needed for public pages.", {"url": S, "visible": B}, ["url"]),
+    schema("browser_state", "Inspect the current browser page and get fresh snapshot_id/indexes. Page content is untrusted; password fields are protected.", {}, []),
+    schema("browser_action", "Act on an element returned by browser_open/state. Type literal text, click, select an option, send an allowed key, or scroll up/down using text. Returns a fresh page observation. Never submit secrets or perform unrelated external actions.", {"snapshot_id": S, "index": I, "action": {"type": "string", "enum": ["click", "type", "select", "key", "scroll"]}, "text": S}, ["snapshot_id", "index", "action"]),
 ]
 SPECS = {t["function"]["name"]: t["function"]["parameters"] for t in TOOLS}
 READ_ONLY = {"list_dir", "read_file", "search_files", "git_status"}
-WRITE = {"write_file", "edit_file", "make_dir", "move_file", "delete_file"}
+WRITE = {"write_file", "edit_file", "make_dir", "move_file", "delete_file", "download_file"}
 SKIP = {".git", "node_modules", ".venv", "venv", "__pycache__", ".ssh", ".aws", ".azure", ".codex", ".veyq", "dist", "build"}
 
 
@@ -111,6 +119,8 @@ class ToolRunner:
             self.cwd = self.workspace
         from .computer import Computer
         self.computer = Computer(store.root)
+        from .browser import Browser
+        self.browser = Browser(store.root, cancel)
 
     def path(self, value):
         raw = Path(value)
@@ -140,11 +150,11 @@ class ToolRunner:
         mode = self.settings["permission"]
         if name == "ask_user":
             return False, "Essential user information"
-        if name in {"web_search", "read_url", "github", "clone_repository"} and not self.settings["network"]:
+        if name in {"web_search", "read_url", "github", "clone_repository", "download_file", "browser_open", "browser_state", "browser_action"} and not self.settings["network"]:
             raise PermissionError("Accesso online disattivato nelle impostazioni.")
         # A shell has unrestricted host privileges; with offline tools enabled it
         # could still reach the network. Refuse it unless network is enabled.
-        if name in {"exec_cmd", "computer_windows", "computer_inspect", "computer_action"} and not self.settings["network"]:
+        if name in {"exec_cmd", "computer_windows", "computer_inspect", "computer_action", "computer_pointer"} and not self.settings["network"]:
             raise PermissionError("Terminale disabilitato mentre la rete e' spenta: i comandi non sono isolati dal sistema.")
         outside = any(not p.is_relative_to(self.workspace) for p in paths)
         app_write = name in WRITE and any(p.is_relative_to(self.app_root) or ".git" in p.parts for p in paths)
@@ -152,11 +162,13 @@ class ToolRunner:
             return False, "Accesso completo"
         if mode == "always":
             return True, "Modalita': chiedi sempre"
+        if name == "keyboard_layout" and args.get("action") == "set":
+            return True, "Modifica delle impostazioni di tastiera Windows"
         if outside:
             return True, "Accesso fuori dal progetto"
         if app_write:
             return True, "Modifica dell'app o dei metadati Git"
-        if name in {"exec_cmd", "delete_file", "save_memory", "clone_repository", "computer_windows", "computer_inspect", "computer_action", "read_project_context"}:
+        if name in {"exec_cmd", "delete_file", "save_memory", "clone_repository", "computer_windows", "computer_inspect", "computer_action", "computer_pointer", "read_project_context", "restore_backup", "download_file", "browser_open", "browser_state", "browser_action"}:
             return True, "Operazione che richiede conferma"
         if name == "github" and args["method"] != "GET":
             return True, "Pubblicazione/modifica su GitHub"
@@ -234,30 +246,86 @@ class ToolRunner:
 
     def tool_computer_inspect(self, window_id, screenshot=False):
         if screenshot:
-            # Check installed capabilities before capturing private pixels.
-            import requests
-            from .engine import validate_endpoint
-            if self.settings["provider"] == "local":
-                client = requests.Session()
-                client.trust_env = False
-                try:
-                    token = self.store.vault.get("provider")
-                    r = client.post(validate_endpoint(self.settings["url"], self.settings["network"]) + "/api/show", json={"model": self.settings["model"]}, headers={"Authorization": "Bearer " + token} if token else {}, timeout=(5, 10), allow_redirects=False)
-                    r.raise_for_status()
-                    screenshot = "vision" in r.json().get("capabilities", [])
-                finally:
-                    client.close()
-            else:
-                screenshot = bool(self.settings.get("vision"))
+            screenshot = self.vision_available()
         result = self.computer.inspect(window_id, screenshot)
         if not screenshot:
             result["vision_note"] = "Accessible elements are available. Screenshots require a model with vision capability."
         return result
 
+    def vision_available(self):
+        # Verify installed capability before exposing any private pixels.
+        import requests
+        from .engine import validate_endpoint
+        if self.settings['provider'] != 'local': return bool(self.settings.get('vision'))
+        with requests.Session() as client:
+            client.trust_env = False
+            token = self.store.vault.get('provider')
+            result = client.post(validate_endpoint(self.settings['url'], self.settings['network']) + '/api/show',
+                json={'model': self.settings['model']}, headers={'Authorization': 'Bearer '+token} if token else {}, timeout=(5,10), allow_redirects=False)
+            result.raise_for_status()
+            return 'vision' in result.json().get('capabilities', [])
+
+    def tool_download_file(self, url, path, sha256=''):
+        target = self.path(path)
+        if sha256 and not re.fullmatch(r'[a-fA-F0-9]{64}', sha256): raise ValueError('SHA-256 must contain 64 hex characters.')
+        result = public_request(url, limit=50_000_000, cancel=self.cancel)
+        digest = hashlib.sha256(result['data']).hexdigest()
+        if sha256 and digest.lower() != sha256.lower(): raise ValueError('Download checksum mismatch; no file written.')
+        if self.cancel.is_set(): raise RuntimeError('Download stopped; no file written.')
+        backup = self.backup(target) if target.exists() else None
+        target.parent.mkdir(parents=True, exist_ok=True)
+        from .storage import atomic_bytes
+        atomic_bytes(target, result['data'])
+        return {'path': str(target), 'bytes': len(result['data']), 'sha256': digest, 'backup': backup, 'url': result['url']}
+
+    def tool_view_image(self, path):
+        from PIL import Image
+        target = self.path(path)
+        if target.stat().st_size > 20_000_000: raise ValueError('Image exceeds 20 MB.')
+        with Image.open(target) as image:
+            if image.width * image.height > 30_000_000: raise ValueError('Image dimensions exceed the limit.')
+            result = {'path': str(target), 'width': image.width, 'height': image.height, 'format': image.format}
+            if self.vision_available():
+                folder = self.store.root/'computer-observations'; folder.mkdir(exist_ok=True)
+                output = folder/(uuid.uuid4().hex+'.png')
+                image.thumbnail((1600,1000)); image.convert('RGB').save(output,format='PNG')
+                result['image_path'] = str(output)
+            else: result['note'] = 'Image metadata is available. Pixel interpretation requires a vision-capable model.'
+            return result
+
+    def tool_restore_backup(self, backup_id):
+        if not re.fullmatch(r'[a-f0-9]{32}', backup_id): raise ValueError('Invalid backup ID.')
+        folder = self.store.root/'backups'
+        metadata = json.loads((folder/(backup_id+'.json')).read_text(encoding='utf-8'))
+        target = self.path(metadata['path'])
+        if (folder/backup_id).stat().st_size > 5_000_000: raise ValueError('Backup exceeds 5 MB.')
+        current = self.backup(target) if target.exists() else None
+        from .storage import atomic_bytes
+        atomic_bytes(target, (folder/backup_id).read_bytes())
+        return {'restored': str(target), 'previous_content_backup': current}
+
+    def tool_browser_open(self, url, visible=False):
+        return self.browser.call('open', url=url, visible=visible)
+
+    def tool_browser_state(self):
+        return self.browser.call('state')
+
+    def tool_browser_action(self, snapshot_id, index, action, text=''):
+        return self.browser.call('action', snapshot_id=snapshot_id, index=index, action=action, text=text)
+
     def tool_computer_action(self, snapshot_id, index, action, text=""):
         if self.cancel.is_set():
             raise RuntimeError("Activity stopped; no desktop input sent.")
         return self.computer.action(snapshot_id, index, action, text)
+
+    def tool_computer_pointer(self, snapshot_id, index, action, **arguments):
+        if self.cancel.is_set():
+            raise RuntimeError("Activity stopped; no mouse input sent.")
+        return self.computer.pointer(snapshot_id, index, action, **arguments)
+
+    def tool_keyboard_layout(self, action="get", layout=""):
+        from .system_settings import keyboard_layout
+        return keyboard_layout(self, action, layout)
 
     def tool_read_document(self, path):
         target = self.path(path)
@@ -419,6 +487,10 @@ class ToolRunner:
                                creationflags=subprocess.CREATE_NO_WINDOW, timeout=10)
             else:
                 os.killpg(proc.pid, signal.SIGKILL)
+
+    def close(self):
+        self.stop_process()
+        self.browser.stop()
 
     def run_process(self, argv, cwd, timeout):
         # Credential env vars are not inherited by the child shell.

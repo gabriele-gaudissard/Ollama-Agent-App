@@ -1724,6 +1724,104 @@ window.VeyqI18N = (() => {
           es: "Las estimaciones incluyen pesos y memoria básica, no miden la calidad. Un contexto largo necesita más memoria. Solo CPU funciona pero es más lento; la GPU es opcional. El contexto máximo es el límite del modelo, no el configurado en la app.",
           fr: "Les estimations comprennent les poids et la mémoire de base, sans mesurer la qualité. Un contexte long nécessite plus de mémoire. Le CPU seul fonctionne mais plus lentement ; le GPU est facultatif. Le contexte maximal est la limite du modèle, pas celle configurée dans l'app.",
         },
+      "Follow-up received. Updating the current activity.": {
+        it: "Follow-up ricevuto. Aggiorno l’attività in corso.",
+        es: "Seguimiento recibido. Actualizando la actividad actual.",
+        fr: "Suivi reçu. Mise à jour de l’activité en cours.",
+      },
+      "Execution requested. Retrying with tools.": {
+        it: "Richiesta di esecuzione ricevuta. Riprovo con gli strumenti.",
+        es: "Solicitud de ejecución recibida. Reintentando con herramientas.",
+        fr: "Exécution demandée. Nouvel essai avec les outils.",
+      },
+      "⌘ Tools": {
+        it: "⌘ Strumenti",
+        es: "⌘ Herramientas",
+        fr: "⌘ Outils",
+      },
+      "Built-in tools": {
+        it: "Strumenti integrati",
+        es: "Herramientas integradas",
+        fr: "Outils intégrés",
+      },
+      "Tools for real actions": {
+        it: "Strumenti per azioni reali",
+        es: "Herramientas para acciones reales",
+        fr: "Outils pour des actions réelles",
+      },
+      "Available directly in Veynuq. No plugins or accounts are needed for local work and public websites.":
+        {
+          it: "Disponibili direttamente in Veynuq. Il lavoro locale e i siti pubblici non richiedono plugin o account.",
+          es: "Disponibles en Veynuq. El trabajo local y los sitios públicos no requieren plugins ni cuentas.",
+          fr: "Disponibles dans Veynuq. Le travail local et les sites publics ne nécessitent ni plugins ni comptes.",
+        },
+      "Approval modes apply to every action. Accounts are only needed for private services; vision requires a compatible model.":
+        {
+          it: "Le modalità di autorizzazione valgono per ogni azione. Gli account servono solo per servizi privati; le immagini richiedono un modello compatibile.",
+          es: "Los modos de aprobación se aplican a cada acción. Las cuentas solo son necesarias para servicios privados; las imágenes requieren un modelo compatible.",
+          fr: "Les modes d’approbation s’appliquent à chaque action. Les comptes sont nécessaires pour les services privés ; les images nécessitent un modèle compatible.",
+        },
+      "Files and coding": {
+        it: "File e programmazione",
+        es: "Archivos y programación",
+        fr: "Fichiers et programmation",
+      },
+      "Read, search, edit, run commands and tests, manage Git, clone repositories and restore backups.":
+        {
+          it: "Legge, cerca e modifica file, esegue comandi e test, gestisce Git, clona repository e ripristina backup.",
+          es: "Lee, busca y edita archivos, ejecuta comandos y pruebas, gestiona Git, clona repositorios y restaura copias.",
+          fr: "Lit, recherche et modifie les fichiers, exécute les commandes et tests, gère Git, clone les dépôts et restaure les sauvegardes.",
+        },
+      "Mouse and keyboard": {
+        it: "Mouse e tastiera",
+        es: "Ratón y teclado",
+        fr: "Souris et clavier",
+      },
+      "Inspect Windows applications, click, double-click, right-click, drag, scroll, type and change keyboard layouts.":
+        {
+          it: "Osserva le app Windows, fa clic e doppio clic, usa il tasto destro, trascina, scorre, scrive e cambia il layout della tastiera.",
+          es: "Inspecciona aplicaciones Windows, hace clic, doble clic y clic derecho, arrastra, desplaza, escribe y cambia el teclado.",
+          fr: "Inspecte les applications Windows, clique, double-clique, utilise le clic droit, glisse, défile, écrit et change la disposition du clavier.",
+        },
+      "Web and browser": {
+        it: "Web e browser",
+        es: "Web y navegador",
+        fr: "Web et navigateur",
+      },
+      "Search, read websites, download files and operate an isolated browser with observed page elements.":
+        {
+          it: "Cerca online, legge siti, scarica file e usa un browser separato attraverso gli elementi osservati nella pagina.",
+          es: "Busca en línea, lee sitios, descarga archivos y utiliza un navegador separado con elementos observados.",
+          fr: "Recherche en ligne, lit les sites, télécharge les fichiers et utilise un navigateur séparé avec les éléments observés.",
+        },
+      "Read and update repositories, issues, pull requests, branches and releases.":
+        {
+          it: "Legge e aggiorna repository, issue, pull request, branch e release.",
+          es: "Lee y actualiza repositorios, incidencias, solicitudes, ramas y versiones.",
+          fr: "Lit et met à jour les dépôts, tickets, demandes de fusion, branches et versions.",
+        },
+      "Images and documents": {
+        it: "Immagini e documenti",
+        es: "Imágenes y documentos",
+        fr: "Images et documents",
+      },
+      "Inspect image files and read PDF/DOCX documents. Create documents, spreadsheets and charts with project code.":
+        {
+          it: "Esamina immagini e legge PDF/DOCX. Crea documenti, fogli di calcolo e grafici con codice nel progetto.",
+          es: "Inspecciona imágenes y lee PDF/DOCX. Crea documentos, hojas de cálculo y gráficos con código del proyecto.",
+          fr: "Examine les images et lit les PDF/DOCX. Crée des documents, feuilles de calcul et graphiques avec le code du projet.",
+        },
+      "Memory and task control": {
+        it: "Memoria e gestione attività",
+        es: "Memoria y gestión de tareas",
+        fr: "Mémoire et gestion des tâches",
+      },
+      "Maintain local memory, plan work, ask essential questions and use context from related project chats.":
+        {
+          it: "Mantiene la memoria locale, pianifica, pone domande necessarie e usa le altre chat dello stesso progetto.",
+          es: "Mantiene memoria local, planifica, hace preguntas necesarias y utiliza otras conversaciones del proyecto.",
+          fr: "Maintient la mémoire locale, planifie, pose les questions nécessaires et utilise les autres conversations du projet.",
+        },
     },
     legacy: {
       "+ Nuova attività": "+ New activity",

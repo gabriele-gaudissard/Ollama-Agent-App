@@ -25,6 +25,7 @@ Additional runtime components:
 | pywinauto | Windows accessibility and input controller | BSD-3-Clause |
 | pypdf | PDF text extraction | BSD-3-Clause |
 | Pillow | Window screenshot encoding | HPND |
+| Playwright | Isolated Edge browser control | Apache-2.0 |
 | marked | Markdown rendering | MIT; bundled license in assets/vendor |
 | DOMPurify | HTML sanitation | Apache-2.0 or MPL-2.0; bundled license in assets/vendor |
 | highlight.js | Source-code highlighting | BSD-3-Clause; bundled license in assets/vendor |

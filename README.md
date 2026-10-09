@@ -27,15 +27,21 @@ The [brand assets](assets/brand) include original [dark](assets/brand/logo-dark.
 The backend owns the model → tool → result loop. Markdown code fences never execute commands. Actions use validated structured tool calls, and failures return the actual error/output to the model for correction.
 
 - **Code and projects:** read/search/write/edit files, run PowerShell commands and tests, inspect Git, clone public repositories and configure their dependencies. Commands report exit codes; shell directory changes persist across commands and restarts.
-- **Files and documents:** create folders, move/delete individual files with recoverable backups, preview files, extract PDF/DOCX text, attach files with bounded text excerpts, and link folders.
-- **Windows applications:** list visible windows, inspect accessible controls, click, type literal text and send shortcuts. Actions use a short-lived observation and must re-inspect afterwards. Vision-capable models can receive requested window screenshots; other models use the accessibility tree.
+- **Files and documents:** create folders, move/delete individual files with recoverable backups, restore backups, preview files and images, extract PDF/DOCX text, attach files with bounded text excerpts, and link folders. Documents, spreadsheets and charts can be created through project Python code and the required libraries.
+- **Mouse and keyboard:** list visible Windows applications, inspect accessible controls, click, double-click, right-click, drag, scroll, type literal text and send shortcuts. Input is bound to a verified live control and mouse points are checked against the actual target window. Failed argument validation preserves the observation; successful input requires a new inspection. Slow model responses can refresh an older observation only after the same live control identity is verified. Read-only and password fields are protected. Vision-capable models can receive requested window screenshots; other models use the accessibility tree.
+- **Windows keyboard settings:** inspect and set the current user's default US, UK, Italian, French, German or Spanish input layout directly, preserving existing languages and the Windows display language. The tool reads back the result. Existing applications may retain their input method until reopened; it does not claim to modify the BIOS or every open window.
+- **Browser and downloads:** operate a separate Edge browser through observed page elements, fill ordinary fields, click, choose options, scroll and use shortcuts. Its worker can be stopped independently. Public file downloads support optional SHA-256 verification and preserve existing content before replacement. No plugin or account is required for public pages. Private services may require the user's own sign-in; password fields are not filled by the agent.
 - **Online and GitHub:** DuckDuckGo search with Bing fallback, public URL reading, and GitHub REST reads/writes for any requested repository. The configured repository is an optional default, not a restriction. GitHub itself enforces the token’s permissions.
-- **Conversation:** projects with accordion groups, full-text chat search, rename/delete/export, persistent editable memory, paginated access to other chats in the same project, Markdown tables/lists/highlighting, copy and regeneration.
-- **During a run:** live text and colored tool logs, task plans, targeted questions, queued follow-ups, and Stop when the composer is empty. Stopping preserves partial text and completed actions.
+- **Conversation:** projects with accordion groups, full-text chat search, rename/delete/export, persistent editable memory, paginated access to other chats in the same project, Markdown tables/lists/highlighting, copy and regeneration. Titles wrap instead of being cut in half. Deleting removes the session itself and leaves the welcome screen when no chats remain.
+- **During a run:** live text and colored tool logs, task plans, targeted questions, immediate follow-ups, and Stop when the composer is empty. Stopping preserves partial text and completed actions.
 - **Models:** installed-model dropdown, a ten-family catalog, custom-name download, progress/cancellation, deletion, source links and approximate RAM/VRAM/size/use-case details.
 - **Distribution:** tested main-branch pushes create signed GitHub Releases; managed installations download and apply updates automatically when idle.
 
 The main repository contains the application, user documentation, brand assets, third-party licenses and the GitHub publishing workflow. Tests, Node test dependencies, brand-generation scripts and temporary/private files are excluded by `.gitignore`. The installer package includes only the application and user-facing assets; Python is the only runtime prerequisite, and Node/npm are not needed by users.
+
+The **Tools** menu describes the 30 integrated tools by category. Requests to execute work trigger tools rather than a tutorial. If a model produces an instruction-only draft, Veynuq retries twice with an execution reminder and then reports that it could not complete and verify the request. Compatible APIs request required tool calls where appropriate. This improves execution behavior but does not make every local model equally capable or reproduce proprietary agent services.
+
+Browser control reuses installed Microsoft Edge through Playwright. Its separate local profile is inside the private data folder and can contain site cookies; it does not take over your everyday browser profile. Only an explicitly opened loopback development server on a port of 1024 or higher is allowed locally; other private/reserved destinations are blocked. Browser traffic is checked through request routing rather than the DNS-pinned transport used by structured URL/download tools, so these controls are not a network sandbox. No external plugin or account setup runs on launch. AI image generation still requires a suitable local image engine or a separately authenticated service; it is not included in the local language model.
 
 ## Install and launch
 
@@ -62,7 +68,7 @@ The catalog contains curated popular families, not a measured popularity or perf
 
 English, Italian, Spanish and French apply immediately and persist across restarts. The model receives the selected response language. Model-generated prose, filenames, source code and raw operating-system/tool output are preserved rather than translated by the UI.
 
-Type while the agent works to send a **follow-up**. It is queued until the current tool batch has completed, keeping tool/result pairing valid. Leave the composer empty to **Stop**. Regeneration removes later chat messages but does not undo previously executed actions; inspect the result before repeating work.
+Type while the agent works to send a **follow-up**. During a model response it interrupts the stream and replans within the same activity. An already executing command reaches its completion; remaining calls from the old batch are marked as skipped before the new instruction is processed, keeping tool/result pairing valid. Leave the composer empty to **Stop**. Regeneration removes later chat messages but does not undo previously executed actions; inspect the result before repeating work.
 
 **Maximum steps: `0` means unlimited. Command timeout: `0` disables the command timeout.** New profiles default to both disabled. You can enable finite values in Settings. Stop, window-close cleanup, output-size validation and repeated-identical-action protection remain active. Network transports retain connection/read timeouts so unavailable services do not hang forever.
 
@@ -71,7 +77,7 @@ Type while the agent works to send a **follow-up**. It is queued until the curre
 | Mode | Behavior |
 | --- | --- |
 | Always ask | Each action tool requires one explicit approval; asking an essential question itself does not need a second approval. |
-| Approve for me | Project file reads/changes proceed automatically. Commands, desktop control, outside-project access, deletions, memory writes, other-chat context, online requests and GitHub writes require approval. |
+| Approve for me | Project file reads/changes and keyboard inspection proceed automatically. Keyboard changes, commands, desktop/browser control, downloads, backup restoration, outside-project access, deletions, memory writes, other-chat context, online requests and GitHub writes require approval. |
 | Full access | Actions proceed without confirmations, subject to validation and the online switch. Enabling it requires an explicit checkbox. |
 
 These are application permission gates, **not an OS sandbox**. Shell commands run as the current Windows user and can access other files and network services. Structured file tools protect recognized credential locations and the app data folder, but arbitrary approved shell commands cannot provide the same isolation. Full access does not elevate Windows privileges. GUI controls in password-manager/system-security apps and Veynuq’s own permission UI are protected; inaccessible or elevated applications may require a different approach.
@@ -100,11 +106,11 @@ Corrupt JSON is preserved under a separate filename. The app restores the previo
 
 ## Development and validation
 
-The verification suite is retained in repository history at the immutable commit `36a95d9defd4186c030894a2701cf348bfda6deb`. CI restores this baseline to ignored working files before checking the current application. Local maintenance files are preserved but are not tracked in the main tree or included in the installer. To restore the same checks in a fresh source checkout:
+The verification suite is retained on the separate `verification` branch at the immutable commit `eb52194d568b3d2330a65bb7704ec2ac763b4b82`. CI restores this baseline to ignored working files before checking the current application. Local maintenance files are preserved but are not tracked in the main tree or included in the installer. To restore the same checks in a fresh source checkout:
 
 ```powershell
-git fetch --depth=1 origin 36a95d9defd4186c030894a2701cf348bfda6deb
-git restore --source=36a95d9defd4186c030894a2701cf348bfda6deb --worktree -- tests package.json package-lock.json ui-translations.json
+git fetch --depth=1 origin eb52194d568b3d2330a65bb7704ec2ac763b4b82
+git restore --source=eb52194d568b3d2330a65bb7704ec2ac763b4b82 --worktree -- tests package.json package-lock.json ui-translations.json
 python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
 python -m compileall -q app.py veyq
@@ -114,7 +120,7 @@ node --check app.js
 python app.py --self-check
 ```
 
-Tests cover approval denial, process cancellation/timeouts, persistent cwd, memory/project scoping, follow-up ordering, questions, partial HTTP cancellation, recovery, credential paths, Markdown sanitation, four-language switching, signed updates and rollback. A live `qwen3:14b` run cloned `octocat/Hello-World`, corrected its README filename assumption, wrote a validation script and ran it successfully with Python. GUI observation/action validation is unit-tested with controlled doubles; visual QA covers the real Veynuq app. The missing-engine installer path is checked structurally and with mocks because the development PC already has the engine; no unnecessary reinstall or multi-GB model download was performed.
+The 90 backend tests and UI suite cover approval denial, process cancellation/timeouts, persistent cwd, memory/project scoping, immediate follow-ups, actual chat removal, action-intent repair, questions, partial HTTP cancellation, recovery, credential paths, literal keyboard input, mouse targeting/drag cleanup, deep Windows accessibility trees, stale control identity, read-only fields, download integrity, backup restoration, Markdown sanitation, four-language switching, signed updates and rollback. An isolated real Edge test filled an input, clicked a button and rejected reuse of the previous observation. A live `qwen3:14b` run received a follow-up during generation, changed and reread an actual file, then inspected the Windows keyboard without changing it. Earlier live runs cloned `octocat/Hello-World`, wrote a validation script and ran it successfully with Python. Windows mouse/key dispatch and keyboard-setting writes are checked with controlled doubles; visual QA covers the real Veynuq app. This does not verify every third-party Windows application's accessibility behavior. The missing-engine installer path is checked structurally and with mocks because the development PC already has the engine; no unnecessary reinstall or multi-GB model download was performed.
 
 The agent’s ability to finish a particular task still depends on the model, available tools, hardware, permissions and service responses. It does not guarantee frontier-model quality or successful control of every Windows application. There is no generic MCP/plugin manager, voice/video generator or unattended scheduler in this release.
 

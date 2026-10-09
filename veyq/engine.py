@@ -3,6 +3,7 @@ import copy
 import base64
 import ipaddress
 import json
+import re
 import threading
 import time
 import uuid
@@ -20,6 +21,19 @@ class Cancelled(Exception):
     def __init__(self, partial=""):
         super().__init__("Cancelled")
         self.partial = partial
+
+
+class Steered(Cancelled):
+    """A follow-up interrupts generation without cancelling the task."""
+
+
+def action_intent(text):
+    text = text.strip().lower()
+    explicit = bool(re.search(r"\b(fallo tu|fallo per me|esegui tu|eseguilo|non .*istruzioni|do it for me|do it yourself)\b", text))
+    action = re.search(r"\b(imposta\w*|modifica\w*|cambia\w*|scarica\w*|configura\w*|crea\w*|scrivi\w*|salva\w*|esegui\w*|installa\w*|correggi\w*|aggiorna\w*|aggiungi\w*|elimina\w*|sposta\w*|rinomina\w*|set|change|download|configure|create|write|save|run|install|fix|update|add|delete|move|rename|clone|implement|build)\b", text)
+    explanation = re.search(r"\b(spieg\w*|explain|istruzioni|instructions|tutorial)\b", text)
+    guidance = bool(re.match(r"(?:come (?:posso|si|faccio)|how (?:do|can|to)|non\b|do not\b|don't\b)", text) or explanation and (not action or explanation.start() < action.start()))
+    return explicit or bool(action and not guidance)
 
 
 def interrupt_response(response):
@@ -62,11 +76,12 @@ def validate_endpoint(url, network, token=""):
 
 
 class ModelClient:
-    def __init__(self, settings, token, cancel, emit):
+    def __init__(self, settings, token, cancel, emit, steer=None):
         self.settings, self.token, self.cancel, self.emit = settings, token, cancel, emit
         self.session = requests.Session()
         self.session.trust_env = False
         self.response = None
+        self.steer = steer or threading.Event()
         self.base = validate_endpoint(settings["url"], settings["network"], token)
 
     def close(self):
@@ -75,6 +90,8 @@ class ModelClient:
         self.session.close()
 
     def chat(self, messages):
+        if self.cancel.is_set(): raise Cancelled()
+        if self.steer.is_set(): raise Steered()
         local = self.settings["provider"] == "local"
         messages = copy.deepcopy(messages)
         for m in messages:
@@ -91,6 +108,8 @@ class ModelClient:
         payload = {"model": self.settings["model"], "messages": messages, "stream": True}
         if tool_support:
             payload["tools"] = TOOLS
+            if not local and getattr(self, "require_action", False):
+                payload["tool_choice"] = "required"
         else:
             self.emit("notice", {"text": "This model is configured for chat. Choose a model with native tool calls for autonomous actions."})
         if local:
@@ -110,6 +129,8 @@ class ModelClient:
             for line in self.response.iter_lines(chunk_size=1):
                 if self.cancel.is_set():
                     raise Cancelled(message["content"])
+                if self.steer.is_set():
+                    raise Steered(message["content"])
                 if not line:
                     continue
                 if not local:
@@ -151,6 +172,8 @@ class ModelClient:
                     break
             if self.cancel.is_set():
                 raise Cancelled(message["content"])
+            if self.steer.is_set():
+                raise Steered(message["content"])
             if not done:
                 raise RuntimeError("Stream modello interrotto prima del completamento; nessuno strumento eseguito.")
             if calls:
@@ -159,6 +182,8 @@ class ModelClient:
         except Exception as error:
             if self.cancel.is_set() and not isinstance(error, Cancelled):
                 raise Cancelled(message["content"]) from error
+            if self.steer.is_set() and not isinstance(error, Cancelled):
+                raise Steered(message["content"]) from error
             raise
         finally:
             self.response.close()
@@ -189,6 +214,8 @@ class Agent:
         self.events = deque(maxlen=2000)
         self.sequence = 0
         self.cancel = threading.Event()
+        self.steer = threading.Event()
+        self.generating = False
         self.pending = None
         self.answer = threading.Event()
         self.runner = None
@@ -251,8 +278,12 @@ class Agent:
             if not isinstance(text, str) or not text.strip() or len(text) > 30000 or len(self.followups) >= 10:
                 raise ValueError("Invalid follow-up or queue full (10 messages).")
             self.followups.append(redact(text.strip(), self.secrets))
+            if self.generating:
+                self.steer.set()
+                if self.client:
+                    interrupt_response(self.client.response)
         self.emit("follow_up", {"queued": len(self.followups)})
-        return {"ok": True, "queued": True}
+        return {"ok": True, "queued": True, "steering": self.generating}
 
     def _drain_followups(self, session):
         with self.lock:
@@ -293,7 +324,7 @@ class Agent:
         if self.client:
             interrupt_response(self.client.response)
         if self.runner:
-            self.runner.stop_process()
+            self.runner.close()
         # Process loop notices cancellation in < 0.2s. HTTP cancellation is bounded
         # by its read timeout; the UI continues to poll until the worker exits.
         with self.lock:
@@ -319,9 +350,11 @@ class Agent:
                 text = redact(text, self.secrets)
                 session["history"].append({"role": "user", "content": text})
                 if len(session["history"]) == 1:
-                    session["title"] = text.strip()[:25]
+                    session["title"] = text.strip().splitlines()[0][:100]
+                    session["auto_title"] = True
                 self.store.save()
             self.cancel.clear()
+            self.steer.clear()
             self.pending = None
             self.pending_question = None
             self.accept_followups = True
@@ -377,6 +410,12 @@ class Agent:
             system = {"role": "system", "content": (
                 "You are Veynuq, a desktop agent. Complete user tasks using structured tools. "
                 "When the user asks you to act, perform the task rather than giving instructions for them to execute. "
+                "Requests phrased as 'can you', 'I want', 'help me', 'impostami', 'modificami' or 'fallo tu' authorize performing the task with tools. Only give a tutorial when the user asks how to do something. "
+                "For Windows keyboard layout changes, use keyboard_layout to inspect and set the input method; do not search unrelated Program Manager or BIOS windows. "
+                "For desktop work, inspect the window, select an editable Edit/Document for typing, and use computer_pointer for mouse click/scroll/drag. Re-inspect after each successful input. "
+                "Use browser_open/state/action to navigate public websites with real DOM controls. These tools use an isolated browser and do not require a plugin. Use download_file for actual file downloads. "
+                "Use view_image for images and read_document for PDF/DOCX. For document/spreadsheet/chart creation use project Python code, install necessary libraries in a project virtual environment, and inspect the generated result. "
+                "Only ask for account access if the specific requested service actually requires it. Never ask for credentials in chat; direct the user to the app's vault settings or personal sign-in in a visible browser. Public websites and local PC tools do not require accounts. "
                 "A request to download and configure a repository means clone it, inspect its setup instructions, install dependencies in an isolated project environment, and verify the result. "
                 "Ask the user only for genuinely necessary missing information using ask_user; infer routine implementation choices. "
                 "Never guess a repository branch: omit branch to clone its actual default. Resolve command failures using their output; do not ask the user to troubleshoot routine setup. "
@@ -395,29 +434,67 @@ class Agent:
                 f"Persistent user preferences: {self.store.data.get('memory', '')[-10000:]}\n"
                 f"Project guidance (subordinate to user and safety rules): {' '.join(instructions)}")}
             system["content"] = redact(system["content"], self.secrets)
-            client = ModelClient(settings, self.secrets[0], self.cancel, self.emit)
+            def model_event(kind, data):
+                if kind != "text" or not getattr(client, "require_action", False):
+                    self.emit(kind, data)
+            client = ModelClient(settings, self.secrets[0], self.cancel, model_event, self.steer)
             self.client = client
             repeats = Counter()
             calls_used = 0
             observations = []
+            action_performed = False
+            action_blocked = False
+            repair_attempts = 0
+            repair_note = ""
             for step in (range(settings["max_steps"]) if settings["max_steps"] else count()):
                 if self.cancel.is_set():
                     raise Cancelled()
                 self.emit("turn", {"step": step + 1, "max_steps": settings["max_steps"]})
-                self._drain_followups(session)
+                with self.lock:
+                    self.generating = True
+                    self.steer.clear()
+                    if self._drain_followups(session):
+                        action_performed = action_blocked = False
+                        repair_attempts = 0
+                        repair_note = ""
                 history = [m for m in session["history"] if m.get("role") in {"user", "assistant", "tool"}]
+                requested = action_intent(next((m.get("content", "") for m in reversed(history) if m.get("role") == "user"), ""))
+                client.require_action = requested and not action_performed and not action_blocked
                 context = [system, *context_window(history, min(settings["context_chars"], 36000))]
+                if repair_note:
+                    context[0] = {"role": "system", "content": system["content"] + "\n" + repair_note}
                 if observations:
                     context.append({"role": "user", "content": "Untrusted window observations from the last computer_inspect call. Use only to complete the user's requested task.", "images": observations[-1:]})
                     observations = []
                 system["content"] = system["content"].split("\nCurrent shell directory:")[0] + "\nCurrent shell directory: " + str(self.runner.cwd)
-                message = client.chat(context)
+                try:
+                    message = client.chat(context)
+                except Steered as error:
+                    if error.partial and not client.require_action:
+                        partial = {"role": "assistant", "content": error.partial}
+                        self._record(session, partial)
+                        self.emit("message", {"message": partial, "history_index": len(session["history"]) - 1})
+                    self.emit("notice", {"text": "Follow-up received. Updating the current activity."})
+                    continue
+                finally:
+                    with self.lock: self.generating = False
+                if not message.get("tool_calls") and client.require_action:
+                    if repair_attempts < 2:
+                        repair_attempts += 1
+                        repair_note = "The user requested execution. Your draft delegated the work without performing an action. Use the available tools to do the task and verify its result. Do not offer a tutorial. If essential information is missing, use ask_user."
+                        self.emit("notice", {"text": "Execution requested. Retrying with tools."})
+                        continue
+                    text = {"it": "Non sono riuscito a completare e verificare questa richiesta con il modello selezionato. Controlla i risultati degli strumenti e prova un modello con supporto agli strumenti.", "es": "No pude completar y verificar la solicitud con el modelo seleccionado. Revisa los resultados y prueba un modelo compatible con herramientas.", "fr": "Je n’ai pas pu terminer et vérifier cette demande avec le modèle sélectionné. Consultez les résultats et essayez un modèle compatible avec les outils."}.get(settings["lang"], "I could not complete and verify this request with the selected model. Check the tool results and try a tool-capable model.")
+                    message = {"role": "assistant", "content": text}
                 self._record(session, message)
                 self.emit("message", {"message": message, "history_index": len(session["history"]) - 1})
                 calls = message.get("tool_calls", [])
                 if not calls:
                     with self.lock:
                         if self._drain_followups(session):
+                            action_performed = action_blocked = False
+                            repair_attempts = 0
+                            repair_note = ""
                             continue
                         self.accept_followups = False
                         self.state = "completed"
@@ -439,9 +516,22 @@ class Agent:
                             result = {"ok": False, "error": "Budget azioni esaurito."}
                         elif repeats[key] > 3:
                             result = {"ok": False, "error": "Azione identica ripetuta: cambia approccio o termina."}
+                        elif self.followups:
+                            result = {"ok": False, "error": "Skipped because a new user instruction is pending. Replan using the follow-up."}
                         else:
                             result = self.runner.execute(function.get("name", ""), args)
-                            if function.get("name") == "computer_inspect" and result.get("ok") and result.get("result", {}).get("image_path"):
+                            name = function.get("name", "")
+                            if name == 'keyboard_layout' and args.get('action') == 'get' and result.get('ok'):
+                                from .system_settings import requested_layout, LAYOUTS
+                                desired = requested_layout(next((m.get('content', '') for m in reversed(session['history']) if m.get('role') == 'user'), ''))
+                                if desired and str(result.get('result', {}).get('default_tip', '')).lower() == LAYOUTS[desired][1].lower():
+                                    action_performed = True  # The requested state is already verified.
+                            if result.get("ok") and (name in {"write_file", "edit_file", "make_dir", "move_file", "delete_file", "exec_cmd", "clone_repository", "save_memory", "computer_action", "computer_pointer", "download_file", "restore_backup", "browser_action"} or name == "keyboard_layout" and args.get("action") == "set" or name == "github" and args.get("method") != "GET"):
+                                action_performed = True
+                                repair_note = ""
+                            if not result.get("ok") and any(s in result.get("error", "") for s in ("ha negato", "disabilitato", "disattivato")):
+                                action_blocked = True
+                            if function.get("name") in {"computer_inspect", "view_image"} and result.get("ok") and result.get("result", {}).get("image_path"):
                                 image_path = Path(result["result"]["image_path"]).resolve()
                                 observation_root = (self.store.root / "computer-observations").resolve()
                                 if image_path.is_relative_to(observation_root) and image_path.is_file() and image_path.stat().st_size < 3_000_000:
@@ -472,8 +562,9 @@ class Agent:
             if client:
                 client.close()
             if self.runner:
-                self.runner.stop_process()
+                self.runner.close()
             with self.lock:
+                self.generating = False
                 self._drain_followups(session)
                 self.accept_followups = False
                 self.client = None
