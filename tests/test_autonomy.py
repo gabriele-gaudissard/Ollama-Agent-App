@@ -160,6 +160,35 @@ class Autonomy(unittest.TestCase):
         with patch.object(client,'_chat',side_effect=RuntimeError('Provider HTTP 401')) as chat,self.assertRaises(RuntimeError):client.chat([])
         self.assertEqual(chat.call_count,1)
 
+    def test_local_health_http500_retries_without_replaying_accepted_tools(self):
+        client=ModelClient(self.store.data['settings'],'',self.cancel,lambda *a:None);self.addCleanup(client.close)
+        client.metadata={'capabilities':['completion','tools']}
+        failed=Mock(status_code=500,text='{"error":"health resp: Get http://127.0.0.1/health: wsarecv: connection closed"}')
+        success=Mock(status_code=200);success.iter_lines.return_value=iter([b'{"message":{"content":"continued"},"done":true}'])
+        messages=[{'role':'tool','tool_call_id':'already-done','content':'file was written'}]
+        with patch.object(client.session,'post',side_effect=[failed,success]) as post,patch.object(self.cancel,'wait',return_value=False):
+            self.assertEqual(client.chat(messages)['content'],'continued')
+        self.assertEqual(post.call_count,2)
+        self.assertEqual(post.call_args_list[0].kwargs['json']['messages'],messages)
+        self.assertEqual(post.call_args_list[1].kwargs['json']['messages'],messages)
+        failed.close.assert_called_once()
+
+    def test_unrelated_local_http500_is_not_retried(self):
+        client=ModelClient(self.store.data['settings'],'',self.cancel,lambda *a:None);self.addCleanup(client.close)
+        client.metadata={'capabilities':['completion','tools']}
+        failed=Mock(status_code=500,text='{"error":"invalid model configuration"}')
+        with patch.object(client.session,'post',return_value=failed) as post,self.assertRaisesRegex(RuntimeError,'invalid model'):
+            client.chat([])
+        self.assertEqual(post.call_count,1)
+
+    def test_persistent_local_health_failure_has_bounded_retries(self):
+        client=ModelClient(self.store.data['settings'],'',self.cancel,lambda *a:None);self.addCleanup(client.close)
+        client.metadata={'capabilities':['completion','tools']}
+        failed=Mock(status_code=500,text='{"error":"health resp: unavailable"}')
+        with patch.object(client.session,'post',return_value=failed) as post,patch.object(self.cancel,'wait',return_value=False),self.assertRaises(TransientModelError):
+            client.chat([])
+        self.assertEqual(post.call_count,3)
+
     def test_stop_during_retry_prevents_another_model_request(self):
         client=ModelClient(self.store.data['settings'],'',self.cancel,lambda *a:None);self.addCleanup(client.close)
         with patch.object(client,'_chat',side_effect=TransientModelError('connection reset')) as chat,patch.object(self.cancel,'wait',return_value=True),self.assertRaises(Cancelled):client.chat([])
