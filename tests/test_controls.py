@@ -69,6 +69,14 @@ class ControlTests(unittest.TestCase):
         with patch.object(computer,'checked_element',return_value=(snapshot,window,element,False)):
             with self.assertRaises(ValueError):computer.action('s',0,'type','text')
         self.assertIn('s',computer.snapshots);window.set_focus.assert_not_called()
+    def test_deep_windows_controls_are_visible_in_inspection(self):
+        computer=Computer(self.store.root);rect=types.SimpleNamespace(left=0,top=0,right=100,bottom=100);controls=[]
+        for i in range(23):
+            element=Mock();element.element_info.runtime_id=[i];element.element_info.control_type='Edit' if i==22 else 'Pane';element.element_info.name='Input' if i==22 else 'Container';element.rectangle.return_value=rect;element.window_text.return_value=element.element_info.name;element.iface_value.CurrentIsReadOnly=False;controls.append(element)
+        for i, element in enumerate(controls):element.children.return_value=controls[i+1:i+2]
+        controls[0].process_id.return_value=123
+        with patch.object(computer,'target',return_value=controls[0]),patch.object(computer,'password',return_value=False):result=computer.inspect(42)
+        self.assertIn(22,result['editable_indexes']);self.assertFalse(result['truncated'])
     def test_changed_control_identity_rejects_stale_click(self):
         computer=Computer(self.store.root);element=Mock();element.element_info.runtime_id=[2];element.element_info.control_type='Button';element.element_info.name='Different'
         window=Mock();window.process_id.return_value=123
