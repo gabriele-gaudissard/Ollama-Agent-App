@@ -106,7 +106,7 @@ Corrupt JSON is preserved under a separate filename. The app restores the previo
 
 ## Development and validation
 
-The verification suite is retained on the separate `verification` branch at the immutable commit `e3dd561b0e02a8842291f306a54717b3e4246ad9`. CI restores this baseline to ignored working files before checking the current application. Local maintenance files are preserved but are not tracked in the main tree or included in the installer. To restore the same checks in a fresh source checkout:
+The verification suite is retained in repository history at the immutable commit `e3dd561b0e02a8842291f306a54717b3e4246ad9`, reachable from `main` without a separate branch. CI restores this baseline to ignored working files before checking the current application. Local maintenance files are preserved but are not tracked in the main tree or included in the installer. To restore the same checks in a fresh source checkout:
 
 ```powershell
 git fetch --depth=1 origin e3dd561b0e02a8842291f306a54717b3e4246ad9
