@@ -30,8 +30,8 @@ ASSET_FILES = {"assets/brand/mark-dark.svg", "assets/brand/mark-light.svg", "ass
 
 # Keep legacy names in the accepted update paths so older installations can
 # be verified and migrated. They are no longer shipped in new packages.
-DISTRIBUTION_ROOT_FILES = ROOT_FILES - {"ui-translations.json", "Veyq.bat"}
-DISTRIBUTION_ASSET_FILES = ASSET_FILES - {"docs/REQUIREMENTS.md", "assets/brand/veyq-dark.ico"}
+DISTRIBUTION_ROOT_FILES = ROOT_FILES - {"ui-translations.json", "Veyq.bat", "Installer_only_shortcut.bat"}
+DISTRIBUTION_ASSET_FILES = ASSET_FILES - {"docs/REQUIREMENTS.md", "assets/brand/veyq-dark.ico", "assets/brand/icon-dark.png", "assets/brand/mark-light.svg"}
 
 
 def program_path(name):

@@ -31,6 +31,9 @@ audit.jsonl
 # Retired compatibility aliases, accepted only when updating old installations.
 /Veyq.bat
 /assets/brand/veyq-dark.ico
+/assets/brand/icon-dark.png
+/assets/brand/mark-light.svg
+/Installer_only_shortcut.bat
 # Local builds and runtime
 .venv/
 .veyq-runtime/

@@ -15,7 +15,7 @@ from veyq.signing import sign_manifest
 
 
 def validate_distribution_files(names):
-    forbidden = {"state.json", "state.previous.json", "profile.json", "runtime.json", "credentials.dpapi", "installation.json", "ui-translations.json", "package.json", "package-lock.json", "REQUIREMENTS.md", "Veyq.bat", "veyq-dark.ico"}
+    forbidden = {"state.json", "state.previous.json", "profile.json", "runtime.json", "credentials.dpapi", "installation.json", "ui-translations.json", "package.json", "package-lock.json", "REQUIREMENTS.md", "Veyq.bat", "veyq-dark.ico", "Installer_only_shortcut.bat", "icon-dark.png", "mark-light.svg"}
     for name in names:
         path = Path(name)
         if path.parts[0] in {"tests", "scripts", ".github", "node_modules", ".venv"} or path.name in forbidden or path.name.startswith((".env", "test_")):

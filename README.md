@@ -4,6 +4,17 @@
 
 Veynuq (pronounced “VAY-nook”) is an independent Windows desktop AI agent. It works with local models or a Chat Completions compatible API, and uses backend tools to act on files, projects, GitHub, the web and accessible Windows applications.
 
+## Quick installation
+
+Requires **Windows 10/11 and Python 3.11+**.
+
+1. Download **`veyq-update.zip`** from [the latest release](https://github.com/gabriele-gaudissard/Veynuq-Agent-App/releases/latest), under **Assets**.
+2. Extract the complete ZIP to a writable application folder outside your working projects.
+3. Open **`Installer.bat`** once. It configures dependencies, updates and the Desktop shortcut.
+4. Launch **Veynuq** from the Desktop and choose an installed model or download one in Settings.
+
+Use the release ZIP for installation. GitHub's **Source code** archives and **Code → Download ZIP** contain the repository checkout, including publishing files. Node/npm and test files are not needed by users. Keep the extracted application files together: they support the app and its future updates.
+
 ## See Veynuq
 
 Three screenshots of the running Windows application in Italian with an isolated demo profile. The illustrative conversation contains no personal chat or credentials and is not a benchmark. New profiles start in English.
@@ -47,14 +58,11 @@ Browser control reuses installed Microsoft Edge through Playwright. Its separate
 
 Windows 10/11 and Python 3.11+ are required. A tool-capable local model is sufficient; a paid API is optional.
 
-1. Download `veyq-update.zip` from [the latest release](https://github.com/gabriele-gaudissard/Veynuq-Agent-App/releases/latest).
-2. Extract it to a writable application folder outside your working projects.
-3. Run `Installer.bat`. It creates a virtual environment, installs dependencies, registers updates and creates the Veynuq Desktop shortcut.
-4. Launch Veynuq. A new profile starts in **English**. Choose a 7B, 8B or 14B starter model, another catalog model, an installed model, or a remote API.
+Follow **Quick installation** above. A new profile starts in **English**. Choose a 7B, 8B or 14B starter model, another catalog model, an installed model, or a remote API.
 
 Model downloads require your explicit choice. If the default local engine is missing, the confirmed download starts the official installer, verifies its Windows publisher signature and starts the engine. An already running engine is reused. Installer failures preserve the application and are reported. Engine installation requires network access and a valid publisher signature; this path is not needed on an already configured PC.
 
-`Installer_only_shortcut.bat` repairs the Desktop and Start menu shortcuts with the dark seven-size Windows icon. The installer verifies that the icon exists. The shortcut launches without a terminal window. `Veynuq.bat` also launches the app; opening a batch file directly may briefly show its shell. Missing Python packages are repaired automatically on launch, with diagnostics in `startup.log`.
+The installer creates Desktop and Start menu shortcuts with the dark seven-size Windows icon and verifies that the icon exists. The shortcut launches without a terminal window. `Veynuq.bat` also launches the app; opening a batch file directly may briefly show its shell. Missing Python packages are repaired automatically on launch, with diagnostics in `startup.log`. To repair only the shortcuts, open PowerShell in the application folder and run `powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -ShortcutOnly`; this preserves the installed runtime and your data.
 
 Settings includes a visible selector for 10 popular free local model families, a custom model-name download field and an information button beside each model. Details distinguish catalog estimates from live installed metadata, including parameters, quantization, maximum context, license, native tools, images and estimated hardware fit. Popular families are curated rather than presented as an unverified global usage ranking. Models without native tool support serve chat and analysis; choose Qwen3 or another tool-capable model for autonomous work.
 
