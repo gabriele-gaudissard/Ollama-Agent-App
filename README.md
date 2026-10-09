@@ -159,11 +159,11 @@ A live `qwen3:14b` run completed two coding workers concurrently in a disposable
 
 ## Development and validation
 
-The verification suite is retained in repository history at the immutable commit `a2cae1a7e5f93c07cce00798c3170495c5998688`, reachable from `main` without a separate branch. CI restores this baseline to ignored working files before checking the current application. Local maintenance files are preserved but are not tracked in the main tree or included in the installer. To restore the same checks in a fresh source checkout:
+The verification suite is retained in repository history at the immutable commit `5e3bbfadf8af8a0103251ebae03ba19f3cd80743`, reachable from `main` without a separate branch. CI restores this baseline to ignored working files before checking the current application. Local maintenance files are preserved but are not tracked in the main tree or included in the installer. To restore the same checks in a fresh source checkout:
 
 ```powershell
-git fetch --depth=1 origin a2cae1a7e5f93c07cce00798c3170495c5998688
-git restore --source=a2cae1a7e5f93c07cce00798c3170495c5998688 --worktree -- tests package.json package-lock.json ui-translations.json
+git fetch --depth=1 origin 5e3bbfadf8af8a0103251ebae03ba19f3cd80743
+git restore --source=5e3bbfadf8af8a0103251ebae03ba19f3cd80743 --worktree -- tests package.json package-lock.json ui-translations.json
 python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
 python -m compileall -q app.py veyq
