@@ -129,9 +129,20 @@ class Computer:
                     continue
                 index = len(saved)
                 saved.append((element, self.signature(element)))
-                elements.append({"index": index, "type": element.element_info.control_type,
+                observation = {"index": index, "type": element.element_info.control_type,
                                  "name": element.window_text()[:500], "enabled": element.is_enabled(),
-                                 "rect": [rect.left, rect.top, rect.right, rect.bottom]})
+                                 "rect": [rect.left, rect.top, rect.right, rect.bottom]}
+                if self.editable(element):
+                    try:
+                        value = element.iface_value.CurrentValue
+                        if isinstance(value, str): observation['value'] = value[:1000]
+                    except Exception: pass
+                if element.element_info.control_type in {'CheckBox','RadioButton'}:
+                    try:
+                        state = element.get_toggle_state()
+                        if type(state) is int and state in {0,1,2}: observation['toggle_state'] = state
+                    except Exception: pass
+                elements.append(observation)
             except Exception:
                 continue
         token = uuid.uuid4().hex

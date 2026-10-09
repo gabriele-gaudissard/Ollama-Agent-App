@@ -17,15 +17,15 @@ Use the release ZIP for installation. GitHub's **Source code** archives and **Co
 
 ## See Veynuq
 
-Three screenshots of the running Windows application in English with an isolated demo profile. The illustrative conversation contains no personal chat or credentials and is not a benchmark. New profiles start in English.
+Three screenshots of the running Windows application in English with an isolated demo profile, including the local dictation button. The illustrative conversation contains no personal chat or credentials and is not a benchmark. New profiles start in English.
 
 **Workspace and conversation** — both user and agent messages are aligned left; the composer stays visible while history scrolls.
 
 ![Workspace and conversation](docs/screenshots/workspace.png)
 
-**Integrated tools** — file and coding actions, mouse and keyboard, browser, GitHub, documents and memory.
+**Task center** — resumable progress, reusable procedures, change review and read-only schedules.
 
-![Integrated tools](docs/screenshots/explorer.png)
+![Task center](docs/screenshots/explorer.png)
 
 **Models and settings** — installed models, the ten-model download selector, custom names and information beside each model. Permissions and provider credentials are further down the same panel.
 
@@ -88,15 +88,35 @@ Type while the agent works to send a **follow-up**. During a model response it i
 | Approve for me | Project file reads/changes and keyboard inspection proceed automatically. Keyboard changes, commands, desktop/browser control, downloads, backup restoration, outside-project access, deletions, memory writes, other-chat context, online requests and GitHub writes require approval. |
 | Full access | Actions proceed without confirmations, subject to validation and the online switch. Enabling it requires an explicit checkbox. |
 
-These are application permission gates, **not an OS sandbox**. Shell commands run as the current Windows user and can access other files and network services. Structured file tools protect recognized credential locations and the app data folder, but arbitrary approved shell commands cannot provide the same isolation. Full access does not elevate Windows privileges. GUI controls in password-manager/system-security apps and Veynuq’s own permission UI are protected; inaccessible or elevated applications may require a different approach.
+These are application permission gates. In **Windows host** mode, shell commands run as the current Windows user and can access other files and network services. The separate offline command sandbox described below uses Docker isolation; file tools and desktop actions continue to use their own host permission gates. Structured file tools protect recognized credential locations and the app data folder, but arbitrary approved shell commands cannot provide the same isolation. Full access does not elevate Windows privileges. GUI controls in password-manager/system-security apps and Veynuq’s own permission UI are protected; inaccessible or elevated applications may require a different approach.
 
 Approval is tied to one action and exact parameters. File changes while approval is pending invalidate it. Denials are returned to the model and recorded. Configuration/project mutations are blocked during work; follow-ups and question answers remain available. Stop interrupts the model connection and terminates command process trees. A window-close handler performs the same cleanup even with command timeouts disabled. Completed side effects remain applied.
+
+## Speak instead of typing
+
+Press **🎙 Speak** beside the message field. On first use, confirm **Download speech model** to obtain the pinned multilingual base model (about 150 MB) from Hugging Face. This is separate from the chat model; no account is needed. Press **Speak** again to begin recording, then **Stop recording** to transcribe. Recording is visibly indicated and automatically stops after two minutes. **Cancel dictation** discards the recording/transcript and terminates the dedicated worker. Closing the app also stops it.
+
+Transcription runs locally on CPU using faster-whisper/CTranslate2 and automatically detects the spoken language. Once prepared, it works without a network connection; audio stays in memory and is not uploaded or saved. The text is appended to the message box for editing and **is never sent automatically**. During an agent response it can be sent as a normal immediate follow-up. Switching conversations cancels dictation to keep transcripts out of another chat. Windows microphone permissions and an available recording device are required; accuracy depends on speech clarity and background noise. The two-minute recording cap is separate from the optional agent step/command limits.
+
+## Long tasks, review and controlled execution
+
+**Task center** shows saved progress and lets you resume an interrupted, cancelled, failed or step-limited activity. Full history stays on disk; older exchanges are condensed into bounded observations for the model. The agent can save decisions, verification and next steps with `checkpoint_task`. After a crash, dispatched tools without recorded results are marked **outcome unknown** and are never automatically replayed. Resume asks the model to inspect the real state first. This is application context management, not a guarantee of the model's reasoning quality.
+
+**Review changes** displays additions and removals with separate colors, including unstaged, staged and new Git files. Outside Git, it compares available file backups. Sandbox changes are shown separately through the agent's review tool and are also included in Task center. Binary and large output is bounded. Review does not publish or merge anything.
+
+Five reusable procedures cover coding, desktop work, repository setup, code review and documents. Up to three model workers can investigate independent questions concurrently. Workers can only read/search/list files inside the selected project; they cannot execute commands, write files, browse, control the PC or delegate again. The main agent performs the changes. `git_worktree` creates a separate generated branch and sibling checkout from a clean repository, with checkout hooks disabled. Select that folder as the project for isolated coding and review before merging.
+
+In **Settings → Command environment**, select **Offline sandbox** to execute Linux `/bin/sh` commands on a filtered disposable project copy. This requires an installed, running local Docker Linux engine and the cached `python:3.13-slim` image. To prepare the image, run `docker pull python:3.13-slim` after installing Docker. Veynuq refuses remote Docker endpoints and never falls back to Windows host execution when isolation is unavailable. Containers have no network, a read-only root, dropped capabilities, no new privileges, an unprivileged user, and process/CPU/memory limits. Only the disposable copy is mounted. Credentials, profile data, Git metadata and dependency folders are excluded. Copies are limited to 20 MB, 2000 files and 2 MB per file; output size is monitored, not a filesystem disk quota. Sandbox mode is suitable for small code tasks; it is not a Windows GUI virtual machine.
+
+Sandbox edits are held in the local profile and survive restarting the app. Use `sandbox_changes` to review/apply them. Application checks the original host hashes, refuses overwriting externally changed files, creates backups and rolls back partial application failures. Auto/always approval shows the actual diff before applying. Full access follows the user's selected approval policy. File/desktop tools remain host actions: selecting the command sandbox does not isolate all PC interaction.
+
+**Read-only schedules** run project checks with the selected model while Veynuq is open, at intervals from 1 to 168 hours. Missed checks run once on the next launch; failed or interrupted runs pause for review. Scheduled checks cannot execute commands, change files, browse, use GitHub or control the desktop, even when the app normally has full access. They use at most 12 model turns and remain read-only when resumed. A remote selected provider still receives the permitted context. Schedules can be paused, enabled or removed; deleting a chat removes its schedules. There is no hidden operating-system startup task.
 
 ## GitHub and updates
 
 The GitHub tool accepts `repository: "owner/name"` for each action. Settings can hold an optional default. A token is only necessary for private data and authenticated writes; use a fine-grained token with the permissions you need. It stays in the backend vault and is injected into requests. Git credential-manager authentication for command-line Git is separate.
 
-Pushing changes to **main** runs Windows backend tests, UI tests and syntax checks before publishing a release. An unpushed local edit or another branch does not update users. Installed packages check at startup and hourly, stage the new version and restart when idle. This independent update check contacts GitHub even if the agent’s online tools are off; disable automatic updates too when avoiding outbound traffic. Explicit model downloads and engine setup also contact their publishers after confirmation.
+Pushing changes to **main** runs Windows backend tests, UI tests, syntax checks and a real isolated Linux Docker test before publishing a release. An unpushed local edit or another branch does not update users. Installed packages check at startup and hourly, stage the new version and restart when idle. This independent update check contacts GitHub even if the agent’s online tools are off; disable automatic updates too when avoiding outbound traffic. Explicit model downloads and engine setup also contact their publishers after confirmation.
 
 Every update manifest is **Ed25519 signed** against a pinned publisher key, checked before staging and again before applying. The updater verifies SHA-256 hashes, rejects unsigned/tampered manifests, archive traversal/links and older release sequences, preserves user data, backs up app files and rolls back a failed installation. Changed dependencies install into a separate runtime before switching. Offline/download/rate-limit failures leave the current app installed.
 
@@ -114,11 +134,11 @@ Corrupt JSON is preserved under a separate filename. The app restores the previo
 
 ## Development and validation
 
-The verification suite is retained in repository history at the immutable commit `e3dd561b0e02a8842291f306a54717b3e4246ad9`, reachable from `main` without a separate branch. CI restores this baseline to ignored working files before checking the current application. Local maintenance files are preserved but are not tracked in the main tree or included in the installer. To restore the same checks in a fresh source checkout:
+The verification suite is retained in repository history at the immutable commit `728b41437b8d4a8d8dfcd3a3fd5aedd6844fd3b9`, reachable from `main` without a separate branch. CI restores this baseline to ignored working files before checking the current application. Local maintenance files are preserved but are not tracked in the main tree or included in the installer. To restore the same checks in a fresh source checkout:
 
 ```powershell
-git fetch --depth=1 origin e3dd561b0e02a8842291f306a54717b3e4246ad9
-git restore --source=e3dd561b0e02a8842291f306a54717b3e4246ad9 --worktree -- tests package.json package-lock.json ui-translations.json
+git fetch --depth=1 origin 728b41437b8d4a8d8dfcd3a3fd5aedd6844fd3b9
+git restore --source=728b41437b8d4a8d8dfcd3a3fd5aedd6844fd3b9 --worktree -- tests package.json package-lock.json ui-translations.json
 python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
 python -m compileall -q app.py veyq
@@ -128,9 +148,9 @@ node --check app.js
 python app.py --self-check
 ```
 
-The 91 backend tests and UI suite cover approval denial, process cancellation/timeouts, persistent cwd, memory/project scoping, immediate follow-ups, actual chat removal, action-intent repair, questions, partial HTTP cancellation, recovery, credential paths, literal keyboard input, mouse targeting/drag cleanup, deep Windows accessibility trees, stale control identity, read-only fields, download integrity, backup restoration, Markdown sanitation, four-language switching, signed updates and rollback. An isolated real Edge test filled an input, clicked a button and rejected reuse of the previous observation. A live `qwen3:14b` run received a follow-up during generation, changed and reread an actual file, then inspected the Windows keyboard without changing it. Earlier live runs cloned `octocat/Hello-World`, wrote a validation script and ran it successfully with Python. Windows mouse/key dispatch and keyboard-setting writes are checked with controlled doubles; visual QA covers the real Veynuq app. This does not verify every third-party Windows application's accessibility behavior. The missing-engine installer path is checked structurally and with mocks because the development PC already has the engine; no unnecessary reinstall or multi-GB model download was performed.
+The 115 backend checks and UI suite cover approval denial, process cancellation/timeouts, persistent cwd, memory/project scoping, immediate follow-ups, actual chat removal, action-intent repair, questions, partial HTTP cancellation, recovery, credential paths, literal keyboard input, mouse targeting/drag cleanup, deep Windows accessibility trees, stale control identity, read-only fields, download integrity, backup restoration, Markdown sanitation, four-language switching, signed updates and rollback. An isolated real Edge test filled an input, clicked a button and rejected reuse of the previous observation. A live `qwen3:14b` desktop run typed into an isolated test window, selected its checkbox, resumed after a controlled interruption, clicked its verification button and inspected the resulting PASS. All eight native tool calls succeeded; unrelated Windows applications and tools were blocked by the test harness. Another live `qwen3:14b` run received a follow-up during generation, changed and reread an actual file, then inspected the Windows keyboard without changing it. Earlier live runs cloned `octocat/Hello-World`, wrote a validation script and ran it successfully with Python. Windows mouse/key dispatch and keyboard-setting writes have controlled regression checks; a separate live-model desktop test uses a disposable test window with all unrelated tools/windows blocked. Visual QA covers the real Veynuq app. The Docker test runs in an isolated Linux CI job because Docker is not installed on the development PC. This does not verify every third-party Windows application's accessibility behavior. The missing-engine installer path is checked structurally and with mocks because the development PC already has the engine; no unnecessary reinstall or multi-GB model download was performed.
 
-The agent’s ability to finish a particular task still depends on the model, available tools, hardware, permissions and service responses. It does not guarantee frontier-model quality or successful control of every Windows application. There is no generic MCP/plugin manager, voice/video generator or unattended scheduler in this release.
+The agent’s ability to finish a particular task still depends on the model, available tools, hardware, permissions and service responses. It does not guarantee frontier-model quality or successful control of every Windows application. There is no generic MCP/plugin manager or voice/video generation; dictation is speech input. Schedules require the app to remain open.
 
 Publisher builds use `.github/build_release.py`, the Actions signing secret and the workflow run number. The publisher explicitly selects distribution files, independently of `.gitignore`; build-time validation rejects accidental development files or private data in the package. Keep the private key out of source, arguments and ordinary JSON. Startup diagnostics are in the profile’s `startup.log`.
 

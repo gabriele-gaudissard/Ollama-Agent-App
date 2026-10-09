@@ -59,6 +59,8 @@ coverage/
 /browser-profile/
 /computer-observations/
 /backups/
+/sandboxes/
+/voice-models/
 *.gguf
 *.safetensors
 __pycache__/

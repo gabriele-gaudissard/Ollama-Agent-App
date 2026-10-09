@@ -7,3 +7,7 @@ pywinauto>=0.6.9,<0.7; sys_platform == 'win32'
 pypdf>=6,<7
 Pillow>=11,<13
 playwright>=1.58,<2
+faster-whisper>=1.2.1,<2
+# PyAV 19 removed metadata_errors used by the current speech decoder.
+av>=11,<19
+sounddevice>=0.5.3,<0.6

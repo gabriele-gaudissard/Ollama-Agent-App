@@ -1005,10 +1005,10 @@ window.VeyqI18N = (() => {
         es: "Copiar",
         fr: "Copier",
       },
-      "Desktop agent · v4.0": {
-        it: "Agente desktop · v4.0",
-        es: "Agente de escritorio · v4.0",
-        fr: "Agent de bureau · v4.0",
+      "Desktop agent · v4.1": {
+        it: "Agente desktop · v4.1",
+        es: "Agente de escritorio · v4.1",
+        fr: "Agent de bureau · v4.1",
       },
       "Your ideas. Real actions.": {
         it: "Le tue idee. Azioni concrete.",
@@ -2057,7 +2057,7 @@ window.VeyqI18N = (() => {
       "Token GitHub": "GitHub token",
       "Cartella di lavoro": "Workspace",
       Copia: "Copy",
-      "Agente desktop · v4.0": "Desktop agent · v4.0",
+      "Agente desktop · v4.1": "Desktop agent · v4.1",
       "Le tue idee. Azioni concrete.": "Your ideas. Real actions.",
       "+ File": "+ File",
       "ⓘ Dettagli": "ⓘ Details",
@@ -2604,8 +2604,8 @@ window.VeyqI18N = (() => {
       "Dossier de travail": "Workspace",
       Copiar: "Copy",
       Copier: "Copy",
-      "Agente de escritorio · v4.0": "Desktop agent · v4.0",
-      "Agent de bureau · v4.0": "Desktop agent · v4.0",
+      "Agente de escritorio · v4.1": "Desktop agent · v4.1",
+      "Agent de bureau · v4.1": "Desktop agent · v4.1",
       "Tus ideas. Acciones reales.": "Your ideas. Real actions.",
       "Vos idées. Des actions réelles.": "Your ideas. Real actions.",
       "+ Archivo": "+ File",
@@ -2893,6 +2893,291 @@ window.VeyqI18N = (() => {
         "Download this model? The local engine will contact its online catalog and install the official signed engine if needed.",
     },
   };
+  Object.assign(dictionaries.strings, {
+  "Task center": {
+    "it": "Centro attività",
+    "es": "Centro de tareas",
+    "fr": "Centre des tâches"
+  },
+  "Saved progress, reviewed changes, reusable procedures and read-only schedules.": {
+    "it": "Progressi salvati, revisione delle modifiche, procedure riutilizzabili e attività programmate in sola lettura.",
+    "es": "Progreso guardado, cambios revisados, procedimientos reutilizables y tareas programadas de solo lectura.",
+    "fr": "Progression enregistrée, révision des modifications, procédures réutilisables et tâches planifiées en lecture seule."
+  },
+  "Resume interrupted task": {
+    "it": "Riprendi attività interrotta",
+    "es": "Reanudar tarea interrumpida",
+    "fr": "Reprendre la tâche interrompue"
+  },
+  "Review changes": {
+    "it": "Rivedi modifiche",
+    "es": "Revisar cambios",
+    "fr": "Réviser les modifications"
+  },
+  "Reusable procedures": {
+    "it": "Procedure riutilizzabili",
+    "es": "Procedimientos reutilizables",
+    "fr": "Procédures réutilisables"
+  },
+  "Read-only schedules": {
+    "it": "Attività programmate in sola lettura",
+    "es": "Tareas programadas de solo lectura",
+    "fr": "Tâches planifiées en lecture seule"
+  },
+  "Uses the selected model and local project reads only. No commands, file changes, desktop actions or online tools. Runs while the app is open; missed runs resume on the next launch.": {
+    "it": "Usa il modello selezionato e legge solo il progetto locale. Comandi, modifiche ai file, controllo del PC e strumenti online sono esclusi. Funziona con l’app aperta; le esecuzioni saltate ripartono al prossimo avvio.",
+    "es": "Usa el modelo seleccionado y solo lee el proyecto local. Sin comandos, cambios de archivos, acciones de escritorio ni herramientas en línea. Funciona con la aplicación abierta; las ejecuciones pendientes se reanudan al abrirla.",
+    "fr": "Utilise le modèle sélectionné et lit uniquement le projet local. Sans commandes, modifications de fichiers, actions sur le bureau ni outils en ligne. Fonctionne lorsque l’application est ouverte ; les exécutions manquées reprennent au prochain lancement."
+  },
+  "Scheduled task": {
+    "it": "Attività da programmare",
+    "es": "Tarea programada",
+    "fr": "Tâche planifiée"
+  },
+  "Review the project and report meaningful changes.": {
+    "it": "Esamina il progetto e segnala modifiche rilevanti.",
+    "es": "Revisa el proyecto e informa de cambios relevantes.",
+    "fr": "Examiner le projet et signaler les changements significatifs."
+  },
+  "Repeat every (hours)": {
+    "it": "Ripeti ogni (ore)",
+    "es": "Repetir cada (horas)",
+    "fr": "Répéter toutes les (heures)"
+  },
+  "Create schedule": {
+    "it": "Crea attività programmata",
+    "es": "Crear tarea programada",
+    "fr": "Créer une tâche planifiée"
+  },
+  "Pause schedule": {
+    "it": "Sospendi",
+    "es": "Pausar",
+    "fr": "Suspendre"
+  },
+  "Enable schedule": {
+    "it": "Attiva",
+    "es": "Activar",
+    "fr": "Activer"
+  },
+  "Remove schedule": {
+    "it": "Rimuovi",
+    "es": "Eliminar",
+    "fr": "Supprimer"
+  },
+  "Remove this schedule?": {
+    "it": "Rimuovere questa attività programmata?",
+    "es": "¿Eliminar esta tarea programada?",
+    "fr": "Supprimer cette tâche planifiée ?"
+  },
+  "Command environment": {
+    "it": "Ambiente dei comandi",
+    "es": "Entorno de comandos",
+    "fr": "Environnement des commandes"
+  },
+  "Windows host — your account permissions": {
+    "it": "Windows — permessi del tuo account",
+    "es": "Windows — permisos de tu cuenta",
+    "fr": "Windows — droits de votre compte"
+  },
+  "Offline sandbox — disposable project copy": {
+    "it": "Sandbox senza rete — copia temporanea del progetto",
+    "es": "Sandbox sin conexión — copia temporal del proyecto",
+    "fr": "Sandbox hors ligne — copie temporaire du projet"
+  },
+  "Sandbox requires Docker and a cached python:3.13-slim image. It never falls back to host execution. Review and apply sandbox changes separately.": {
+    "it": "La sandbox richiede Docker e l’immagine python:3.13-slim già scaricata. Se non disponibile, il comando si blocca. Le modifiche della sandbox vanno riviste e applicate separatamente.",
+    "es": "La sandbox requiere Docker y la imagen python:3.13-slim ya descargada. Si no está disponible, el comando se bloquea. Revisa y aplica sus cambios por separado.",
+    "fr": "La sandbox nécessite Docker et l’image python:3.13-slim déjà téléchargée. Si elle est indisponible, la commande est bloquée. Révisez et appliquez ses modifications séparément."
+  },
+  "Choose a chat first.": {
+    "it": "Scegli prima una chat.",
+    "es": "Elige primero una conversación.",
+    "fr": "Choisissez d’abord une conversation."
+  },
+  "Task state": {
+    "it": "Stato attività",
+    "es": "Estado de la tarea",
+    "fr": "État de la tâche"
+  },
+  "No saved task progress yet.": {
+    "it": "Non ci sono ancora progressi salvati.",
+    "es": "Todavía no hay progreso guardado.",
+    "fr": "Aucune progression enregistrée."
+  },
+  "No changes found.": {
+    "it": "Nessuna modifica rilevata.",
+    "es": "No se encontraron cambios.",
+    "fr": "Aucune modification trouvée."
+  },
+  "Use procedure {name} to ": {
+    "it": "Usa la procedura {name} per ",
+    "es": "Usa el procedimiento {name} para ",
+    "fr": "Utilise la procédure {name} pour "
+  },
+  "Implement and verify code": {
+    "it": "Modifica e verifica il codice",
+    "es": "Modificar y verificar código",
+    "fr": "Modifier et vérifier le code"
+  },
+  "Complete a Windows task": {
+    "it": "Esegui un’attività su Windows",
+    "es": "Realizar una tarea de Windows",
+    "fr": "Effectuer une tâche Windows"
+  },
+  "Clone and configure a repository": {
+    "it": "Scarica e configura un repository",
+    "es": "Clonar y configurar un repositorio",
+    "fr": "Cloner et configurer un dépôt"
+  },
+  "Review a change": {
+    "it": "Esamina una modifica",
+    "es": "Revisar un cambio",
+    "fr": "Examiner une modification"
+  },
+  "Create a shareable document": {
+    "it": "Crea un documento da condividere",
+    "es": "Crear un documento para compartir",
+    "fr": "Créer un document à partager"
+  },
+  "Parallel read-only investigations started.": {
+    "it": "Analisi parallele in sola lettura avviate.",
+    "es": "Análisis paralelos de solo lectura iniciados.",
+    "fr": "Analyses parallèles en lecture seule lancées."
+  },
+  "interrupted": {
+    "it": "interrotta",
+    "es": "interrumpida",
+    "fr": "interrompue"
+  },
+  "missing_chat": {
+    "it": "chat non disponibile",
+    "es": "conversación no disponible",
+    "fr": "conversation indisponible"
+  }
+});
+  Object.assign(dictionaries.strings, {
+  "Local voice input": {
+    "it": "Dettatura locale",
+    "es": "Dictado local",
+    "fr": "Dictée locale"
+  },
+  "🎙 Speak": {
+    "it": "🎙 Parla",
+    "es": "🎙 Hablar",
+    "fr": "🎙 Parler"
+  },
+  "Stop recording": {
+    "it": "Ferma registrazione",
+    "es": "Detener grabación",
+    "fr": "Arrêter l’enregistrement"
+  },
+  "Cancel dictation": {
+    "it": "Annulla dettatura",
+    "es": "Cancelar dictado",
+    "fr": "Annuler la dictée"
+  },
+  "Speak instead of typing. The transcript appears in your message box for review and is never sent automatically.": {
+    "it": "Parla invece di scrivere. La trascrizione appare nella barra del messaggio per essere controllata e non viene mai inviata automaticamente.",
+    "es": "Habla en lugar de escribir. La transcripción aparece en el cuadro del mensaje para revisarla y nunca se envía automáticamente.",
+    "fr": "Parlez au lieu de taper. La transcription apparaît dans votre message pour relecture et n’est jamais envoyée automatiquement."
+  },
+  "The first use downloads a multilingual speech model (about 150 MB). Audio stays on this computer, in memory only. Recording starts only when you press Speak and stops after two minutes at most.": {
+    "it": "Al primo uso viene scaricato un modello vocale multilingue (circa 150 MB). L’audio resta su questo PC, solo in memoria. La registrazione inizia premendo Parla e dura al massimo due minuti.",
+    "es": "El primer uso descarga un modelo de voz multilingüe (unos 150 MB). El audio permanece en este equipo, solo en memoria. La grabación comienza al pulsar Hablar y dura como máximo dos minutos.",
+    "fr": "La première utilisation télécharge un modèle vocal multilingue (environ 150 Mo). L’audio reste sur cet ordinateur, uniquement en mémoire. L’enregistrement commence en appuyant sur Parler et dure au maximum deux minutes."
+  },
+  "After downloading, dictation works offline without an account. Windows must allow this app to access your microphone.": {
+    "it": "Dopo il download, la dettatura funziona senza rete e senza account. Windows deve consentire l’accesso al microfono per questa app.",
+    "es": "Tras la descarga, el dictado funciona sin conexión ni cuenta. Windows debe permitir el acceso al micrófono para esta aplicación.",
+    "fr": "Après le téléchargement, la dictée fonctionne hors ligne sans compte. Windows doit autoriser l’accès au microphone pour cette application."
+  },
+  "Download speech model": {
+    "it": "Scarica modello vocale",
+    "es": "Descargar modelo de voz",
+    "fr": "Télécharger le modèle vocal"
+  },
+  "Recording locally": {
+    "it": "Registrazione locale",
+    "es": "Grabación local",
+    "fr": "Enregistrement local"
+  },
+  "Downloading speech model…": {
+    "it": "Download del modello vocale…",
+    "es": "Descargando modelo de voz…",
+    "fr": "Téléchargement du modèle vocal…"
+  },
+  "Transcribing locally…": {
+    "it": "Trascrizione locale…",
+    "es": "Transcripción local…",
+    "fr": "Transcription locale…"
+  },
+  "Preparing microphone…": {
+    "it": "Preparazione del microfono…",
+    "es": "Preparando micrófono…",
+    "fr": "Préparation du microphone…"
+  },
+  "Transcription ready. Review it before sending.": {
+    "it": "Trascrizione pronta. Controllala prima di inviarla.",
+    "es": "Transcripción lista. Revísala antes de enviarla.",
+    "fr": "Transcription prête. Relisez-la avant l’envoi."
+  },
+  "Transcription ready. Audio gaps were detected; review the text.": {
+    "it": "Trascrizione pronta. Sono state rilevate interruzioni audio: controlla il testo.",
+    "es": "Transcripción lista. Se detectaron cortes de audio; revisa el texto.",
+    "fr": "Transcription prête. Des coupures audio ont été détectées ; vérifiez le texte."
+  },
+  "Speech model ready. Press Speak to start.": {
+    "it": "Modello vocale pronto. Premi Parla per iniziare.",
+    "es": "Modelo de voz listo. Pulsa Hablar para empezar.",
+    "fr": "Modèle vocal prêt. Appuyez sur Parler pour commencer."
+  },
+  "No speech detected. Try speaking clearly near the microphone.": {
+    "it": "Non ho rilevato parole. Prova a parlare chiaramente vicino al microfono.",
+    "es": "No se detectó voz. Habla claramente cerca del micrófono.",
+    "fr": "Aucune parole détectée. Parlez clairement près du microphone."
+  },
+  "Local dictation failed. Check the microphone and retry.": {
+    "it": "Dettatura non riuscita. Controlla il microfono e riprova.",
+    "es": "El dictado local falló. Comprueba el micrófono e inténtalo de nuevo.",
+    "fr": "Échec de la dictée locale. Vérifiez le microphone et réessayez."
+  },
+  "Finish or cancel dictation before sending.": {
+    "it": "Termina o annulla la dettatura prima di inviare.",
+    "es": "Termina o cancela el dictado antes de enviar.",
+    "fr": "Terminez ou annulez la dictée avant l’envoi."
+  },
+  "Return to the active chat before dictating a follow-up.": {
+    "it": "Torna alla chat attiva prima di dettare un follow-up.",
+    "es": "Vuelve a la conversación activa antes de dictar un seguimiento.",
+    "fr": "Revenez à la conversation active avant de dicter un suivi."
+  },
+  "Stop dictation before changing configuration.": {
+    "it": "Termina la dettatura prima di cambiare configurazione.",
+    "es": "Detén el dictado antes de cambiar la configuración.",
+    "fr": "Arrêtez la dictée avant de modifier la configuration."
+  },
+  "Dictation is already active.": {
+    "it": "La dettatura è già attiva.",
+    "es": "El dictado ya está activo.",
+    "fr": "La dictée est déjà active."
+  },
+  "Download the local speech model first.": {
+    "it": "Scarica prima il modello vocale locale.",
+    "es": "Descarga primero el modelo de voz local.",
+    "fr": "Téléchargez d’abord le modèle vocal local."
+  },
+  "Local dictation stopped unexpectedly.": {
+    "it": "La dettatura si è interrotta inaspettatamente.",
+    "es": "El dictado se detuvo inesperadamente.",
+    "fr": "La dictée s’est arrêtée de manière inattendue."
+  },
+  "Cannot start local dictation.": {
+    "it": "Impossibile avviare la dettatura.",
+    "es": "No se puede iniciar el dictado.",
+    "fr": "Impossible de démarrer la dictée."
+  }
+});
+  Object.assign(dictionaries.strings, {"Speech model download failed. Check your connection and retry.": {"it": "Download del modello vocale non riuscito. Controlla la connessione e riprova.", "es": "Error al descargar el modelo de voz. Comprueba la conexión e inténtalo de nuevo.", "fr": "Échec du téléchargement du modèle vocal. Vérifiez la connexion et réessayez."}});
   let language = "en";
   const remembered = new WeakMap();
   function canonical(text) {

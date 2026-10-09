@@ -17,6 +17,7 @@ DEFAULTS = {
     "model": "qwen3:14b", "permission": "auto", "network": False,
     "workspace": "", "max_steps": 0, "command_timeout": 0,
     "github_repo": "", "context_chars": 60000, "auto_update": True, "vision": False,
+    "execution_environment": "host",
 }
 
 
@@ -150,6 +151,13 @@ class Store:
         self.data["settings"] = {**DEFAULTS, **self.data.get("settings", {})}
         self.data.setdefault("projects", [])
         self.data.setdefault("memory", "")
+        self.data.setdefault("automations", [])
+        for job in self.data['automations']:
+            if job.get('last_state') == 'running':
+                job.update(last_state='interrupted', enabled=False)
+        from .durability import recover
+        for session in self.data["sessions"]:
+            recover(session)
         self.data["settings"].pop("token", None)
         # Old installation had unrestricted execution. Migration defaults to auto.
         for session in self.data.get("sessions", []):

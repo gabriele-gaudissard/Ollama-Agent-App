@@ -23,6 +23,10 @@ class DesktopAPI:
         self._maintenance = threading.Lock()
         self._model_cancel = threading.Event()
         self._model_response = None
+        from .voice import VoiceInput
+        self._voice = VoiceInput(self._store.root)
+        from .scheduling import Scheduler
+        self._scheduler = Scheduler(self)
         with self._store.lock:
             if not self._store.data["settings"]["workspace"]:
                 workspace = self._store.root.parent / "Veynuq Workspace"
@@ -31,6 +35,7 @@ class DesktopAPI:
                 self._store.save()
 
     def _idle(self):
+        if self._voice.busy(): raise RuntimeError('Stop dictation before changing configuration.')
         if self._agent.busy or self._maintenance.locked():
             raise RuntimeError("Attendi la fine dell'attivita' prima di cambiare configurazione.")
 
@@ -39,7 +44,7 @@ class DesktopAPI:
         s["has_provider_token"] = bool(self._store.vault.get("provider"))
         s["has_github_token"] = bool(self._store.vault.get("github"))
         s["data_dir"] = str(self._store.root)
-        s["version"] = "4.0.0"
+        s["version"] = "4.1.0"
         s["recovery_notice"] = self._store.recovery_notice
         return s
 
@@ -47,12 +52,12 @@ class DesktopAPI:
         from .tools import TOOLS
         names = {tool['function']['name'] for tool in TOOLS}
         groups = [
-            ('Files and coding', 'Read, search, edit, run commands and tests, manage Git, clone repositories and restore backups.', {'list_dir','read_file','search_files','write_file','edit_file','make_dir','move_file','delete_file','exec_cmd','git_status','clone_repository','restore_backup'}),
+            ('Files and coding', 'Read, search, edit, run commands and tests, manage Git, clone repositories and restore backups.', {'list_dir','read_file','search_files','write_file','edit_file','make_dir','move_file','delete_file','exec_cmd','git_status','clone_repository','restore_backup','git_worktree','sandbox_changes'}),
             ('Mouse and keyboard', 'Inspect Windows applications, click, double-click, right-click, drag, scroll, type and change keyboard layouts.', {'computer_windows','computer_inspect','computer_action','computer_pointer','keyboard_layout'}),
             ('Web and browser', 'Search, read websites, download files and operate an isolated browser with observed page elements.', {'web_search','read_url','download_file','browser_open','browser_state','browser_action'}),
             ('GitHub', 'Read and update repositories, issues, pull requests, branches and releases.', {'github'}),
             ('Images and documents', 'Inspect image files and read PDF/DOCX documents. Create documents, spreadsheets and charts with project code.', {'view_image','read_document'}),
-            ('Memory and task control', 'Maintain local memory, plan work, ask essential questions and use context from related project chats.', {'save_memory','update_plan','ask_user','read_project_context'}),
+            ('Memory and task control', 'Maintain local memory, plan work, ask essential questions and use context from related project chats.', {'save_memory','update_plan','ask_user','read_project_context','checkpoint_task','load_procedure','delegate_tasks'}),
         ]
         return {'total': len(names), 'groups': [{'name': title,'description': description,'count': len(tools & names)} for title, description, tools in groups]}
 
@@ -62,13 +67,15 @@ class DesktopAPI:
             if not isinstance(values, dict):
                 raise ValueError("Impostazioni non valide.")
             s = self._store.snapshot()["settings"]
-            for key in ("lang", "provider", "url", "model", "permission", "network", "max_steps", "command_timeout", "github_repo", "auto_update", "vision"):
+            for key in ("lang", "provider", "url", "model", "permission", "network", "max_steps", "command_timeout", "github_repo", "auto_update", "vision", "execution_environment"):
                 if key in values:
                     s[key] = values[key]
             if s["provider"] not in {"local", "compatible"} or s["permission"] not in {"always", "auto", "full"}:
                 raise ValueError("Modalita' non valida.")
             if s["lang"] not in {"en", "it", "es", "fr"}:
                 raise ValueError("Supported languages: English, Italian, Spanish, French.")
+            if s['execution_environment'] not in {'host', 'sandbox'}:
+                raise ValueError('Unknown execution environment.')
             if s["permission"] == "full" and values.get("confirm_full") is not True:
                 raise ValueError("Conferma esplicita richiesta per accesso completo.")
             if not isinstance(s["network"], bool) or not isinstance(s.get("auto_update", False), bool):
@@ -155,6 +162,89 @@ class DesktopAPI:
     def get_session(self, session_id):
         return next((s for s in self._store.snapshot()["sessions"] if s["id"] == session_id), None)
 
+    def resume_task(self, session_id):
+        session = self.get_session(session_id)
+        if not session or session.get('task', {}).get('state') not in {'interrupted','failed','cancelled','limit'}:
+            raise ValueError('No interrupted task to resume.')
+        return self._agent.start(session_id, 'Resume the previous task: ' + session['task'].get('goal', '')[:15000] + '\nInspect the actual state and uncertain tool outcomes before retrying. Preserve completed work. Use the saved progress and next steps.', policy=session['task'].get('policy'))
+
+    def get_task_overview(self, session_id):
+        from .workflows import PROCEDURES
+        return {'task': (self.get_session(session_id) or {}).get('task', {}),
+                'procedures': [{'name': n, 'purpose': p[0]} for n, p in PROCEDURES.items()],
+                'automations': [j for j in self._store.snapshot()['automations'] if j['session_id'] == session_id],
+                'sandbox_available': bool(shutil.which('docker'))}
+
+    def review_changes(self, session_id):
+        import difflib
+        session = self.get_session(session_id)
+        if not session: raise ValueError('Choose a chat first.')
+        from .tools import ToolRunner
+        settings = self._store.snapshot()['settings']
+        settings['workspace'] = session.get('workspace') or settings['workspace']
+        runner = ToolRunner(self._store, settings, 'review', threading.Event(), lambda *args: None, lambda *args: False, ROOT, session)
+        try:
+            result = runner.tool_git_status('diff')
+            if not result['exit_code']:
+                # Include staged and new files, which ordinary git diff omits.
+                argv = ['git','--no-optional-locks','-c','core.fsmonitor=false','-c','core.pager=cat']
+                staged = runner.run_process([*argv,'diff','--cached','--no-ext-diff','--no-textconv','--','.',':(exclude)*.env*',':(exclude)*.pem',':(exclude)*.key',':(exclude)*state.json',':(exclude)*codex_data.json'],runner.workspace,20)
+                untracked = runner.run_process([*argv,'ls-files','--others','--exclude-standard','-z'],runner.workspace,20)
+                parts = [result['output'], staged['output']]
+                for name in untracked['output'].split('\0')[:30]:
+                    if not name: continue
+                    try:
+                        target = runner.path(name)
+                        if not target.is_relative_to(runner.workspace) or not target.is_file() or target.stat().st_size>100000: continue
+                        parts.append('\n'.join(difflib.unified_diff([],target.read_text(encoding='utf-8').splitlines(),fromfile='/dev/null',tofile=name)))
+                    except (OSError, ValueError, PermissionError, UnicodeError): continue
+                if runner.sandbox.root:
+                    parts.extend(row['diff'] for row in runner.sandbox.changes())
+                return {'source': 'Git and sandbox', 'diff': redact('\n'.join(parts)[:60000], [self._store.vault.get('provider'), self._store.vault.get('github')])}
+            rows = []
+            for item in self.get_backups()[:30]:
+                try:
+                    target = runner.path(item['path'])
+                    if not target.is_relative_to(runner.workspace) or target.stat().st_size > 500000: continue
+                    before = (self._store.root/'backups'/item['id']).read_text(encoding='utf-8').splitlines()
+                    after = target.read_text(encoding='utf-8').splitlines()
+                    rows.extend(difflib.unified_diff(before, after, fromfile=item['path']+' (backup)', tofile=item['path']))
+                except (OSError, ValueError, UnicodeError): continue
+            if runner.sandbox.root: rows.extend(row['diff'] for row in runner.sandbox.changes())
+            return {'source':'Backups and sandbox', 'diff':redact('\n'.join(rows)[:30000], [self._store.vault.get('provider'), self._store.vault.get('github')])}
+        finally: runner.close()
+
+    def save_automation(self, session_id, prompt, interval_hours=24):
+        import time
+        self._idle()
+        if not self.get_session(session_id) or not isinstance(prompt,str) or not prompt.strip() or len(prompt)>3000:
+            raise ValueError('Choose a chat and provide a concise task.')
+        if type(interval_hours) is not int or not 1 <= interval_hours <= 168:
+            raise ValueError('Choose an interval between 1 and 168 hours.')
+        with self._store.lock:
+            if len(self._store.data['automations']) >= 20: raise ValueError('Maximum 20 local schedules.')
+            job = {'id':uuid.uuid4().hex,'session_id':session_id,'prompt':redact(prompt, [self._store.vault.get('provider'), self._store.vault.get('github')]), 'interval_hours':interval_hours,
+                   'next_run':time.time()+interval_hours*3600,'enabled':True,'last_state':'pending'}
+            self._store.data['automations'].append(job)
+            self._store.save()
+        return job
+
+    def toggle_automation(self, job_id):
+        import time
+        with self._store.lock:
+            job = next((j for j in self._store.data['automations'] if j['id']==job_id),None)
+            if not job: raise ValueError('Schedule not found.')
+            job['enabled'] = not job['enabled']
+            job['next_run'] = time.time()+job['interval_hours']*3600
+            self._store.save()
+        return {'ok':True}
+
+    def remove_automation(self, job_id):
+        with self._store.lock:
+            self._store.data['automations'] = [j for j in self._store.data['automations'] if j['id'] != job_id]
+            self._store.save()
+        return {'ok':True}
+
     def create_session(self):
         with self._agent.lock:
             self._idle()
@@ -180,6 +270,7 @@ class DesktopAPI:
             self._idle()
             with self._store.lock:
                 self._store.data["sessions"] = [s for s in self._store.data["sessions"] if s["id"] != session_id]
+                self._store.data['automations'] = [j for j in self._store.data['automations'] if j['session_id'] != session_id]
                 self._store.save()
             if self._agent.current_session == session_id:
                 self._agent.current_session = ""
@@ -294,6 +385,27 @@ class DesktopAPI:
 
     def get_events(self, after=0):
         return {**self._agent.poll(after), "model_busy": self._maintenance.locked()}
+
+    def voice_status(self):
+        result=self._voice.snapshot()
+        if result.get('text'):
+            result['text']=redact(result['text'],[self._store.vault.get('provider'),self._store.vault.get('github')])
+        return result
+
+    def prepare_voice(self, confirmed=False):
+        if confirmed is not True: raise ValueError('Confirm the speech-model download first.')
+        self._idle()
+        return self._voice.start('prepare')
+
+    def start_voice(self):
+        if self._maintenance.locked():raise RuntimeError('Wait for the download to finish.')
+        return self._voice.start('record')
+
+    def stop_voice(self):
+        return self._voice.stop()
+
+    def cancel_voice(self):
+        return self._voice.cancel()
 
     def stop_run(self):
         return self._agent.stop()
@@ -559,7 +671,7 @@ def main():
         raise RuntimeError("Veynuq e' gia' aperto.")
     if "--self-check" in sys.argv:
         api = DesktopAPI(store)
-        print(json.dumps({"version": "4.0.0", "models": api.get_models(), "data_dir": str(store.root)}))
+        print(json.dumps({"version": "4.1.0", "models": api.get_models(), "data_dir": str(store.root)}))
         return
     if "--install" in sys.argv:
         from .updater import enable_updates
@@ -574,11 +686,14 @@ def main():
     api._window = window
     import faulthandler
     window.events.loaded += faulthandler.cancel_dump_traceback_later
+    window.events.loaded += api._scheduler.start
     def shutdown():
         # pywebview puts callback returns in a set: API dictionaries cannot
         # be returned from an event handler. Closing must also stop downloads.
         api._agent.stop()
         api.cancel_model_action()
+        api._scheduler.stop_event.set()
+        api._voice.close()
     window.events.closing += shutdown
     window.events.closed += shutdown
     webview.start(debug=False, icon=str(ROOT / "assets" / "brand" / "veynuq-dark.ico"))

@@ -26,6 +26,10 @@ Additional runtime components:
 | pypdf | PDF text extraction | BSD-3-Clause |
 | Pillow | Window screenshot encoding | HPND |
 | Playwright | Isolated Edge browser control | Apache-2.0 |
+| faster-whisper | Local speech transcription | MIT |
+| Whisper model by OpenAI, converted by Systran | Separately downloaded multilingual speech weights | MIT |
+| CTranslate2 | CPU speech inference | MIT |
+| sounddevice / PortAudio | Microphone recording | MIT; original notices ship with the installed dependencies |
 | marked | Markdown rendering | MIT; bundled license in assets/vendor |
 | DOMPurify | HTML sanitation | Apache-2.0 or MPL-2.0; bundled license in assets/vendor |
 | highlight.js | Source-code highlighting | BSD-3-Clause; bundled license in assets/vendor |

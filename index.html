@@ -48,7 +48,7 @@
           ><button id="memory">◇ Local memory</button
           ><button id="toolsButton">⌘ Tools</button
           ><button id="settingsButton">⚙ Settings</button>
-          <div class="sub">Desktop agent · v4.0<br />No telemetry</div>
+          <div class="sub">Desktop agent · v4.1<br />No telemetry</div>
         </div>
       </aside>
       <main>
@@ -126,10 +126,13 @@
                 <button id="attach" title="Attach files">+ File</button
                 ><button id="linkFolder">Link folder</button
                 ><button class="chip" id="online">Local only</button>
+                <button id="voiceButton" title="Local voice input">🎙 Speak</button>
+                <button id="cancelVoice" hidden>Cancel dictation</button>
               </div>
               <button class="primary" id="send">Send ↑</button>
             </div>
           </div>
+          <div id="voiceStatus" class="voice-status" role="status" aria-live="polite" hidden></div>
           <div class="hint">
             Enter to send · Shift+Enter for a new line · Verify important
             results
@@ -165,8 +168,34 @@
           <button id="renameChat">Rename</button
           ><button id="exportChat">Export</button
           ><button class="danger" id="deleteChat">Delete chat</button>
+          <button id="taskOverview">Task center</button>
         </div>
       </aside>
+    </div>
+    <div aria-modal="true" class="modal" id="voiceModal" role="dialog">
+      <section class="dialog compact">
+        <h2>Local voice input</h2>
+        <p>Speak instead of typing. The transcript appears in your message box for review and is never sent automatically.</p>
+        <p>The first use downloads a multilingual speech model (about 150 MB). Audio stays on this computer, in memory only. Recording starts only when you press Speak and stops after two minutes at most.</p>
+        <p>After downloading, dictation works offline without an account. Windows must allow this app to access your microphone.</p>
+        <div class="buttons"><button id="prepareVoice">Download speech model</button><button id="closeVoice">Close</button></div>
+      </section>
+    </div>
+    <div aria-modal="true" class="modal" id="taskModal" role="dialog">
+      <section class="dialog">
+        <h2>Task center</h2>
+        <p class="intro">Saved progress, reviewed changes, reusable procedures and read-only schedules.</p>
+        <pre id="taskProgress" class="task-progress"></pre>
+        <div class="settings-bottom"><button id="resumeTask">Resume interrupted task</button><button id="reviewChanges">Review changes</button></div>
+        <pre id="changesPreview" class="task-progress" hidden></pre>
+        <h3>Reusable procedures</h3><div id="procedureList"></div>
+        <h3>Read-only schedules</h3>
+        <p class="sub">Uses the selected model and local project reads only. No commands, file changes, desktop actions or online tools. Runs while the app is open; missed runs resume on the next launch.</p>
+        <label class="field">Scheduled task<textarea id="automationPrompt" maxlength="3000" placeholder="Review the project and report meaningful changes."></textarea></label>
+        <label class="field">Repeat every (hours)<input id="automationHours" type="number" min="1" max="168" value="24" /></label>
+        <button id="createAutomation">Create schedule</button><div id="automationList"></div>
+        <div class="settings-bottom"><button id="closeTasks">Close</button></div>
+      </section>
     </div>
     <div aria-modal="true" class="modal" id="toolsModal" role="dialog">
       <section class="dialog">
@@ -302,7 +331,8 @@
                 Full access — run without confirmations
               </option>
             </select></label
-          ><label class="check full-width" id="fullConfirm"
+          ><label class="field full-width">Command environment<select id="executionEnvironment"><option value="host">Windows host — your account permissions</option><option value="sandbox">Offline sandbox — disposable project copy</option></select><small>Sandbox requires Docker and a cached python:3.13-slim image. It never falls back to host execution. Review and apply sandbox changes separately.</small></label>
+          <label class="check full-width" id="fullConfirm"
             ><input id="fullConsent" type="checkbox" /><span
               >I confirm full access. Commands can read, change and delete files
               with my account privileges. This is not an operating-system

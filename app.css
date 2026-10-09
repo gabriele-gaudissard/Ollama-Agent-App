@@ -432,6 +432,10 @@ details pre {
   overflow: auto;
   box-shadow: 0 30px 100px #0009;
 }
+.task-progress { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow: auto; padding: 14px; background: #0b1018; border-radius: 10px; font-size: 12px; }
+.schedule-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid #293242; }
+.schedule-row span { flex: 1; overflow-wrap: anywhere; }
+#procedureList { display: flex; flex-wrap: wrap; gap: 8px; }
 .dialog h2 {
   margin: 0 0 8px;
   font-size: 23px;
@@ -913,3 +917,12 @@ summary:focus-visible {
   font-size: 15px;
   margin: 8px 0;
 }
+
+.diff-add { color: #7ed4a3; }
+.diff-remove { color: #f59b9b; }
+.schedule-row { flex-wrap: wrap; }
+.schedule-row span { min-width: 180px; }
+
+.voice-status { font-size: 12px; color: var(--muted); padding: 8px 5px; }
+#voiceButton.recording { color: #ffb3b3; border-color: #c45151; background: #522a30; }
+.composer-actions .left { flex-wrap: wrap; }

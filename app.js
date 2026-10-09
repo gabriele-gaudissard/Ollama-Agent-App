@@ -21,6 +21,7 @@ let lastSeq = 0,
   streamText = "",
   approvalId = "",
   updateReady = false;
+let voiceActive = false, voicePhase = 'idle', voiceSession = '', voiceTimer = null, voicePolling = false, voiceGeneration = 0;
 let explorerPath = ".",
   selectedFile = "",
   previewLine = 1,
@@ -406,6 +407,7 @@ function renderSessions() {
   }
 }
 async function loadSession(id) {
+  if (voiceActive && id !== voiceSession) await cancelDictation();
   const request = ++sessionLoad;
   const s = await call("get_session", id);
   if (!s || request !== sessionLoad) return;
@@ -493,6 +495,7 @@ function showWorkspace(path) {
   $("workspace").title = path;
 }
 async function send() {
+  if (voiceActive) { toast('Finish or cancel dictation before sending.'); return; }
   if (busy && activeSession && activeSession !== sessionId) {
     await loadSession(activeSession);
     return;
@@ -658,7 +661,7 @@ async function poll() {
     if (result.approval) showApproval(result.approval);
     if (result.question) showQuestion(result.question);
     modelBusy = !!result.model_busy;
-    if (!result.busy && updateReady) {
+    if (!result.busy && !voiceActive && updateReady) {
       updateReady = false;
       await call("apply_update");
     }
@@ -668,6 +671,114 @@ async function poll() {
     polling = false;
   }
 }
+async function showTaskCenter() {
+  if (!sessionId) throw Error(ui('Choose a chat first.'));
+  const overview = await call('get_task_overview', sessionId);
+  const task = overview.task;
+  $('taskProgress').textContent = task.state ? [ui('Task state') + ': ' + ui(task.state), task.goal, task.progress, task.next_steps].filter(Boolean).join('\n\n') : ui('No saved task progress yet.');
+  $('resumeTask').disabled = busy || !['interrupted','failed','cancelled','limit'].includes(task.state);
+  $('reviewChanges').disabled = busy;
+  $('createAutomation').disabled = busy;
+  $('changesPreview').hidden = true;
+  $('procedureList').replaceChildren();
+  for (const procedure of overview.procedures) {
+    const button = document.createElement('button');
+    button.textContent = ui(procedure.purpose);
+    button.addEventListener('click', () => {
+      $('prompt').value = ui('Use procedure {name} to ').replace('{name}', procedure.name);
+      close('taskModal'); $('prompt').focus(); updateSendButton();
+    });
+    $('procedureList').append(button);
+  }
+  $('automationList').replaceChildren();
+  for (const job of overview.automations) {
+    const row = document.createElement('div'); row.className = 'schedule-row';
+    const text = document.createElement('span'); text.textContent = job.prompt + ' · ' + job.interval_hours + 'h · ' + ui(job.last_state);
+    const button = document.createElement('button'); button.textContent = ui(job.enabled ? 'Pause schedule' : 'Enable schedule');
+    button.addEventListener('click', () => call('toggle_automation', job.id).then(showTaskCenter).catch(e => toast(e.message)));
+    const remove = document.createElement('button'); remove.textContent = ui('Remove schedule');
+    remove.addEventListener('click', () => {
+      if (window.confirm(ui('Remove this schedule?'))) call('remove_automation', job.id).then(showTaskCenter).catch(e => toast(e.message));
+    });
+    row.append(text, button, remove); $('automationList').append(row);
+  }
+  open('taskModal'); $('taskModal').querySelector('.dialog').scrollTop = 0;
+}
+function voiceControls(state) {
+  voicePhase = state;
+  voiceActive = ['downloading','starting','recording','transcribing'].includes(state);
+  $('voiceButton').textContent = ui(state === 'recording' ? 'Stop recording' : '🎙 Speak');
+  $('voiceButton').disabled = voiceActive && state !== 'recording';
+  $('voiceButton').classList.toggle('recording', state === 'recording');
+  $('cancelVoice').hidden = !voiceActive;
+  $('voiceStatus').hidden = !voiceActive;
+}
+async function pollVoice() {
+  if (voicePolling || !voiceActive) return;
+  voicePolling = true;
+  const generation = voiceGeneration;
+  try {
+    const status = await call('voice_status');
+    if (generation !== voiceGeneration) return;
+    voiceControls(status.state);
+    if (status.state === 'recording') {
+      const elapsed = Math.max(0, Math.floor(Date.now()/1000 - status.started_at));
+      $('voiceStatus').textContent = ui('Recording locally') + ' · ' + elapsed + 's / 120s';
+    } else $('voiceStatus').textContent = ui(status.state === 'downloading' ? 'Downloading speech model…' : status.state === 'transcribing' ? 'Transcribing locally…' : 'Preparing microphone…');
+    if (status.state === 'completed') {
+      if (sessionId === voiceSession && status.text) {
+        $('prompt').value += ($('prompt').value.trim() ? '\n' : '') + status.text;
+        $('prompt').dispatchEvent(new Event('input'));
+        $('prompt').focus();
+        toast(status.audio_overflow ? 'Transcription ready. Audio gaps were detected; review the text.' : 'Transcription ready. Review it before sending.');
+      } else toast('No speech detected. Try speaking clearly near the microphone.');
+      await call('cancel_voice');
+    }
+    if (status.state === 'ready') toast('Speech model ready. Press Speak to start.');
+    if (status.state === 'error') toast(status.error || 'Local dictation failed. Check the microphone and retry.');
+    if (!voiceActive) { clearInterval(voiceTimer); voiceTimer = null; }
+  } catch (error) { await cancelDictation(); toast(error.message); }
+  finally { voicePolling = false; }
+}
+async function cancelDictation() {
+  voiceGeneration++;
+  clearInterval(voiceTimer); voiceTimer = null;
+  voiceControls('idle');
+  await call('cancel_voice');
+}
+function watchVoice(state) {
+  voiceGeneration++;
+  voiceControls(state); clearInterval(voiceTimer);
+  voiceTimer = setInterval(pollVoice, 400);
+}
+action('voiceButton', async () => {
+  if (voicePhase === 'recording') { await call('stop_voice'); voiceControls('transcribing'); return; }
+  if (busy && activeSession && activeSession !== sessionId) { toast('Return to the active chat before dictating a follow-up.'); return; }
+  const status = await call('voice_status');
+  if (!status.ready) { open('voiceModal'); return; }
+  voiceSession = sessionId;
+  await call('start_voice'); watchVoice('starting');
+});
+action('cancelVoice', cancelDictation);
+action('closeVoice', () => close('voiceModal'));
+action('prepareVoice', async () => { await call('prepare_voice', true); close('voiceModal'); watchVoice('downloading'); });
+
+action('taskOverview', showTaskCenter);
+action('closeTasks', () => close('taskModal'));
+action('resumeTask', async () => { await call('resume_task', sessionId); close('taskModal'); activeSession = sessionId; setBusy(true); });
+action('reviewChanges', async () => {
+  const result = await call('review_changes', sessionId);
+  $('changesPreview').replaceChildren();
+  for (const line of (result.diff || ui('No changes found.')).split('\n')) {
+    const span = document.createElement('span'); span.textContent = line + '\n';
+    if (line.startsWith('+')) span.className = 'diff-add';
+    if (line.startsWith('-')) span.className = 'diff-remove';
+    $('changesPreview').append(span);
+  }
+  $('changesPreview').hidden = false;
+});
+action('createAutomation', async () => { await call('save_automation', sessionId, $('automationPrompt').value, Number($('automationHours').value)); $('automationPrompt').value = ''; await showTaskCenter(); });
+
 async function showSettings() {
   settings = await call("get_settings");
   $("language").value = settings.lang;
@@ -681,6 +792,7 @@ async function showSettings() {
     ["maxSteps", "max_steps"],
     ["timeout", "command_timeout"],
     ["githubRepo", "github_repo"],
+    ["executionEnvironment", "execution_environment"],
   ])
     $(id).value = settings[key];
   $("network").checked = settings.network;
@@ -733,6 +845,7 @@ async function saveSettings() {
     max_steps: Number($("maxSteps").value),
     command_timeout: Number($("timeout").value),
     github_repo: $("githubRepo").value.trim(),
+    execution_environment: $("executionEnvironment").value || 'host',
     provider_token: $("providerToken").value,
     github_token: $("githubToken").value,
     confirm_full: $("fullConsent").checked,

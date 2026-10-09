@@ -30,6 +30,7 @@ def schema(name, description, properties, required=()):
 S = {"type": "string"}
 I = {"type": "integer"}
 B = {"type": "boolean"}
+READ_ONLY = {'list_dir','read_file','search_files','read_document','git_status','update_plan','load_procedure','checkpoint_task'}
 TOOLS = [
     schema("list_dir", "List workspace directory entries, without following links.", {"path": S}, ["path"]),
     schema("read_file", "Read a UTF-8 file with line numbers; use pagination for large files.", {"path": S, "start_line": I, "end_line": I}, ["path"]),
@@ -39,7 +40,12 @@ TOOLS = [
     schema("make_dir", "Create a workspace directory.", {"path": S}, ["path"]),
     schema("move_file", "Move/rename one file, no overwrite. Both paths need permission.", {"path": S, "destination": S}, ["path", "destination"]),
     schema("delete_file", "Delete one regular file after making a recoverable backup. No recursive deletion.", {"path": S}, ["path"]),
-    schema("exec_cmd", "Execute a shell command, tests or Git. Commands run with host user permissions, not in an OS sandbox. Needs approval except in full access.", {"command": S, "cwd": S, "timeout": I}, ["command"]),
+    schema("exec_cmd", "Execute a command. Host mode uses PowerShell with Windows user permissions; sandbox mode uses offline Linux sh on a disposable copy. Sandbox edits must be reviewed/applied separately. Needs approval except in full access.", {"command": S, "cwd": S, "timeout": I}, ["command"]),
+    schema('checkpoint_task', 'Save concise progress, decisions, verification evidence and next steps for resuming a long task. Never store credentials.', {'progress': S, 'next_steps': S}, ['progress','next_steps']),
+    schema('load_procedure', 'List built-in reusable workflows or load one by name: coding, desktop, repository, review, documents.', {'name': S}),
+    schema('delegate_tasks', 'Investigate up to three independent questions in parallel. Subagents can only read/search the selected project; they cannot edit, execute commands, use the desktop or ask for accounts.', {'tasks': {'type':'array','items': S}}, ['tasks']),
+    schema('git_worktree', 'List worktrees or create an isolated branch inside a generated sibling folder. Does not merge or delete worktrees. Requires a clean committed repository for creation.', {'action': {'type':'string','enum':['list','create']}}, ['action']),
+    schema('sandbox_changes', 'Review changes made in the offline sandbox, or apply them after checking unchanged host hashes and making backups.', {'action': {'type':'string','enum':['review','apply']}}, ['action']),
     schema("git_status", "Read status/diff/log through fixed Git arguments; no arbitrary Git flags.", {"view": {"type": "string", "enum": ["status", "diff", "log"]}}, ["view"]),
     schema("web_search", "Search DuckDuckGo, with Bing fallback, and return titles, URLs and snippets.", {"query": S}, ["query"]),
     schema("read_url", "Read public HTTP(S) documentation. Private network targets are blocked.", {"url": S}, ["url"]),
@@ -63,7 +69,6 @@ TOOLS = [
     schema("browser_action", "Act on an element returned by browser_open/state. Type literal text, click, select an option, send an allowed key, or scroll up/down using text. Returns a fresh page observation. Never submit secrets or perform unrelated external actions.", {"snapshot_id": S, "index": I, "action": {"type": "string", "enum": ["click", "type", "select", "key", "scroll"]}, "text": S}, ["snapshot_id", "index", "action"]),
 ]
 SPECS = {t["function"]["name"]: t["function"]["parameters"] for t in TOOLS}
-READ_ONLY = {"list_dir", "read_file", "search_files", "git_status"}
 WRITE = {"write_file", "edit_file", "make_dir", "move_file", "delete_file", "download_file"}
 SKIP = {".git", "node_modules", ".venv", "venv", "__pycache__", ".ssh", ".aws", ".azure", ".codex", ".veyq", "dist", "build"}
 
@@ -121,6 +126,9 @@ class ToolRunner:
         self.computer = Computer(store.root)
         from .browser import Browser
         self.browser = Browser(store.root, cancel)
+        from .sandbox import Sandbox
+        self.sandbox = Sandbox(self)
+        self.child_clients = []
 
     def path(self, value):
         raw = Path(value)
@@ -154,7 +162,7 @@ class ToolRunner:
             raise PermissionError("Accesso online disattivato nelle impostazioni.")
         # A shell has unrestricted host privileges; with offline tools enabled it
         # could still reach the network. Refuse it unless network is enabled.
-        if name in {"exec_cmd", "computer_windows", "computer_inspect", "computer_action", "computer_pointer"} and not self.settings["network"]:
+        if name in {"exec_cmd", "computer_windows", "computer_inspect", "computer_action", "computer_pointer"} and not self.settings["network"] and not (name == 'exec_cmd' and self.settings.get('execution_environment') == 'sandbox'):
             raise PermissionError("Terminale disabilitato mentre la rete e' spenta: i comandi non sono isolati dal sistema.")
         outside = any(not p.is_relative_to(self.workspace) for p in paths)
         app_write = name in WRITE and any(p.is_relative_to(self.app_root) or ".git" in p.parts for p in paths)
@@ -164,6 +172,10 @@ class ToolRunner:
             return True, "Modalita': chiedi sempre"
         if name == "keyboard_layout" and args.get("action") == "set":
             return True, "Modifica delle impostazioni di tastiera Windows"
+        if name == 'git_worktree' and args.get('action') == 'create' or name == 'sandbox_changes' and args.get('action') == 'apply':
+            return True, 'Apply reviewed changes or create an isolated coding branch'
+        if name == 'delegate_tasks':
+            return True, 'Parallel read-only investigations using the selected model'
         if outside:
             return True, "Accesso fuori dal progetto"
         if app_write:
@@ -178,6 +190,8 @@ class ToolRunner:
 
     def preview(self, name, args, paths):
         result = {"tool": name, "arguments": args, "workspace": str(self.workspace)}
+        if name == 'sandbox_changes' and args.get('action') == 'apply':
+            result['changes'] = self.sandbox.changes()
         if name in {"write_file", "edit_file"} and paths:
             if paths[0].exists() and paths[0].stat().st_size > 500000:
                 raise ValueError("File troppo grande per l'anteprima (500 KB).")
@@ -189,10 +203,14 @@ class ToolRunner:
     def execute(self, name, args):
         digest = ""
         try:
+            if self.settings.get('_read_only') and name not in READ_ONLY:
+                raise PermissionError('This activity is read-only. Commands, mutations, online tools and desktop input are disabled.')
             if name not in SPECS:
                 raise ValueError(f"Strumento sconosciuto: {name}")
             validate(args, SPECS[name])
             paths = [self.path(args[k]) for k in ("path", "destination", "cwd") if k in args]
+            if self.settings.get('_read_only') and any(not p.is_relative_to(self.workspace) for p in paths):
+                raise PermissionError('Read-only activities cannot access files outside the selected project.')
             needs, reason = self.decision(name, args, paths)
             digest = hashlib.sha256(json.dumps([name, args], sort_keys=True).encode()).hexdigest()
             if self.cancel.is_set():
@@ -204,6 +222,8 @@ class ToolRunner:
                 if not self.approve(preview):
                     self.store.audit(self.run_id, name, "denied", digest)
                     return {"ok": False, "error": "L'utente ha negato l'azione. Non riproporla tramite altri strumenti."}
+                if name == 'sandbox_changes' and args.get('action') == 'apply' and self.sandbox.changes() != preview['changes']:
+                    raise PermissionError('Sandbox changes changed during approval; application cancelled.')
                 if name in WRITE and paths:
                     after_hash = hashlib.sha256(paths[0].read_bytes()).hexdigest() if paths[0].is_file() else None
                     if before_hash != after_hash:
@@ -216,7 +236,7 @@ class ToolRunner:
                 raise PermissionError("Percorso cambiato durante l'approvazione. Riprovare.")
             self.emit("tool_start", {"tool": name, "arguments": args, "reason": reason})
             result = getattr(self, "tool_" + name)(**args)
-            failed = name in {"exec_cmd", "clone_repository", "git_status"} and result.get("exit_code", 0) != 0
+            failed = name in {"exec_cmd", "clone_repository", "git_status", "git_worktree"} and result.get("exit_code", 0) != 0
             envelope = {"ok": not failed, "result": result}
             if failed:
                 envelope["error"] = "Command failed. Inspect exit_code/output, fix the cause and retry; do not claim success."
@@ -490,6 +510,9 @@ class ToolRunner:
 
     def close(self):
         self.stop_process()
+        self.sandbox.stop()
+        from .engine import interrupt_response
+        for client in list(self.child_clients): interrupt_response(client.response)
         self.browser.stop()
         self.computer.close()
 
@@ -511,6 +534,12 @@ class ToolRunner:
                     if os.fstat(output.fileno()).st_size > 2_000_000:
                         self.stop_process()
                         raise ValueError("Output del comando oltre 2 MB: processo interrotto.")
+                    if self.sandbox.container:
+                        try: self.sandbox.check_size()
+                        except Exception:
+                            self.stop_process()
+                            self.sandbox.stop()
+                            raise
                 self.process.wait(timeout=10)
                 output.seek(0)
                 text = output.read(30000).decode("utf-8", errors="replace")
@@ -526,6 +555,8 @@ class ToolRunner:
             raise ValueError("Comando vuoto o troppo lungo.")
         timeout = 0 if self.settings["command_timeout"] == 0 else max(1, min(timeout or self.settings["command_timeout"], self.settings["command_timeout"], 600))
         start = self.cwd if cwd == "." else self.path(cwd)
+        if self.settings.get('execution_environment') == 'sandbox':
+            return self.sandbox.execute(command, start, timeout)
         # Each shell is isolated; a side channel persists its final filesystem cwd.
         # The marker path is generated by the backend, never interpolated user text.
         with tempfile.TemporaryDirectory(prefix="veyq-cwd-") as temp:
@@ -550,6 +581,34 @@ class ToolRunner:
                             self.store.save()
             result["cwd"] = str(self.cwd)
             return result
+
+    def tool_checkpoint_task(self, progress, next_steps):
+        from .durability import checkpoint
+        from .storage import redact
+        if len(progress) > 5000 or len(next_steps) > 3000:
+            raise ValueError('Keep progress and next steps concise.')
+        secrets = [self.store.vault.get('provider'), self.store.vault.get('github')]
+        with self.store.lock:
+            checkpoint(self.session, 'running', progress=redact(progress, secrets), next_steps=redact(next_steps, secrets))
+            self.store.save()
+        return {'saved': True}
+
+    def tool_load_procedure(self, name=''):
+        from .workflows import PROCEDURES
+        if not name: return [{'name': n, 'purpose': p[0]} for n, p in PROCEDURES.items()]
+        if name not in PROCEDURES: raise ValueError('Unknown procedure. List available procedures first.')
+        return {'name': name, 'instructions': PROCEDURES[name][1]}
+
+    def tool_delegate_tasks(self, tasks):
+        from .workflows import investigate
+        return investigate(self, tasks)
+
+    def tool_git_worktree(self, action):
+        from .workflows import worktree
+        return worktree(self, action)
+
+    def tool_sandbox_changes(self, action):
+        return self.sandbox.apply() if action == 'apply' else self.sandbox.changes()
 
     def tool_git_status(self, view):
         options = {"status": ["status", "--short", "--branch"],
