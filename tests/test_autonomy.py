@@ -217,6 +217,24 @@ class Autonomy(unittest.TestCase):
         self.agent_run([call('write_file',path='proof.txt',content='actual'),call('read_file',path='proof.txt'),{'role':'assistant','content':'Verified'}])
         self.assertEqual(self.agent.state,'completed');self.assertIn('actual',self.session['history'][-2]['content'])
 
+    def test_task_updates_keep_stable_prefix_and_latest_verification_status(self):
+        import copy
+        contexts=[]
+        replies=iter([call('write_file',path='proof.txt',content='actual'),call('read_file',path='proof.txt'),{'role':'assistant','content':'Verified'}])
+        def chat(messages):
+            contexts.append(copy.deepcopy(messages))
+            return next(replies)
+        with patch.object(ModelClient,'chat',side_effect=chat):
+            self.agent.start(self.sid,'Create proof.txt')
+            self.agent.worker.join(5)
+        self.assertFalse(self.agent.busy)
+        self.assertEqual(self.agent.state,'completed')
+        self.assertEqual(len({context[0]['content'] for context in contexts}),1)
+        statuses=[next(m['content'] for m in context if m['content'].startswith('Application-generated status')) for context in contexts]
+        self.assertIn('proof.txt',statuses[1])
+        self.assertIn('"kind": "file"',statuses[1])
+        self.assertIn('"verification": []',statuses[2])
+
     def test_successful_repeated_observations_remain_available(self):
         (self.workspace/'proof.txt').write_text('actual')
         self.agent_run([call('read_file',path='proof.txt') for _ in range(4)]+[{'role':'assistant','content':'No changes'}]*3)
