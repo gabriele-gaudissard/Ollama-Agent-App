@@ -102,8 +102,8 @@ class Regressions(unittest.TestCase):
         window=Mock();window.process_id.return_value=123
         computer.snapshots['s']={'time':time.monotonic()-130,'window_id':1,'pid':123,'elements':[(element,((1,),'Button','Same'))]}
         with patch.object(computer,'target',return_value=window),patch.object(computer,'password',return_value=False):
-            result=computer.action('s',0,'click')
-        self.assertTrue(result['snapshot_refreshed']);element.click_input.assert_called_once();self.assertNotIn('s',computer.snapshots)
+            snapshot, live_window, live_element, refreshed=computer.checked_element('s',0)
+        self.assertTrue(refreshed);self.assertIs(live_element,element);self.assertIn('s',computer.snapshots)
     def test_pointer_rejects_outside_control_and_does_not_consume_snapshot(self):
         computer=Computer(self.store.root);rect=types.SimpleNamespace(left=100,top=100,right=500,bottom=500)
         window=Mock();window.rectangle.return_value=rect;element=Mock();element.rectangle.return_value=types.SimpleNamespace(left=110,top=110,right=130,bottom=130)

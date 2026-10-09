@@ -15,6 +15,7 @@ const settings={lang:"en",model:"qwen3:14b",provider:"local",permission:"auto",n
 w.matchMedia=()=>({matches:true});w.confirm=()=>true;w.prompt=()=>"Renamed";
 Object.defineProperty(w.navigator,"clipboard",{value:{writeText:async text=>calls.push(["clipboard",text])}});
 const api={
+ get_tool_catalog:async()=>({total:30,groups:[{name:'Mouse and keyboard',description:'Inspect Windows applications, click, double-click, right-click, drag, scroll, type and change keyboard layouts.',count:5}]}),
  delete_session:async id=>{calls.push(["delete",id]);const i=chatRows.findIndex(s=>s.id===id);if(i>=0)chatRows.splice(i,1);},
  create_session:async()=>{calls.push(["create"]);const id="created";chatRows.push({id,title:"New activity",untitled:true,project_id:""});return id;},
  get_settings:async()=>({...settings}),get_sessions:async()=>chatRows,get_projects:async()=>[{id:"project-one",name:"Project one"}],
@@ -53,6 +54,8 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,30));
  assert.equal(document.getElementById("githubToken").placeholder,"Token with access to the repositories you need");
  for(const lang of ["it","es","fr"]){w.VeyqI18N.setLanguage(lang);await tick();assert.notEqual(document.getElementById("providerToken").placeholder,"Token (optional for the local engine)");}
  w.VeyqI18N.setLanguage("en");await tick();
+ await w.showTools();assert.match(document.getElementById('toolCatalog').textContent,/Mouse and keyboard/);w.close('toolsModal');
+ w.VeyqI18N.setLanguage('it');await tick();await w.showTools();assert.match(document.getElementById('toolCatalog').textContent,/Mouse e tastiera/);assert.doesNotMatch(document.getElementById('toolCatalog').textContent,/Inspect Windows/);w.close('toolsModal');w.VeyqI18N.setLanguage('en');await tick();
  assert.equal(document.getElementById("providerToken").placeholder,"Token (optional for the local engine)");
  settings.has_provider_token=true;settings.has_github_token=true;await w.showSettings();await tick();
  assert.equal(document.getElementById("providerToken").placeholder,"Saved in vault; leave blank to keep it");
