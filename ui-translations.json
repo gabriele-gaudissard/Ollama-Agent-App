@@ -2339,6 +2339,26 @@
       "it": "Connessione al modello interrotta. Riprovo la risposta attuale; le azioni già eseguite non verranno ripetute.",
       "es": "Conexión al modelo interrumpida. Reintentando la respuesta actual; las acciones realizadas no se repetirán.",
       "fr": "Connexion au modèle interrompue. Nouvelle tentative de la réponse actuelle ; les actions terminées ne seront pas répétées."
+    },
+    "Parallel coding started on separate project copies.": {
+      "it": "Coding parallelo avviato su copie separate del progetto.",
+      "es": "Programación paralela iniciada en copias separadas del proyecto.",
+      "fr": "Programmation parallèle démarrée sur des copies séparées du projet."
+    },
+    "Review coding proposal": {
+      "it": "Rivedi proposta di codice",
+      "es": "Revisar propuesta de código",
+      "fr": "Examiner la proposition de code"
+    },
+    "applied": {
+      "it": "applicata",
+      "es": "aplicada",
+      "fr": "appliquée"
+    },
+    "Pending observations: {count}": {
+      "it": "Osservazioni da completare: {count}",
+      "es": "Observaciones pendientes: {count}",
+      "fr": "Observations en attente : {count}"
     }
   },
   "legacy": {

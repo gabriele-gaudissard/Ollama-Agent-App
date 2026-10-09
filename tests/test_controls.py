@@ -95,7 +95,7 @@ class ControlTests(unittest.TestCase):
         element.click_input.assert_not_called()
     def test_followup_after_action_still_requires_new_requested_action(self):
         contexts=[]
-        replies=[{'role':'assistant','content':'','tool_calls':[{'id':'a','function':{'name':'write_file','arguments':{'path':'first.txt','content':'first'}}}]},{'role':'assistant','content':'First done.'},{'role':'assistant','content':'You can write second.txt yourself.'},{'role':'assistant','content':'','tool_calls':[{'id':'b','function':{'name':'write_file','arguments':{'path':'second.txt','content':'second'}}}]},{'role':'assistant','content':'','tool_calls':[{'id':'verify','function':{'name':'read_file','arguments':{'path':'second.txt'}}}]},{'role':'assistant','content':'Both written.'}]
+        replies=[{'role':'assistant','content':'','tool_calls':[{'id':'a','function':{'name':'write_file','arguments':{'path':'first.txt','content':'first'}}}]},{'role':'assistant','content':'First done.'},{'role':'assistant','content':'You can write second.txt yourself.'},{'role':'assistant','content':'','tool_calls':[{'id':'b','function':{'name':'write_file','arguments':{'path':'second.txt','content':'second'}}}]},{'role':'assistant','content':'','tool_calls':[{'id':'verify','function':{'name':'read_file','arguments':{'path':'second.txt'}}},{'id':'verifyfirst','function':{'name':'read_file','arguments':{'path':'first.txt'}}}]},{'role':'assistant','content':'Both written.'}]
         original=self.agent._drain_followups;injected=[]
         def drain(session):
             if len(contexts)==2 and not injected:

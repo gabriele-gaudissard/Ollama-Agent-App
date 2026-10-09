@@ -20,7 +20,8 @@ const api={
  prepare_windows_sandbox:async id=>{calls.push(['prepareSandbox',id]);return {configuration:'C:\\Demo\\Veynuq.wsb'};},
  preview_generated_image:async(id,artifact)=>{calls.push(['previewArtifact',id,artifact]);return {path:'C:\\Demo\\proof.png',data_url:'data:image/png;base64,iVBORw0KGgo='};},
  voice_status:async()=>voiceState,start_voice:async()=>{calls.push(['startVoice']);voiceState={state:'recording',ready:true,started_at:Date.now()/1000};},stop_voice:async()=>{calls.push(['stopVoice']);voiceState={state:'completed',ready:true,text:'Dictated message'};},cancel_voice:async()=>{calls.push(['cancelVoice']);voiceState={state:'idle',ready:true};},prepare_voice:async()=>calls.push(['prepareVoice']),
- get_task_overview:async()=>({windows_sandbox_available:false,background_enabled:false,artifacts:[{id:'artifact-one',name:'<img src=x onerror=alert(1)>.png'}],task:{state:'unverified',goal:'<img src=x onerror=alert(1)>',progress:'Verified a file',next_steps:'Read it again'},procedures:[{name:'coding',purpose:'Implement and verify code'}],automations:[{id:'job',prompt:'<script>unsafe</script>',interval_hours:24,enabled:true,last_state:'pending'}]}),
+ get_task_overview:async()=>({windows_sandbox_available:false,background_enabled:false,proposals:[{id:'proposal-one',goal:'<img src=x onerror=alert(1)>',state:'completed'}],artifacts:[{id:'artifact-one',name:'<img src=x onerror=alert(1)>.png'}],task:{state:'unverified',goal:'<img src=x onerror=alert(1)>',progress:'Verified a file',next_steps:'Read it again',verification:[{kind:'file',target:'pending.py'}]},procedures:[{name:'coding',purpose:'Implement and verify code'}],automations:[{id:'job',prompt:'<script>unsafe</script>',interval_hours:24,enabled:true,last_state:'pending'}]}),
+ review_proposal:async(...args)=>{calls.push(['reviewProposal',...args]);return {diff:'+<img src=x onerror=alert(1)>'};},
  review_changes:async()=>({diff:'-old\n+<img src=x onerror=alert(1)>\n'}),
  resume_task:async id=>calls.push(['resume',id]),save_automation:async(...args)=>calls.push(['schedule',...args]),
  toggle_automation:async id=>calls.push(['toggleSchedule',id]),remove_automation:async id=>calls.push(['removeSchedule',id]),
@@ -77,6 +78,12 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,30));
  assert.equal(document.getElementById('resumeTask').disabled,false);
  assert.match(document.getElementById('taskProgress').textContent,/<img/);
  assert.equal(document.querySelector('#taskProgress img'),null);
+ assert.match(document.getElementById('taskProgress').textContent,/Pending observations: 1/);
+ assert.equal(document.querySelector('#codingProposals img'),null);
+ document.querySelector('#codingProposals button').click();await tick();
+ assert.deepEqual(calls.find(c=>c[0]==='reviewProposal'),['reviewProposal','demo','proposal-one']);
+ assert.equal(document.querySelector('#changesPreview img'),null);
+ assert.match(document.getElementById('changesPreview').textContent,/<img/);
  assert.equal(document.querySelector('#generatedArtifacts img'),null);
  document.querySelector('#generatedArtifacts button').click();await tick();
  assert.deepEqual(calls.find(c=>c[0]==='previewArtifact'),['previewArtifact','demo','artifact-one']);
